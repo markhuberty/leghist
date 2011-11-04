@@ -1,0 +1,47 @@
+* Design notes
+1. Conceptual framework:
+   For a piece of legislation L that goes through V versions L_v, and is
+   subject to A proposed amendments, we would like to know how that
+   legislation changes across the legislative cycle, which amendments
+   were adopted, and whether they represent changes to substantive or
+   administrative aspects of the law (i.e., what the law is intended
+   to accomplish, versus how it should accomplish it). 
+2. Automating this process would ideally return, for any two versions
+   L_1 and L_2, several pieces of information:
+   + A mapping of the sections of L_1 to their new location in L_2
+   + A probabilistic indicator of the confidence of the map
+   + A summary of the new content added
+   + A summary of the content taken away
+   + An indication of whether the changes were substantive or
+     administrative
+3. This implies several procedural steps:
+   + Convert legislation to plain text and strip out any unnecessary information
+   + Separate plain text into a set of individual "documents" that are
+     at a sufficient level of granularity (paragraphs, perhaps?)
+   + Do this for all versions to be compared
+   + Construct a pairwise distance measure between each "document" in
+     version 1 and each "document" in version 2
+   + Select the "most likely" match and return it with a probability score
+   + If amendments are provided, compare "not found" or low-prob match
+     sections with amendments and return most likely amendment for
+     that section
+   + Return the original document, the matched sections of the new
+     document
+   + Run a topic model on stuff excluded from V1 in V2, new stuff in
+     V2, amendments rejected, amendments accepted. 
+   + Classify changes as substantive or administrative--perhaps based
+     on a curated word list that would do well for administrative
+     (i.e. "report" "enforce" "monitor" "transpose", etc)
+* Unknowns:
+  1. Correct distance measure
+  2. Probabilistic measure--what's the probability derived from?
+  3. What's the input to the topic model--the amendments themselves,
+     the portions that were included / excluded, etc?
+  4. How should classification be presented?
+
+* TODO See Lee et al, "An Empirical Evaluation of Models of Text Document Similarity" for weighting /distance
+
+* TODO LSA models for document similarity in R, the LSA package at CRAN: http://cran.r-project.org/web/packages/lsa/lsa.pdf
+
+
+

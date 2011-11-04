@@ -1,0 +1,60 @@
+% Created 2011-11-02 Wed 08:53
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{soul}
+\usepackage{t1enc}
+\usepackage{textcomp}
+\usepackage{marvosym}
+\usepackage{wasysym}
+\usepackage{latexsym}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\tolerance=1000
+\providecommand{\alert}[1]{\textbf{#1}}
+
+\title{design}
+\author{Mark Huberty}
+\date{02 November 2011}
+
+\begin{document}
+
+\maketitle
+
+\setcounter{tocdepth}{3}
+\tableofcontents
+\vspace*{1cm}
+\section{Design notes}
+\label{sec-1}
+
+\begin{enumerate}
+\item Conceptual framework:
+   For a piece of legislation L that goes through V versions L$_v$, and is
+   subject to A proposed amendments, we would like to know how that
+   legislation changes across the legislative cycle, which amendments
+   were adopted, and whether they represent changes to substantive or
+   administrative aspects of the law (i.e., what the law is intended
+   to accomplish, versus how it should accomplish it).
+\item Automating this process would ideally return, for any two versions
+   L$_1$ and L$_2$, several pieces of information:
+
+\begin{itemize}
+\item A mapping of the sections of L$_1$ to their new location in L$_2$
+\item A probabilistic indicator of the confidence of the map
+\item A summary of the new content added
+\item A summary of the content taken away
+\item An indication of whether the changes were substantive or
+     administrative
+\end{itemize}
+
+\item 
+\end{enumerate}
+
+   
+
+\end{document}

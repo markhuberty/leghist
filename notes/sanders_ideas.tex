@@ -1,0 +1,93 @@
+% Created 2011-11-04 Fri 09:46
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{soul}
+\usepackage{t1enc}
+\usepackage{textcomp}
+\usepackage{marvosym}
+\usepackage{wasysym}
+\usepackage{latexsym}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\tolerance=1000
+\providecommand{\alert}[1]{\textbf{#1}}
+
+\title{Quant/Qual research possibilities}
+\author{Mark Huberty}
+\date{04 November 2011}
+
+\begin{document}
+
+\maketitle
+
+\setcounter{tocdepth}{3}
+\tableofcontents
+\vspace*{1cm}
+
+\section{Project possibilities}
+\label{sec-1}
+\subsection{Automated mapping of legislative history}
+\label{sec-1_1}
+
+   Project goals: 
+\begin{enumerate}
+\item Provide a method for algorithmic mapping of final
+      legislation to the initial bill + amendments, based on text
+      similarity measures.
+\item Provide easy access to methods to model the content of what is
+      taken out or added to legislation during the political process
+\item (Potentially) provide some ``importance'' measure for various
+      pieces of the text
+\item (Potentially) provide a categorization mechanism for breaking
+      out legislation between its ``substantive'' and ``administrative''
+      (that is, what the legislation does, and how it does it) components
+\end{enumerate}
+
+
+   This project would require some experimentation with text modeling
+   in R as an input to the design process. We would probably use EU
+   legislation that is easily available online in HTML format.
+      
+\subsection{Analysis of US public opinion on global warming based on local economic factors}
+\label{sec-1_2}
+
+   Background: I'd looked at this a few years ago, to little
+   effect. One hypothesis on public opinion and global warming is that
+   it's a function of a locality's dependence on energy or fossil
+   fuels. The crude version of this states that West Virginians (a big
+   coal state) won't vote for emissions reduction, because that would
+   (obviously) cut the market for coal. 
+
+   There's some work (see Matt Kahn @ UCLA) on linking emissions
+   themselves to public opinion. But that's confounded by various
+   things, like opportunities for efficiency improvements. I'd be
+   interested to see whether we could get enough data on local
+   patterns of energy use and industrial output that we could look at
+   the direct correlation of economic factors with local attitudes on
+   climate change.
+
+   See Craig \& Kahn, NBER Working Paper no 14963, and here:
+   \href{http://goo.gl/gwPMr}{http://goo.gl/gwPMr}
+
+   Alternative, we may wish to try this out in the EU instead, but the
+   data issues there may be more substantial. 
+\subsection{Analysis of the role of sectoral positioning on climate policy action}
+\label{sec-1_3}
+
+   Background: Georg Zachmann and I have used Hidalgo's concept of the
+   product space to do some econometric analysis of the origins and
+   evolution of comparative advantage in green energy goods. There's a
+   related question, as to whether people see their interests
+   connected with actual or potential green energy industries and are
+   OK with climate change policy as a result. 
+
+   I've not thought this through at all, so there are no guarantees
+   that this has any legs to it.
+
+\end{document}
