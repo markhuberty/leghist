@@ -32,6 +32,33 @@
    + Classify changes as substantive or administrative--perhaps based
      on a curated word list that would do well for administrative
      (i.e. "report" "enforce" "monitor" "transpose", etc)
+   + For converting EU .docs to plain text, best way appears to be:
+     save as .htm, then run lynx -dump <file> > output.txt. That
+     strips the cruft out and leaves documents
+     well-formatted. Produces (if a .doc is all that's available)
+     about the same result as lynx -dump 'url.to.html.version' >
+     output.txt. 
+4. Some logic issues:
+   + General structure:
+     - first map bill_1:bill_2
+     - then if(blank) map amend:blank
+     - for chunk in bill2, take better match of bill1 and amend
+     - Unless amend=delete? unclear how to handle this
+   + Implementation
+     - Need to construct the pairwise distance for all paras in bill1:2
+     - And for amendments 1:2. These should produce lists of length bill2
+     - Then take pairwise mins and return source (b, a) and index
+     - Then retrieve correct chunk from amend or bill1 record w/ index
+   + Should pass bills and amendments as lists; each element in the
+     list is the string chunk vector. length(amendments) <
+     (length(bills) - 1) so that you don't have more instances of
+     amendments than you do of amending sessions. But amendments could
+     be NULL. 
+     - Then just loop across the bill structure--that way the function
+       does both 2-version comparision and n-version comparison. 
+     - To do this efficiently, pre-compute the corpuses so that only
+       happens 1x for both the bills and amendments
+
 * Unknowns:
   1. Correct distance measure
   2. Probabilistic measure--what's the probability derived from?

@@ -25,7 +25,8 @@
 
 require(tm)
 require(topicmodels)
-require()
+require(stringr)
+require(openNLP) ## For the sentence tokenizer functionality
 
 MapBills <- function(bill1,
                      bill2,
@@ -55,11 +56,14 @@ MapBills <- function(bill1,
   ##     bill2. New sections are indicated by "N". Deleted sections
   ##     are indicated by "D". If amendments are passed, then "N"
   ##     values are also paired with the amendment that most likely
-  ##     became the new section, plus a distance measure between the
-  ##     new section and the amendment in question.
+  ##     became the new section.
+  ##     A normalized distance measures should be provided for
+  ##     all matches
 
 
-
+  ## NOTES: see
+  ## http://finzi.psych.upenn.edu/R/library/arules/html/dissimilarity.html
+  ## The R dissimilarity function provides cosine and jaccard options
 
 
 }
@@ -121,4 +125,47 @@ ModelImpact <- function(){
 }
 ## End ModelImpact
 
+FormatText <- function(candidate.text,
+                       disagg.level="p",
+                       disagg.lables=NULL,
+                       sep="\\n\\n"){
+  ## Takes as input an undifferentiated character string with the
+  ## text of interest and formats it for use by other models
+
+  ## Note that the input strings should be clean--no page nos, artifacts
+  ## of OCR'ing, etc.
+
+  ## sep refers to the distinguishing feature that divides the string
+  ## at the disagg level (one of c:clause, p:paragraph; s:sentence)
+
+
+}
+
+
+
+
+## Other potential functions:
+## FormatText: takes as input some text in a particular format (clean)
+##             and returns the files needed as input to the main functions
+##             This could be a little weird--would ideally want to map
+##             to actual clause/paragraph stuff, but could use dummies
+##             if not provided. What about the deletion problem(see
+##             below)?
+##             Maybe provides a means of choosing the level of disagg
+##             you want (clause, paragraph, sentence) with defaults
+##             for the requisite separator
+##                     (clause: ?, paragraph: \n\n, sentence: [.]\w)
+## AmendmentSimilarity: provides a measure of similarty among accepted
+##      amendments
+## PrintAnnotatedBill: Stuffs final bill text into a LaTeX file,
+##      color-coded by origin, with legend and (maybe) margin notes
+##      (marginpar package) about
+##      where sections came from or distance measure?
+## TabulateContributions: Tabulate contributions by provided origin
+## (i.e. party or committee or whatever) and impact (substance, admin)
+
+
+## Questions:
+## How to handle deletions? As in, amendments that push to drop a
+## paragraph? would want some way to formalize this
 
