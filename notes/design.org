@@ -58,6 +58,34 @@
        does both 2-version comparision and n-version comparison. 
      - To do this efficiently, pre-compute the corpuses so that only
        happens 1x for both the bills and amendments
+5. Some parsing issues:
+   + Right now, works well to do the following:
+     + Get .doc
+     + Convert to htm
+     + Parse with python functions
+   + This can also work if only the html is available, by saving the
+     source, opening in MS Word, and then exporting to htm again
+   + this is super-yucky but maybe the only universal way?
+6. From Adrienne re the US process:
+   + The process would be very beneficial if it looked like this:
+     + Diff final:initial and final:amendments
+     + Report mapping to all versions simultaneously (or,
+       alternatively, just report the mapping of stuff that changes)
+     + There are three versions that really matter inthe US congress:
+       the initial bill, the substitute bill in committee, and the
+       conference bill that comes out of the House / Senate
+     + Would want to know (for the substitute bill in particular)
+       which new parts mapped onto known amendments, and which new
+       parts "sneaked in" along the way.
+7. On writing out the tex file:
+   + cat("\\macro{blah}") works just fine to write out plaintext.
+
+* TeX issues
+1. On writing out the tex file:
+   + cat("\\macro{blah}") works just fine to write out plaintext.
+2. Can box easily with the frame environment, need the framed
+   package. Then it's just \begin{shaded} \end{shaded}, but need to
+   define shadedcolor first, as in \definecolor{shadedcolor}{cmyk}{0,0.16,1,0}
 
 * Unknowns:
   1. Correct distance measure
@@ -69,6 +97,12 @@
 * TODO See Lee et al, "An Empirical Evaluation of Models of Text Document Similarity" for weighting /distance
 
 * TODO LSA models for document similarity in R, the LSA package at CRAN: http://cran.r-project.org/web/packages/lsa/lsa.pdf
-
-
+* Issue: this is basically plagiarism detection, but with some additional information (so the problem shouldn't be so hard). We should *expect* verbatim copying between the input and output documents, so we would improve accuracy to try and do something with the word order, etc. Right now, this isn't happening. Might need to first ID potential chunks in the docs, then match sequence?
+  1. Taken from the Hoad and Zobel article from 2003-2004, looks like
+     we should start from using cosine similarity and then implement
+     their alternative (and in some cases better-performing)
+     similarity measure that handles document length better. 
+  2. Unsure how to manage this at the sentence level. This becomes
+     somewhat problematic for US Congress amendment styles, which are
+     based on clauses and substitutions rather than entire new paragraphs.
 

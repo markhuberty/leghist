@@ -1,4 +1,4 @@
-% Created 2011-11-02 Wed 08:53
+% Created 2011-11-10 Thu 18:06
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -20,7 +20,7 @@
 
 \title{design}
 \author{Mark Huberty}
-\date{02 November 2011}
+\date{10 November 2011}
 
 \begin{document}
 
@@ -52,9 +52,100 @@
      administrative
 \end{itemize}
 
-\item 
-\end{enumerate}
+\item This implies several procedural steps:
 
-   
+\begin{itemize}
+\item Convert legislation to plain text and strip out any unnecessary information
+\item Separate plain text into a set of individual ``documents'' that are
+     at a sufficient level of granularity (paragraphs, perhaps?)
+\item Do this for all versions to be compared
+\item Construct a pairwise distance measure between each ``document'' in
+     version 1 and each ``document'' in version 2
+\item Select the ``most likely'' match and return it with a probability score
+\item If amendments are provided, compare ``not found'' or low-prob match
+     sections with amendments and return most likely amendment for
+     that section
+\item Return the original document, the matched sections of the new
+     document
+\item Run a topic model on stuff excluded from V1 in V2, new stuff in
+     V2, amendments rejected, amendments accepted.
+\item Classify changes as substantive or administrative--perhaps based
+     on a curated word list that would do well for administrative
+     (i.e. ``report'' ``enforce'' ``monitor'' ``transpose'', etc)
+\item For converting EU .docs to plain text, best way appears to be:
+     save as .htm, then run lynx -dump <file> > output.txt. That
+     strips the cruft out and leaves documents
+     well-formatted. Produces (if a .doc is all that's available)
+     about the same result as lynx -dump `url.to.html.version' >
+     output.txt.
+\end{itemize}
+
+\item Some logic issues:
+
+\begin{itemize}
+\item General structure:
+
+\begin{itemize}
+\item first map bill$_1$:bill$_2$
+\item then if(blank) map amend:blank
+\item for chunk in bill2, take better match of bill1 and amend
+\item Unless amend=delete? unclear how to handle this
+\end{itemize}
+
+\item Implementation
+
+\begin{itemize}
+\item Need to construct the pairwise distance for all paras in bill1:2
+\item And for amendments 1:2. These should produce lists of length bill2
+\item Then take pairwise mins and return source (b, a) and index
+\item Then retrieve correct chunk from amend or bill1 record w/ index
+\end{itemize}
+
+\item Should pass bills and amendments as lists; each element in the
+     list is the string chunk vector. length(amendments) <
+     (length(bills) - 1) so that you don't have more instances of
+     amendments than you do of amending sessions. But amendments could
+     be NULL.
+
+\begin{itemize}
+\item Then just loop across the bill structure--that way the function
+       does both 2-version comparision and n-version comparison.
+\item To do this efficiently, pre-compute the corpuses so that only
+       happens 1x for both the bills and amendments
+\end{itemize}
+
+\end{itemize}
+
+\item Some parsing issues:
+
+\begin{itemize}
+\item Right now, works well to do the following:
+
+\begin{itemize}
+\item Get .doc
+\item Convert to htm
+\item Parse with python functions
+\end{itemize}
+
+\item This can also work if only the html is available, by saving the
+     source, opening in MS Word, and then exporting to htm again
+\item this is super-yucky but maybe the only universal way?
+\end{itemize}
+
+\end{enumerate}
+\section{Unknowns:}
+\label{sec-2}
+
+\begin{enumerate}
+\item Correct distance measure
+\item Probabilistic measure--what's the probability derived from?
+\item What's the input to the topic model--the amendments themselves,
+     the portions that were included / excluded, etc?
+\item How should classification be presented?
+\end{enumerate}
+\section{\textbf{TODO} See Lee et al, "An Empirical Evaluation of Models of Text Document Similarity" for weighting /distance}
+\label{sec-3}
+\section{\textbf{TODO} LSA models for document similarity in R, the LSA package at CRAN: \href{http://cran.r-project.org/web/packages/lsa/lsa.pdf}{http://cran.r-project.org/web/packages/lsa/lsa.pdf}}
+\label{sec-4}
 
 \end{document}
