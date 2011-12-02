@@ -22,7 +22,7 @@
 ## http://google-styleguide.googlecode.com/svn/trunk/google-r-style.html
 ## END
 #################################################################
-
+require(gdata)
 require(tm)
 require(topicmodels)
 require(stringr)
@@ -30,42 +30,27 @@ require(lsa)
 require(Matrix)
 #require(openNLP) ## For the sentence tokenizer functionality
 
+##' ##' <description>
+##' Maps the final bill to both the original bill and any proposed
+##amendments. Returns a matrix that maps from the final bill to the
+##initial bill and (if supplied) the amendments, with distance metrics
+##for the best match from each source. 
+##' <details>
+##' @title MapBills
+##' @param doc.list A list of document-term matrices, as output from
+##ComputeAllVectorSpaces()
+##' @param distance.fun A distance function. The underlying distance
+##metric should return larger values for more similar objects. 
+##' @return A matrix mapping from the sections of the final document
+##to the sections of both the initial document and any proposed
+##amendments, with distance values for each matched pair.
+##' @author Mark Huberty
 MapBills <- function(doc.list,
                      distance.fun="cosine"
                      ){
-  ## Maps content of bill1 to bill2. Returns a vector of indices
-  ## mapping the sections of bill1 (however provided by the user) to
-  ## the sections of bill2. Mapping is accompanied by a distance
-  ## measure to provide a confidence interval.
-  ## Inputs:
-  ##    doc.list: the output of CreateAllVectorSpaces, containing the
-  ##     vector spaces for the initial and final bills and
-  ##     (optionally) the amendments.
-  ##    
-  ##    dist.fun: the distance function to be used in mapping bill
-  ##     sections to each other. Default is "raw"
-  ##    n.to.return: number of matched clauses to return. Default is
-  ##     1, meaning that only the closest match is returned.
-  ##    dist.threshold: a distance threshold to use for determining
-  ##    matches. If NULL, this defaults to assuming the
-  ##    nearest-neighbor match and returning the match + distance
-  ## Outputs:
-  ##    bill.map: a data frame of indices mapping _from_ bill1 and (if
-  ##    provided) the amendments, _to_
-  ##     bill2. New sections are indicated by "N". Deleted sections
-  ##     are indicated by "D". If amendments are passed, then "N"
-  ##     values are also paired with the amendment that most likely
-  ##     became the new section.
-  ##     A normalized distance measure (on [0,1]) should be provided for
-  ##     all matches
-
-    ## Various checks
-
-
-  ## maps bills bill1:bill2
 
   ## Create mapping by loop
-  
+  print("mapping final to initial")
   map.initial.final <- MapFun(doc.list[["doc.initial"]],
                               doc.list[["doc.final"]],
                               distance.fun=distance.fun
@@ -74,6 +59,7 @@ MapBills <- function(doc.list,
 
   if(!is.null(doc.list[["amendments"]]))
     {
+      print("mapping final to amendments")
       map.amend.final <- MapFun(doc.list[["amendments"]],
                                 doc.list[["doc.final"]],
                                 distance.fun=distance.fun
@@ -136,36 +122,34 @@ ModelChanges <- function(bill1,
 }
 ## End ModelChanges
 
+##' <description>
+##' Does the actual pairwise mapping of bills. Maps from doc1:doc2
+##via nearest-neighbor matching on the basis of a user-supplied distance / similarity function
+##' <details>
+##' @title MapFun
+##' @param doc1 a document-term matrix 
+##' @param doc2 a document-term matrix
+##' @param distance.fun a distance function. The underlying distance
+##metric should return larger values when two objects are closer
+##' @return a 3-column matrix mapping the row index of doc2 to its
+##best match in doc1, and the distance between them
+##' @author Mark Huberty
 MapFun <- function(doc1, doc2, distance.fun="cosine"){
-  ## Does the actual pairwise mapping of bills. Maps from doc1:doc2
-  ## Input: doc1, doc2: two doc-term matrices. "docs" must be bills
-  ##    or amendments at same level of disaggregation
-  ##    (i.e. article, paragraph, etc).
-  ##        distance.fun: a string denoting the distance metric function; must return a
-  ##        scalar distance value
-  ## Output: a data frame with three columns, of length(doc2)
-  ##    Format: doc1.row:doc2.row:distance
-  ## Process: constructs a pairwise distance matrix from all
-  ##    entries in doc1 to all entries in doc2. Then picks nearest-
-  ##    neighbor match from doc1 for doc2.
-
-  ## TODO: notice that the sapply scales linearly with document
-  ## size. Can this be improved?
-
-  ## TODO: this is going to require the use of matrices or sparse
-  ## matrices.
-  ## The DocumentTermMatrix object from tm() doesn't allow row calls
-  ## and so can't be referenced as done here. should probably use
-  ## Matrix representation.
 
   if("DocumentTermMatrix" %in% class(doc1))
     doc1 <- DtmToMatrix(doc1)
+  else
+    stopifnot(class(doc1) %in% c("data.frame", "matrix") |
+              "dgCMatrix" %in% class(doc1)
+              )
+  
   if("DocumentTermMatrix" %in% class(doc2))
     doc2 <- DtmToMatrix(doc2)
-
-  stopifnot(class(doc1) %in% c("Matrix", "data.frame", "matrix") |
-            class(doc2) %in% c("Matrix", "data.frame", "matrix")
-            )
+  else
+    stopifnot(class(doc2) %in% c("data.frame", "matrix") |
+              "dgCMatrix" %in% class(doc2)
+              )
+  
   
   dist.fun <- match.fun(distance.fun)
 
@@ -201,7 +185,33 @@ MapFun <- function(doc1, doc2, distance.fun="cosine"){
 }
 ## End MapFun
 
-
+##' <description>
+##' Creates the document-term vector space representations of the
+##initial and final documents, and any (optional) amendments. Vector
+##space representations are baselined to a common dictionary based on
+##the final document.
+##' <details>
+##' @title CreateAllVectorSpaces
+##' @param doc.initial the first version of a document
+##' @param doc.final the final version of the same document
+##' @param amendments an optional list of proposed changes to the
+##initial document
+##' @param ngram the length of the word set that should be used for
+##the document-term matrix (1-grams are single words, 2-grams are
+##unique 2-word combinations, etc)
+##' @param stem should words in the documents be stemmed?
+##' @param rm.stopwords boolean, should english stopwords be removed?
+##' @param rm.whitespace boolean, should excess whitespace be stripped?
+##' @param rm.punctuation boolean, should punctuation be removed?
+##' @param filter one of 'NULL', 'sparse', 'tf' and 'tfidf' specifying the
+  ##           base value for filtering
+##' @param filter.thres numeric, indicating filter threshold
+##appropriate for the filter chosen
+##' @return a list of document-term matrices, for the initial and
+##final documents and any proposed amendments, formatted as sparse
+##Matrix objects. The terms in each matrix are consistent with the set
+##of unique terms in the final document.
+##' @author Mark Huberty
 CreateAllVectorSpaces <- function(doc.initial, doc.final,
                                   amendments=NULL,
                                   ngram=1,
@@ -212,32 +222,6 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
                                   filter=NULL,
                                   filter.thres=NULL
                                   ){
-
-  ## Creates a mutually consistent set of vector spaces across a
-  ## series of documents. Takes as input the initial and final
-  ## documents and an optional vector of amendments. Returns a list
-  ## with the vector spaces of each document provided, plus optional
-  ## information
-  ## Inputs: doc.initial: the first version of the document
-  ##         doc.final:   the final version of the same document
-  ##         amendments:  an optional list of potential changes to
-  ##                      doc.initial, all or some of which may have
-  ##                      occurred to create doc.final
-  ##         stem:        should the Porter stemmer be used to stem
-  ##                      words?
-  ##         rm.stopwords: should english stopwords be removed?
-  ##         rm.whitespace: should excess whitespace be removed?
-  ##         rm.punctuation: should punctuation be removed?
-  ##         filter: one of 'NULL', 'sparse', 'tf', and 'tfidf'
-  ##                 specifying the filter that should be applied to doc.final to
-  ##                 generate the baseline vocabulary
-  ##         filter.thres: a threshold value for filter, if filter is
-  ##                       not null
-  ## Process: Runs CreateVectorSpace on doc.final to generate the
-  ## master dictionary. Then creates vector spaces for doc.initial
-  ## and amendments based on this dictionary. Only doc.final is
-  ## filtered for sparseness--the other documents inherit the term
-  ## list that results from the doc.final vector space.
 
   ## Check to ensure that the require args are there
   stopifnot(!is.null(doc.initial) &
@@ -270,7 +254,7 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
                                 filter=filter,
                                 filter.thres=filter.thres
                                 )
-
+  
   vs.initial <- CreateVectorSpace(doc.initial,
                                   ngram=ngram,
                                   stem=stem,
@@ -294,11 +278,17 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
                                     filter.thres=NULL,
                                     dictionary=vs.final$dimnames$Terms
                                     )
+
     }else{
 
       vs.amend <- NULL
 
     }
+
+  vs.final <- DtmToMatrix(vs.final)
+  vs.initial <- DtmToMatrix(vs.initial)
+  if(!is.null(vs.amend))
+    vs.amend <- DtmToMatrix(vs.amend)
   
   list.out <- list(vs.final,
                    vs.initial,
@@ -313,6 +303,29 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
 }
   ## End CreateAllVectorSpaces
 
+##' <description>
+##' Creates the vector space model of a document 
+##' <details>
+##' @title CreateVectorSpace
+##' @param docs a string vector of documents
+##' @param ngram an integer specifying the n-gram to use for
+  ##                  the vector space
+##' @param stem boolean, should the document be stemmed?
+##' @param dictionary character vector of terms on which to base
+##           the document-term matrix. Terms not in the dictionary
+##           will be dropped.See the tm package for
+##           documentation. 
+##' @param rm.stopwords boolean, should stopwords be removed?
+##' @param rm.whitespace boolean, should excess whitespace be removed?
+##' @param rm.punctuation boolean, should punctuation be removed?
+##' @param filter one of 'NULL', 'sparse', 'tf' and 'tfidf' specifying the
+  ##           base value for filtering
+##' @param filter.thres numeric, indicating filter threshold
+##appropriate for the filter chosen
+##' @return  a document-term matrix in sparse representation
+##           where each row is a document and each col is an
+##           ngram. Cell values are term frequency counts. 
+##' @author Mark Huberty
 CreateVectorSpace <- function(docs,
                               ngram,
                               stem=FALSE,
@@ -323,23 +336,7 @@ CreateVectorSpace <- function(docs,
                               filter=NULL,
                               filter.thres=NULL
                               ){
-  ## Creates the vector space model of a document set
-  ## Inputs:   docs: a string vector of documents
-  ##           ngram: an integer specifying the n-gram to use for
-  ##                  the vector space
-  ##           stem: should the document be stemmed?
-  ##           dictionary: character vector of terms on which to base
-  ##           the document-term matrix. Terms not in the dictionary
-  ##           will be dropped.See the tm package for
-  ##           documentation. 
-  ##           filter: one of 'NULL', 'sparse', 'tf' and 'tfidf' specifying the
-  ##           base value for filtering
-  ##           filter.thresh: a filter threshold value consistent with
-  ##           the filter. e.g., for sparseness, a decimal value on
-  ##           (0,1] that indicates the sparseness threshold.
-  ## Outputs:  dtm: a document-term matrix in sparse representation
-  ##           where each row is a document and each col is an
-  ##           ngram. Cell values are term frequency counts. 
+  
 
   corpus.in <-Corpus(VectorSource(docs),
                      readerControl=list(readPlain),
@@ -377,19 +374,12 @@ CreateVectorSpace <- function(docs,
 }
 ## End CreateVectorSpace
 
-
-## This may not be necessary -- given the dictionary argument
-## available to DocumentTermMatrix.
-OrderVectorSpace <- function(dtm, master.term.vec){
-  ## Orders the columns of a doc-term matrix to match
-  ## a master vector. Inserts 0-valued columns if necessary
-  ## Output: a dtm with documents as rows and length(master.term.vec) columns
-
-
-
-}
-## End OrderVectorSpace
-
+##' <description>
+##'
+##' <details>
+##' @title ModelImpact
+##' @return TBD
+##' @author Mark Huberty
 ModelImpact <- function(){
   ## Classifies changes as substantive or administrative
   ## <Question here is _how_: what could you exploit to differentiate
@@ -405,7 +395,14 @@ ModelImpact <- function(){
 }
 ## End ModelImpact
 
+##' ##' <description>
+##'
+##' <details>
+##' @title ComputeIdentity
+##' @return TBD
+##' @author Mark Huberty
 ComputeIdentity <- function(){
+  
   ## See Hoad and Zobel (2003) on plagiarism for background. This is
   ## their identity measure 5. 
   ## Computes an "identity" measure that goes beyond cosine distance
@@ -428,16 +425,169 @@ ComputeIdentity <- function(){
 
 }
 
-WriteSideBySide <- function(){
-  ## Takes as input the ComputeVectorAllVectorSpaces output and the
-  ## result from that output from MapBills
-  ## Returns a LaTeX document that presents the initial: final +
-  ## amendments mapping, color coded as desired.
+##' <description>
+##' Takes as input the ComputeVectorAllVectorSpaces output and the
+##result from that output from MapBills Returns a LaTeX document that
+##presents the side-by-side comparison of the final document sections
+##and their matched pairs, with sources for the matched document
+##' <details>
+##' @title WriteSideBySide
+##' @param composite.match the output of GetLikelyComposite
+##' @param doc.final the original character string representing the
+##final document
+##' @param cavs.out the output of CreateAllVectorSpaces used to
+##generate the composite match
+##' @param col.highlight the color to highlight word changes
+##' @param box.amendments boolean, should amendments be boxed?
+##' @param col.box the color to shade amendment boxes
+##' @param file.out a valid filename for the latex output file
+##' @param pdflatex boolean, should PDFLATEX be run on the output file?
+##' @return Returns silently. If PDFLATEX is true, returns both the
+##.tex file and its PDF output. Otherwise, returns only the .tex file.
+##' @author Mark Huberty
+WriteSideBySide <- function(composite.match,
+                            doc.final,
+                            cavs.out,
+                            col.highlight="red",
+                            box.amendments=TRUE,
+                            col.box="lightyellow",
+                            file.out="generic.tex",
+                            pdflatex=TRUE
+                            ){
 
+  composite.match <-
+    composite.match[order(composite.match$doc.final.idx),]
 
+  preamble="\\documentclass{article}\n\\usepackage{framed}\n\\usepackage{color}\n\\usepackage{marginnote}\n"
+  texthighlight <- paste("\\newcommand{\\texthighlight}[1]{\\textcolor{",
+                         col.highlight,
+                         "}{#1}}\n",
+                         sep=""
+                         )
 
+  
+  sink(file.out)
+
+  cat(preamble)
+  cat(texthighlight)
+  cat("\\begin{document}")
+  cat("\n\n")
+
+  cat("\\begin{minipage}[t]{0.45\\linewidth}")
+  cat("\n")
+  cat("Final Bill")
+  cat("\n")
+  cat("\\end{minipage}")
+  cat("\n")
+  cat("\\begin{minipage}[t]{0.08\\linewidth}")
+  cat("\n")
+  cat("\\end{minipage}")
+  cat("\\begin{minipage}[t]{0.45\\linewidth}")
+  cat("\n")
+  cat("Matched Segment")
+  cat("\n")
+  cat("\\end{minipage}")
+  cat("\n\n")
+  cat("\\vspace{12pt}")
+  cat("\n\n")
+  
+  for(i in 1:nrow(composite.match))
+    {
+      origin <- composite.match[i, "match.origin"]
+      alt.origin <- composite.match[i, "alt.origin"]
+      origin.idx <- composite.match[i, "match.idx"]
+
+      word.diff <- ( cavs.out[["doc.final"]][i,] > 0 ) -
+        ( cavs.out[[origin]][origin.idx,] > 0 )
+      
+      highlight.words <-
+        colnames(cavs.out[["doc.final"]])[word.diff > 0]
+
+      highlight.words <- highlight.words[highlight.words != " "]
+      
+      string.in <- SanitizeTex(doc.final[composite.match$doc.final.idx[i]])
+      this.section <-  WriteTexSection(string.in,
+                                       highlight.words=highlight.words,
+                                       origin=alt.origin,
+                                       origin.idx=origin.idx,
+                                       marginnote=FALSE
+                                       )
+      
+      cat("\\begin{minipage}[t]{0.45\\linewidth}")
+      cat("\n")
+      cat(this.section)
+      cat("\n")
+      cat("\\end{minipage}")
+      cat("\n")
+      cat("\\begin{minipage}[t]{0.08\\linewidth}")
+      cat("\n")
+      cat("\\end{minipage}")
+
+      word.diff <- ( cavs.out[[origin]][origin.idx,] > 0 ) -
+        ( cavs.out[["doc.final"]][i,] > 0 ) 
+             
+      highlight.words <-
+        colnames(cavs.out[["doc.final"]])[word.diff > 0]
+
+      highlight.words <- highlight.words[highlight.words != " "]
+      
+      string.in <- SanitizeTex(composite.match$match.txt[i])
+      this.section <-  WriteTexSection(string.in,
+                                       highlight.words=highlight.words,
+                                       origin=alt.origin,
+                                       origin.idx=origin.idx,
+                                       marginnote=TRUE
+                                       )
+      
+      cat("\\begin{minipage}[t]{0.45\\linewidth}")
+      cat("\n")
+      cat(trim(this.section))
+      cat("\n")
+      cat("\\end{minipage}")
+      cat("\n\n")
+      cat("\\vspace{12pt}")
+      cat("\n\n")
+      ##cat("\\rule{\\linewidth}{0.5mm}\n")
+
+    }
+
+  cat("\\end{document}")
+  sink()
+
+  
+  if(pdflatex)
+    {
+      call <- paste("pdflatex", file.out, sep=" ")
+      system(call)
+      system(call)
+    }
+
+  print("Done")
+  
 }
-
+##' <description>
+##'
+##' <details>
+##' @title GetLikelyComposite
+##' @param mapbills.out the output of MapBills 
+##' @param doc.initial a character string, representing doc.initial as
+##used in MapBills
+##' @param doc.final a character string, representing doc.final as
+##used in MapBills
+##' @param amendments a character string, representing amendments as
+##used in MapBills 
+##' @param amendment.origin a character vector, the same length as
+##amendments, indicating the origin of each amendment
+##' @param filter One of "max" or "min", indicating how the best match
+##should be selected
+##' @param dist.threshold A threshold distance; if the best match does
+##not pass the threshold, then the best match is the same section of
+##the final document itself. 
+##' @return A matrix mapping from the index of each section in
+##doc.final to its most likely match from doc.initial and
+##amendments. The origin, index, text, and distance of the best match
+##are all returned.
+##' @author Mark Huberty
 GetLikelyComposite <- function(mapbills.out,
                                doc.initial,
                                doc.final,
@@ -446,21 +596,6 @@ GetLikelyComposite <- function(mapbills.out,
                                filter="max",
                                dist.threshold=0
                                ){
-
-  ## Inputs: mapbills.out: the output of mapbills
-  ##         doc.initial: the character string of the initial document
-  ##         doc.final: the character string of the final document
-  ##         amendments: the character string of amendments (optional)
-  ##         amendment.origin: a character vector as long as
-  ##         amendments, containing alternate descriptions of where
-  ##           the amendments came from (i.e. Committee for the
-  ##           Environment)
-  ##         filter: one of "min" or "max".
-  ##         dist.threshold: the threshold for determining whether any
-  ##           given match is in fact a real match (should be chosen
-  ##           with consideration of the distance function in mapbills,
-  ##           and the filter function.
-  ## Output: bill2.idx, match.idx, match.origin, match.txt
 
   ## Make sure that if the amendment origin list is provided,
   ## it's the the same length as the amendments
@@ -486,9 +621,12 @@ GetLikelyComposite <- function(mapbills.out,
       which(mapbills.out[x, c("bill1.dist", "amend.dist")] == 
             filter.fun(mapbills.out[x, c("bill1.dist", "amend.dist")],
                 na.rm=TRUE)
-            )
+            )[1] ## This is a hack, see if it works
+
+    print(dist.idx)
     
     match.dist <- mapbills.out[x, c("bill1.dist","amend.dist")[dist.idx]]
+    print(match.dist)
     
     pass.threshold <- ifelse(filter == "min",
                              match.dist < dist.threshold,
@@ -502,9 +640,11 @@ GetLikelyComposite <- function(mapbills.out,
 
       }else{
 
-        match.idx <- mapbills.out[x, c("bill1.idx", "amend.idx")[dist.idx]]
+        match.idx <- mapbills.out[x, c("bill1.idx",
+        "amend.idx")[dist.idx]]
+        print(match.idx)
         match.origin <- c("doc.initial", "amendment")[dist.idx]
-            
+        print(match.origin)
         match.txt <- ifelse(match.origin=="doc.initial",
                             doc.initial[match.idx],
                             amendments[match.idx]
@@ -533,6 +673,7 @@ GetLikelyComposite <- function(mapbills.out,
        
         vec.out <- c(x, match.idx, match.origin, alt.origin, match.txt)
 
+        
       }
                   
 
@@ -540,7 +681,7 @@ GetLikelyComposite <- function(mapbills.out,
     
   }) ## End sapply
 
-  mat.out <- data.frame(t(mat.out))
+  mat.out <- data.frame(t(mat.out), stringsAsFactors=FALSE)
   colnames(mat.out) <- c("doc.final.idx",
                          "match.idx",
                          "match.origin",
@@ -554,7 +695,26 @@ GetLikelyComposite <- function(mapbills.out,
 
 }
 
-
+##' <description>
+##' Writes out a LaTeX representation of the final document, as built
+##up from components of the initial document plus amendments. Provides
+##options to highlight both word differences and sections that result
+##from amendments. The origin of each section is called out in a
+##margin note.
+##' <details>
+##' @title WriteCompositeFinal
+##' @param composite.match the output of GetLikelyComposite
+##' @param cavs.out the output of CreateAllVectorSpaces used to
+##generate the composite match
+##' @param col.highlight the color to use in highlighting word differences
+##' @param box.amendments boolean, should matches that originate from
+##amendments be boxed?
+##' @param col.box the color to use in shading amendment boxes
+##' @param file.out a valid filename for the latex output file
+##' @param pdflatex boolean, should PDFLATEX be run on the output file?
+##' @return Returns silently. If PDFLATEX is true, returns both the
+##.tex file and its PDF output. Otherwise, returns only the .tex file.
+##' @author Mark Huberty
 WriteCompositeFinal <- function(composite.match,
                                 cavs.out,
                                 col.highlight="red",
@@ -564,22 +724,9 @@ WriteCompositeFinal <- function(composite.match,
                                 pdflatex=TRUE
                                 ){
 
-  ## Inputs:
-  ## composite.match: the output of GetLikelyComposite
-  ## col.highlight: the color of highlighted words
-  ## box.amendments: should sections that result from amendments be
-  ##                 boxed?
-  ## col.box: what color should the box be?
-  ## file.out: where should the resulting TeX file be written.
-  ## Returns a composite version of the final document, built up from
-  ## the initial document + the amendments
-  ## The composite version is marked up to be typeset in LaTeX
-  ## Changes are highlighed; the source of new material is highlighted
-  ## in margin notes. The resulting LaTeX document can be compiled
-  ## directly if pdflatex=TRUE. Guaranteed to work for OS X and *nix
-  ## options.
-
   ## Write out the preamble
+
+  composite.match <- composite.match[order(composite.match$doc.final.idx),]
 
   for(idx in 1:length(cavs.out))
     {
@@ -610,14 +757,15 @@ WriteCompositeFinal <- function(composite.match,
       
       if(origin == "doc.final")
         {
-
-          this.out <- WriteTexSection(composite.match$match.txt[idx],
+          string.in <- SanitizeTex(composite.match$match.txt[idx])
+          this.out <- WriteTexSection(string.in,
                                       highlight.words=NULL,
                                       origin=alt.origin,
                                       origin.idx=idx
                                       )
 
           cat(this.out)
+          cat("\n\n")
 
         }else{
           
@@ -631,7 +779,7 @@ WriteCompositeFinal <- function(composite.match,
             ( cavs.out[[origin]][match.idx,] > 0 )
           
           highlight.words <-
-            colnames(cavs.out[["doc.final"]])[word.diff > 0]
+            cavs.out[["doc.final"]]$colnames[word.diff > 0]
           
           this.out <- WriteTexSection(composite.match$match.txt[idx],
                                       highlight.words=highlight.words,
@@ -647,7 +795,7 @@ WriteCompositeFinal <- function(composite.match,
 
           }else{ ## Then it's an amendment
 
-            if(box.amendment)
+            if(box.amendments)
               {
                 
                 cat("\\begin{framed}",
@@ -678,6 +826,7 @@ WriteCompositeFinal <- function(composite.match,
     {
       call <- paste("pdflatex", file.out, sep=" ")
       system(call)
+      system(call)
     }
 
   print("Done")
@@ -688,22 +837,37 @@ WriteCompositeFinal <- function(composite.match,
 
 }
 
+##' ##' <description>
+##' For a given text string and a list of words to highlight, it
+##reforms the string to be LaTeX-valid and highlights words. If the
+##necessary information is provided, the source of the string is
+##indicated in a margin note.
+##' <details>
+##' @title WriteTexSection
+##' @param section a string representing a document section
+##' @param highlight.words a character vector of words to highlight
+##' @param origin a character string representing the origin of the section
+##' @param origin.idx the index of the document in the origin source
+##(e.g. paragraph number)
+##' @param marginnote boolean, should margin notes be printed
+##' @return A character string with all LaTeX-sensitive characters
+##appropriately escaped, and all highlights and origin information
+##inserted with LaTeX-appropriate data. This assumes that the final
+##LaTeX document will have a defined command of form \texthighlight{}
+##defined. Both WriteSideBySide and WriteComposite provide for this in
+##their preamble.
+##' @author Mark Huberty
 WriteTexSection <- function(section,
                             highlight.words=NULL,
                             origin=NULL,
-                            origin.idx=NULL
+                            origin.idx=NULL,
+                            marginnote=TRUE
                             ){
   
-  ## Inputs: section: a text section for insertion into a TeX document
-  ##         highlight.words: a list of unique words to be highlighted
-  ##         origin: the origin of the section (author or source)
-  ## Outputs: a marked-up string, with a margin note indicating origin
-  ##          and the highlighted words colored.
-  ## Note:   the function assumes that the final TeX document will
-  ##         have a command defined as \texthighlight{} that colors a
-  ##         word appropriately. 
-string.out <- section
-if(!is.null(highlight.words))
+
+  string.out <- SanitizeTex(section)
+
+  if(!is.null(highlight.words) & length(highlight.words) > 0)
     {
 
       for(i in 1:length(highlight.words))
@@ -712,25 +876,24 @@ if(!is.null(highlight.words))
           regexp.in <- paste("(", highlight.words[i], ")", sep="")
           regexp.out <- paste("\\\\\\texthighlight\\{\\1\\}")
           
-          string.out <- gsub(regexp.in,
-                             regexp.out,
-                             string.out,
-                             fixed=FALSE
-                             )
-
+          string.out <- str_replace_all(string.out,
+                                        regexp.in,
+                                        regexp.out
+                                        )
+          
         }
 
     }
   
-  if(!is.null(origin))
+  if(!is.null(origin) & marginnote)
     {
 
-      string.out <- paste(string.out,
-                          "\\marginnote{",
+      string.out <- paste("\\marginnote{",
                           origin,
                           " ",
                           origin.idx,
                           "}",
+                          trim(string.out),
                           sep=""
                           )
 
@@ -740,18 +903,47 @@ if(!is.null(highlight.words))
     
 
 }
-
-DtmToMatrix <- function(dtm)
-{
-  m <- Matrix(0, nrow = dtm$nrow, ncol = dtm$ncol, sparse = TRUE)
+##' <description>
+##' Converts a DocumentTermMatrix from the tm() package into a sparse
+##Matrix. This is the same function as John Myles White included in
+##his textregression() library.
+##' <details>
+##' @title DtmToMatrix
+##' @param dtm a document-term matrix as output from the
+##DocumentTermMatrix from the tm() package
+##' @return an equivalent sparse matrix as represented in the Matrix package.
+##' @author Mark Huberty
+DtmToMatrix <- function(dtm){
+  
+  m <- Matrix(0, nrow = dtm$nrow, ncol = dtm$ncol, sparse = TRUE,
+              dimnames=dtm$dimnames
+              )
   
   for (index in 1:length(dtm$i))
-  {
-    m[dtm$i[index], dtm$j[index]] <- dtm$v[index]
-  }
+    {
+      m[dtm$i[index], dtm$j[index]] <- dtm$v[index]
+    }
   
   return(m)
 }
+
+##' <description>
+##' Sanitizes special LaTeX characters in a string so that pdflatex
+##will handle them correctly. All special characters are replaced with
+##their escaped equivalents.
+##' <details>
+##' @title SanitizeTex
+##' @param string a string to be inserted in a LaTeX file
+##' @return the same string, with the LaTeX special characters
+##(%$_{}\~^&) replaced with backslash-escaped equivalents
+##' @author Mark Huberty
+SanitizeTex <- function(string){
+
+  out <- str_replace_all(string, "([%$_{}\\~^&])", "\\\\\\1")
+  return(out)
+  
+}
+
 
 ## ## Not at all clear this will work. See the .py
 ## ## code for doing this with EU bills. Very very messy.

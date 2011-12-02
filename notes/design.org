@@ -106,3 +106,42 @@
      somewhat problematic for US Congress amendment styles, which are
      based on clauses and substitutions rather than entire new paragraphs.
 
+* Parsing the input data isn't going well. The template for the europarl amendments changed between 2003-2007 such that the tabular data now includes the Amendment header tag. This now means that the amendment extraction code needs to
+
+* Possibility: dump file with w3m; then split each line at half line width; (Or, alternatively, get the position of the A in the amendment, and split from A:-1); also appears to work with MS-word generated HTML, but there's one problem--the Amendment tag doesn't show up in a standard place, so finding the right split is harder.
+
+Pseudocode looks something like:
+if clean_html
+for row in doc:
+    find first row with 'Text proposed by commission' and 'amendments
+    by parliament'
+    get index of amendment
+else:
+    idx is provided
+
+for row in doc:
+    if row is not empty and row does not contain <.*?>
+         take row[idx:-1]
+
+for row in doc:
+    find rows with Amendment + number or Justification
+    return [A|J, idx]
+
+    ## This should return a list of lists, of form [A|J, idx]
+
+for i in idx:
+    if A, take rows in short rows from A:A+1
+    if J, ignore 
+
+
+
+    
+    
+* Thing to note: for the more advanced similarity measure, need to have a term vector that's the union of terms across all documents in bill1 + amendments. That means you need a process like:
+1. Create DTM for bill2 + bill1 + amendments
+2. Convert DTM to sparse matrix
+3. Split DTM on index for bill2, bill1 + amendments
+
+Then need to modify the MapBills code to do a single mapping against
+bill1 + amendments and return best match to both. (Maybe by including
+an index with the doclist output from createvectorspaces)

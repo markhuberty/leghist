@@ -4,14 +4,12 @@
 ## Takes as input plain text files, returns a list of amendments in plaintext
 
 import csv
-import os
 import re
 import time
 from xml.etree import ElementTree as ET
 from xml.parsers.expat import ExpatError
 import copy
-
-os.chdir('/Users/markhuberty/Documents/Research/Dissertation/master/notes/leg_hist_sources/')
+import urllib
 
 ## Function definition
 ## NOTE: the functions defined below work for the following cases:
@@ -26,7 +24,15 @@ os.chdir('/Users/markhuberty/Documents/Research/Dissertation/master/notes/leg_hi
 def partition(alist, indices):
     return [alist[i:j] for i, j in zip([0]+indices, indices+[None])]
 
-## parse_amend_html
+def parse_amend_html_raw(url):
+    conn = urllib.urlopen(url)
+    doc = conn.read()
+    conn.close()
+
+    sections = []
+    
+
+## parse_amend_html_doc
 ## Input: a string, read in from the html document of the
 ##   parliamentary amendments, which itself was constructed
 ##   from the EU parliament MS Word document via the 'save as htm' feature.
@@ -35,10 +41,10 @@ def partition(alist, indices):
 ## Output: a list of parliamentary amendments, represented as a
 ##   list of lists, each element of each list is a paragraph of the
 ##   amendment as it appeared in the table cells
-def parse_amend_html(string,
-                     re_tables,
-                     re_clean
-                     ):
+def parse_amend_html_word(input_string,
+                          re_tables,
+                          re_clean
+                          ):
     ## Find the tables and extract
     tables = re_tables.findall(input_string)
 
@@ -46,6 +52,7 @@ def parse_amend_html(string,
     for fun in re_clean:
         tables = [fun.sub('', t) for t in tables]
 
+    tables = [unicode(t, errors='ignore') for t in tables]
     ## Parse the clean html 
     tab_html = []
     for element in tables:
@@ -69,9 +76,10 @@ def parse_amend_html(string,
     parl_amend = []
     for tab in tab_list:
         this_amend = []
-        for row in tab:
+        for idx, row in enumerate(tab):
             try: ## Drop blanks if they aren't trapped before
-                if(len(row) > 1 and len(re.sub(' ', '', row[len(row) -1 ])) > 0):
+                if(len(row) > 1 and len(re.sub(' ', '', row[len(row) -1 ])) > 0
+                   and re.sub(" ", "", row[-1]) != 'Amendment'):
                     this_amend.append(row[len(row) -1 ])
             except IndexError:
                 continue
@@ -124,7 +132,7 @@ def parse_legislation(string,
             ## so clean up anyway
             if cleanup_strings:
                 for c in cleanup_strings:
-                   a  = re.sub(c, '', a)
+                   a  = re.sub(c, ' ', a)
 
             ## Append either the single article or the list of article sections
             articles.append(a)
@@ -152,21 +160,28 @@ def extract_amend_numbers(string, re_amend, clean_regexp, committee_names):
 
     if clean_regexp:
         for r in clean_regexp:
-            amend_labels = [r.sub('', a) for a in amend_labels]
+            amend_labels = [r.sub(' ', a) for a in amend_labels]
 
     ## Get the amend1 locations:
     dup_index = []
     for i, a in enumerate(amend_labels):
         if re.match('Amendment\s{1,}1{1}$', a):
             dup_index.append(i)
-    dup_index.pop(0)
 
-    amend_labels = partition(amend_labels, dup_index)
+    print dup_index
+    if len(dup_index) > 1:
+        dup_index.pop(0)
+    else:
+        dup_index = None
 
+    if dup_index:
+        amend_labels = partition(amend_labels, dup_index)
+
+    ## Breaks here, b/c the dict sorts by committee_name and
+    ## thus spits out in the wrong order
     amend_labels = dict(zip(committee_names, amend_labels))
     
     return(amend_labels)
-
 
 ## paired_amend_fun
 ## Input: input_string: a string containing the full amendment text as html
@@ -186,10 +201,10 @@ def paired_amend_fun(input_string,
                      committee_names
                      ):
 
-    amendments = parse_amend_html(input_string,
-                                  re_tables,
-                                  re_amend_cleanup
-                                  )
+    amendments = parse_amend_html_word(input_string,
+                                      re_tables,
+                                      re_amend_cleanup
+                                      )
 
     amendment_headers = extract_amend_numbers(input_string,
                                               re_amend_header,
@@ -200,7 +215,7 @@ def paired_amend_fun(input_string,
     ## Then write into a list of form:
     ## committee, amendment, paragraph, text
     out_labels = []
-    for key in sorted(amendment_headers.keys()):
+    for key in committee_names:
         for a in amendment_headers[key]:
             out_labels.append([key, a]) ## fails here b/c index is wrong
 
@@ -237,176 +252,156 @@ re_fn = re.compile('<a\s{0,}><!.*?>.*?<!.*?></a>', re.DOTALL)
 re_markup = re.compile('</{0,1}[rbiusp:o]*?\s*?>')
 re_markup_links = re.compile('</{0,1}a.*?>')
 #re_unicode_quote = re.compile('\\xd5|\\xd4')
-re_unicode_quote = re.compile('\\xd5|\\xd4|\\xd3|\\xd2')
+re_unicode_quote = re.compile('\\xd5|\\xd4|\\xd3|\\xd2|\x92|\xb4')
 #re_unicode = re.compile(ur'\xd[0-9]')
 re_amp_quote = re.compile('&[a-z0-9A-Z]*?;')
 re_semicolon = re.compile(';')
 re_endash = re.compile('&#8211|&#8209')
 
-re_amend =  re.compile('Amendment\s*?</{0,1}span.*?[0-9]{1,}(?=<)', re.DOTALL)
+re_amend =  re.compile('Amendment\s*?</{0,1}span.*?[0-9]+?(?=<)', re.DOTALL)
 re_amend_clean = re.compile('</{0,1}span.*>', re.DOTALL)
 re_amp = re.compile('&.*?(?=[0-9])')
 ## End regexp definition
+
  
+## parse_w3m_output
+## Takes as input the text dump of a 2-col file by the w3m browser
+## Returns a list of amendments with amendment numbers
+## Most suitable for parsing the parliamentary first reading reports
+## with amendments from the EU Parliament, which come in 2-col format
+## Inputs:
+## doc: the raw text dump
+## amend_idx: the column index where the amendment records start. If doc_type is 'clean_html' this is not required; the code will try to parse it directly
+## doc_type: either 'clean_html' for html dumped directly from
+##           the Parliament; or 'word' if the html was produced by
+##           saving the equivalent MS WORD file as .html
+## amend_string: a regex string indicating where Amendment + number
+## is to be found
+## end_string: a regex string indicating where non-Amendment data
+## starts in the text (i.e., if Amendment + text is followed by Justification + text, then 'Justification' would be used.
+def parse_w3m_output(doc,
+                     amend_idx=None,
+                     clean_html=True,
+                     amend_string = 'Amendment\s*?[0-9]+?(?=\n)',
+                     end_string = 'Justification|PROCEDURE'
+                     ):
 
-## START TESTS
+    print 'Getting amendment indices'
+    if clean_html:
+        for row in doc:
+            com_test = re.search('Text proposed by the Commission', row)
+            amend_test = re.search('Amendment', row)
+            
+            if com_test and amend_test:
+                amend_idx = amend_test.span()
+                amend_idx = amend_idx[0]
+                break
+    elif doc_type is not 'clean_html' and amend_idx is None:
+        return 'If not clean_html, then must supply the column index for amendment paragraph justification'
 
-## Parse first reading report from 2003 
-conn = open('./intl_mkt/2003/ep_first_reading_report.htm')
-input_string = ''
-for row in conn:
-    input_string += (row + ' ')
+    print 'Getting amendment interval indices'
+    idx_breaks = []
+    for idx, row in enumerate(doc):
+        has_amend = re.search(amend_string, row)
+        has_just = re.search(end_string, row)
+
+        if has_amend:
+            idx_breaks.append(['A', idx])
+        if has_just:
+            idx_breaks.append(['J', idx])
+
+    print 'Getting amendments'
+    amendments = []
+    for i, breaks in enumerate(idx_breaks):
+        if breaks[0] == 'A':
+            amend = []
+            for j in range(breaks[1], idx_breaks[i+1][1]):
+                amend.append(doc[j])
+            amendments.append(amend)
+            
+        elif breaks[0] == 'J':
+            continue
+
+    print 'Concatenating amendments'
+    amendments_final = []
+    for a in amendments:      
+        amend_text = ''
+        for r in a:
+            is_not_empty = len(re.sub(" ", "", r)) > 0
+            if is_not_empty:
+                r = r[amend_idx:-1]
+                amend_text += r
+                amend_text += ' '
+        amend_text = re.sub('^.*?Amendment\s', '', amend_text)
+        amendments_final.append(amend_text)
+
+    amendment_labels = re.findall(amend_string, ''.join(doc))
+
+    out = {'labels':amendment_labels, 'amendments':amendments_final}
+
+    return(out)
+
+conn = open('./rese/2007/test.out', 'rb')
+doc = [unicode(row, errors='replace') for row in conn]
 conn.close()
 
+clean_doc = [row.replace(u'\ufffd', ' ') for row in doc]
 
-ep_2003_first_reading = parse_amend_html(input_string,
-                                         re_tables,
-                                         [re_clean_tables, re_clean_table_tags, re_span, re_newline, re_fn, re_markup, re_markup_links, re_unicode_quote, re_amp_quote, re_semicolon, re_endash]
-                                         )
-
-## Parse second reading report from 2003 
-conn = open('./intl_mkt/2003/ep_second_reading_report.htm')
-input_string = ''
-for row in conn:
-    input_string += (row + ' ')
-conn.close()
-
-
-ep_2003_second_reading = parse_amend_html(input_string,
-                                          re_tables,
-                                          [re_clean_tables, re_clean_table_tags, re_span, re_newline, re_fn, re_markup, re_markup_links, re_unicode_quote, re_amp_quote, re_amp, re_semicolon]
-                                          )
-
-## Parse second reading report from 1996  
-conn = open('./intl_mkt/1996/ep_second_reading_report.html.htm')
-input_string = ''
-for row in conn:
-    input_string += (row + ' ')
-conn.close()
-
-ep_1996_second_reading = parse_amend_html(input_string,
-                                          re_tables,
-                                          [re_clean_tables, re_clean_table_tags, re_span, re_newline, re_fn, re_markup, re_markup_links, re_unicode_quote, re_amp_quote, re_amp, re_semicolon]
-                                          )
-
-
-
-## TEST LEGISLATION
-preamble_string = 'HAVE ADOPTED THIS DIRECTIVE'
-article_string = 'Article\s[0-9]{1,}[ ]*\n'
-section_string = '\s*?[0-9]{1,}\.'
-cleanup_strings = ['\n']
-
-conn = open('./intl_mkt/2003/directive_2003_54_ec')
-input_string = ''
-for row in conn:
-    input_string += (row + ' ')
-
-conn.close()
-
-
-directive_2003_54_ec = parse_legislation(input_string,
-                                         preamble_string,
-                                         article_string,
-                                         section_string,
-                                         cleanup_strings
-                                         )
-
-
-conn = open('./intl_mkt/2007/directive_2009_72_ec')
-input_string = ''
-for row in conn:
-    input_string += (row + ' ')
-
-conn.close()
-
-directive_2009_72_ec  = parse_legislation(input_string,
-                                          preamble_string,
-                                          article_string,
-                                          section_string,
-                                          cleanup_strings
-                                          )
-
-## This is a council proposal for consolidated leg
-conn = open('./rese/2001/com_2000_279')
-
-input_string = ''
-for row in conn:
-    input_string += (row + ' ')
-conn.close()
-
-com_2000_279  = parse_legislation(input_string,
-                                  preamble_string,
-                                  article_string,
-                                  section_string,
-                                  cleanup_strings
-                                  )
-
-## This is a council proposal for consolidated leg
-## Parsed from the OCR'd council PDF via datasciencetoolkit
-conn = open('/Users/markhuberty/Downloads/council_propsal.pdf.txt')
-input_string = ''
-for row in conn:
-    input_string += (row + ' ')
-conn.close()
-
-## Had to cleanout some initial cruft
-input_string = re.sub('\\xc2|\\xa0|\\xe2|\\x80|\\xa6', ' ', input_string)
-input_string = re.sub('  ', ' ', input_string)
-
-council_proposal_intl_mkt_2007 = parse_legislation(input_string,
-                                                   preamble_string,
-                                                   article_string,
-                                                   section_string,
-                                                   cleanup_strings
-                                                   )
-
-
-## Test the amendment header parser
-conn = open('./intl_mkt/2003/ep_first_reading_report.htm')
-input_string = ''
-for row in conn:
-    input_string += (row + ' ')
-conn.close()
-
-ep_amendment_headers_first_reading_2003 = extract_amend_numbers(input_string,
-                                                                re_amend,
-                                                                [re_amend_clean, re_newline],
-                                                                ['A', 'B', 'C', 'D']
-                                                                )
-
-conn = open('./intl_mkt/2003/ep_second_reading_report.htm')
-input_string = ''
-for row in conn:
-    input_string += (row + ' ')
-conn.close()
-
-ep_amendment_headers_second_reading_2003 = extract_amend_numbers(input_string,
-                                                                 re_amend,
-                                                                 [re_amend_clean, re_newline],
-                                                                 ['A']
-                                                                 )
-
-
-## Finally, test the combined function and write out a csv record
-
-conn = open('./intl_mkt/2003/ep_first_reading_report.htm')
-input_string = ''
-for row in conn:
-    input_string += (row + ' ')
-conn.close()
-
-amend_list = paired_amend_fun(input_string,
-                              re_tables,
-                              [re_clean_tables, re_clean_table_tags, re_span, re_newline, re_fn, re_markup, re_markup_links, re_unicode_quote, re_amp_quote, re_semicolon, re_endash],
-                              re_amend,
-                              [re_amend_clean, re_newline],
-                              ['A', 'B', 'C', 'D']
+test_parse = parse_w3m_output(clean_doc,
+                              clean_html=True,
+                              amend_idx=None,
+                              amend_string = 'Amendment\s*?[0-9]+?(?=\n)',
+                              end_string = 'Justification|PROCEDURE'
                               )
 
-conn = open('./intl_mkt/2003/ep_first_reading_parsed.txt', 'wb')
-writer = csv.writer(conn)
-writer.writerow(['committee', 'amendment', 'paragraph', 'text'])
-for item in amend_list:
-    writer.writerow(item)
+conn = open('./rese/2001/test.out', 'rb')
+doc = [unicode(row, errors='replace') for row in conn]
 conn.close()
+
+clean_doc = [row.replace(u'\ufffd', ' ') for row in doc]
+clean_doc = [re.sub('<.*?>', ' ', row) for row in clean_doc]
+
+test_parse_2 = parse_w3m_output(clean_doc,
+                                amend_idx=39,
+                                clean_html=False,
+                                amend_string = 'Amendment.*?(?=\))',
+                                end_string = 'Justification|PROCEDURE'
+                                )
+
+
+
+## parse_inline_amendments
+## Takes as input the raw html record from, for instance, a parliamentary
+## second reading. It assumes that amendments are not separate columns
+## (as in first reading reports) but instead indicated by paragraphs with
+## a specific form of highlighting. Parses and cleans those amendments and
+## returns them as a list
+## Inputs:
+## raw_html: the raw html source from the EU Legislative Obs.
+## amend_string: a regex string indicating the html tag that specifies
+## the unique highlighting. For instace, <span.*?bold.*?>.
+## Outputs:
+## a list of amendments
+def parse_inline_amendments(raw_html, section_string, amend_string = ''):
+
+    paras = re.findall(section_string, raw_html)
+
+    out = []
+    for p in paras:
+        if re.search(amend_string, p):
+            p = re.sub('<.*?>', '', p)
+            out.append(p)
+
+    return(out)
+
+conn = open('./intl_mkt/2007/parl_second_reading.html', 'rb')
+doc = [unicode(row, errors='replace') for row in conn]
+conn.close()
+
+clean_doc = [row.replace(u'\ufffd', ' ') for row in doc]
+clean_doc = ''.join(clean_doc)
+
+test_parse_3 = parse_inline_amendments(clean_doc,
+                                       amend_string = '<span.*?italic.*?bold.*?>'
+                                       )
+
