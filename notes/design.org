@@ -145,3 +145,11 @@ for i in idx:
 Then need to modify the MapBills code to do a single mapping against
 bill1 + amendments and return best match to both. (Maybe by including
 an index with the doclist output from createvectorspaces)
+
+
+## Right now, the mod for mapfun doesn't work b/c the indexing is
+## weird.
+## Would be better to write mapfun like this:
+## Mapfun(dtm.all, distance.fun, idx.final, idx.compare)
+## Then can loop over idx.final and idx.compare
+## without all the pre-processing. 

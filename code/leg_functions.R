@@ -46,23 +46,36 @@ require(Matrix)
 ##amendments, with distance values for each matched pair.
 ##' @author Mark Huberty
 MapBills <- function(doc.list,
-                     distance.fun="cosine"
+                     distance.fun="cosine.dist"
                      ){
 
+
+  idx.collection <- ifelse(is.na(doc.list[["idx.amendments"]]),
+                           doc.list[["idx.initial"]],
+                           c(doc.list[["idx.initial"]],
+                             doc.list[["idx.amendments"]]
+                             )
+                           )
+                    
   ## Create mapping by loop
   print("mapping final to initial")
-  map.initial.final <- MapFun(doc.list[["doc.initial"]],
-                              doc.list[["doc.final"]],
-                              distance.fun=distance.fun
+  map.initial.final <- MapFun(doc.list[["vs.out"]],
+                              distance.fun=distance.fun,
+                              idx.final=doc.list[["idx.final"]],
+                              idx.compare=doc.list[["idx.initial"]],
+                              idx.collection=idx.collection
                               )
+
   
 
-  if(!is.null(doc.list[["amendments"]]))
+  if(!is.na(doc.list[["idx.amendments"]]))
     {
       print("mapping final to amendments")
-      map.amend.final <- MapFun(doc.list[["amendments"]],
-                                doc.list[["doc.final"]],
-                                distance.fun=distance.fun
+      map.amend.final <- MapFun(doc.list[["vs.out"]],
+                                distance.fun=distance.fun,
+                                idx.final=doc.list[["idx.final"]],
+                                idx.compare=doc.list[["idx.amendments"]],
+                                idx.collection=idx.collection
                                 )
 
       map.all <- cbind(map.initial.final,
@@ -131,38 +144,40 @@ ModelChanges <- function(bill1,
 ##' @param doc2 a document-term matrix
 ##' @param distance.fun a distance function. The underlying distance
 ##metric should return larger values when two objects are closer
+##' @param ... any other arguments to be passed to distance.fun
 ##' @return a 3-column matrix mapping the row index of doc2 to its
 ##best match in doc1, and the distance between them
 ##' @author Mark Huberty
-MapFun <- function(doc1, doc2, distance.fun="cosine"){
+MapFun <- function(dtm,
+                   distance.fun="cosine.dist",
+                   idx.final,
+                   idx.compare,
+                   idx.collection){
 
-  if("DocumentTermMatrix" %in% class(doc1))
-    doc1 <- DtmToMatrix(doc1)
+  if("DocumentTermMatrix" %in% class(dtm))
+    dtm <- DtmToMatrix(dtm)
   else
-    stopifnot(class(doc1) %in% c("data.frame", "matrix") |
-              "dgCMatrix" %in% class(doc1)
+    stopifnot(class(dtm) %in% c("data.frame", "matrix") |
+              "dgCMatrix" %in% class(dtm)
               )
-  
-  if("DocumentTermMatrix" %in% class(doc2))
-    doc2 <- DtmToMatrix(doc2)
-  else
-    stopifnot(class(doc2) %in% c("data.frame", "matrix") |
-              "dgCMatrix" %in% class(doc2)
-              )
-  
-  
+    
   dist.fun <- match.fun(distance.fun)
 
-  dist.mat <- sapply(1:nrow(doc2), function(x){
-    sapply(1:nrow(doc1), function(y){
+  dist.mat <- sapply(idx.final, function(x){
+    sapply(idx.compare, function(y){
       
-      dist.out <- dist.fun(doc2[x,], doc1[y,])
+      dist.out <- dist.fun(dtm,
+                           idx.dtm1=y,
+                           idx.dtm2=x,
+                           idx.collection
+                           )
 
       return(dist.out)
 
     })
   })
 
+  print("Getting match indices")
   match.idx <- sapply(1:ncol(dist.mat), function(x){
 
     dist.vec = dist.mat[,x]
@@ -175,7 +190,7 @@ MapFun <- function(doc1, doc2, distance.fun="cosine"){
     
   })
 
-  df.out <- data.frame(1:nrow(doc2),
+  df.out <- data.frame(1:length(idx.final),
                        t(match.idx)
                        )
 
@@ -244,58 +259,47 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
 
   ## Ensure that ngram is integer-valued
   ngram <- round(ngram, 0)
-  
-  vs.final <- CreateVectorSpace(doc.final,
-                                ngram=ngram,
-                                stem=stem,
-                                rm.stopwords=rm.stopwords,
-                                rm.whitespace=rm.whitespace,
-                                rm.punctuation=rm.punctuation,
-                                filter=filter,
-                                filter.thres=filter.thres
-                                )
-  
-  vs.initial <- CreateVectorSpace(doc.initial,
-                                  ngram=ngram,
-                                  stem=stem,
-                                  rm.stopwords=rm.stopwords,
-                                  rm.whitespace=rm.whitespace,
-                                  rm.punctuation=rm.punctuation,
-                                  filter=NULL,
-                                  filter.thres=NULL,
-                                  dictionary=vs.final$dimnames$Terms
-                                  )
 
-  if(!is.null(amendments))
+  vs.all <- CreateVectorSpace(c(doc.final, doc.initial, amendments),
+                              ngram=ngram,
+                              stem=stem,
+                              rm.stopwords=rm.stopwords,
+                              rm.whitespace=rm.whitespace,
+                              rm.punctuation=rm.punctuation,
+                              filter=filter,
+                              filter.thres=filter.thres
+                              )
+
+  idx.final <- 1:length(doc.final)
+  idx.initial <-
+    (length(doc.final) + 1):(length(doc.final) + length(doc.initial))
+  
+  if(is.null(amendments))
     {
-      vs.amend <- CreateVectorSpace(amendments,
-                                    ngram=ngram,
-                                    stem=stem,
-                                    rm.stopwords=rm.stopwords,
-                                    rm.whitespace=rm.whitespace,
-                                    rm.punctuation=rm.punctuation,
-                                    filter=NULL,
-                                    filter.thres=NULL,
-                                    dictionary=vs.final$dimnames$Terms
-                                    )
 
+      idx.amendments <- NA
+     
     }else{
 
-      vs.amend <- NULL
-
+       idx.amendments <-
+        (length(doc.final) + length(doc.initial) + 1):vs.all$nrow
+      
     }
 
-  vs.final <- DtmToMatrix(vs.final)
-  vs.initial <- DtmToMatrix(vs.initial)
-  if(!is.null(vs.amend))
-    vs.amend <- DtmToMatrix(vs.amend)
-  
-  list.out <- list(vs.final,
-                   vs.initial,
-                   vs.amend
+  vs.out <- sparseMatrix(i = vs.all$i,
+                         j= vs.all$j,
+                         x=vs.all$v,
+                         dimnames=vs.all$dimnames
+                         )
+
+  #DtmToMatrix(vs.all)  
+  list.out <- list(idx.final,
+                   idx.initial,
+                   idx.amendments,
+                   vs.out
                    )
   
-  names(list.out) <- c("doc.final", "doc.initial", "amendments")
+  names(list.out) <- c("idx.final", "idx.initial", "idx.amendments", "vs.out")
                    
   return(list.out)
   
@@ -344,7 +348,10 @@ CreateVectorSpace <- function(docs,
                      load=TRUE
                      )
 
+  ## Ensure everything is utf-8 compliant
+  corpus.in <- tm_map(corpus.in, function(x) iconv(enc2utf8(x), sub = "byte"))
   corpus.in <- tm_map(corpus.in, tolower)
+
   
   if(rm.stopwords)
     {
@@ -364,6 +371,14 @@ CreateVectorSpace <- function(docs,
       corpus.in <- tm_map(corpus.in, removePunctuation)
     }
 
+  ## if(ngram > 1)
+  ##   {
+
+  ##   }else{
+
+  ##     tokenize=scan(..., what="character")
+      
+  ##   }
   dtm.corpus <- DocumentTermMatrix(corpus.in,
                                    control=list(dictionary=dictionary)
                                    )
@@ -497,6 +512,8 @@ WriteSideBySide <- function(composite.match,
       alt.origin <- composite.match[i, "alt.origin"]
       origin.idx <- composite.match[i, "match.idx"]
 
+      ## This stuff is now wrong b/c of changes to the structure of
+      ## the cavs output
       word.diff <- ( cavs.out[["doc.final"]][i,] > 0 ) -
         ( cavs.out[[origin]][origin.idx,] > 0 )
       
@@ -944,6 +961,166 @@ SanitizeTex <- function(string){
   
 }
 
+## TODO Need to be modified to take dtm, not done yet.
+##' <description>
+##' A wrapper function for the cosine() function in the lsa package,
+##which allows it to work with the MapBills function
+##' <details>
+##' @title cosine.dist
+##' @param dtm a document-term matrix, such as is output from
+##CreateAllVectorSpaces(), containing the term frequency vectors of
+##both the documents for which matches are needed, and the set of
+##candidate match documents D
+##' @param idx.dtm1 a row index indicating the location of the first document
+##' @param idx.dtm2 a row indiex indicating the location of a second document
+##' @param idx.collection a vector of indices indicating which rows in
+##dtm are for the set of comparison documents D (as opposed to the
+##documents requiring matches
+##' @return the output of cosine()
+##' @author Mark Huberty
+cosine.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
+
+
+  out = cosine(dtm[idx.dtm1,], dtm[idx.dtm2,])
+
+  return(out)
+
+}
+
+
+##' <description>
+##' A wrapper function for similarity() that takes a standard set of
+##inputs and handles pre-processing for the outputs
+##' <details>
+##' @title similarity.dist
+##' @param dtm a document-term matrix, such as is output from
+##CreateAllVectorSpaces(), containing the term frequency vectors of
+##both the documents for which matches are needed, and the set of
+##candidate match documents D
+##' @param idx.dtm1 a row index indicating the location of the first document
+##' @param idx.dtm2 a row indiex indicating the location of a second document
+##' @param idx.collection a vector of indices indicating which rows in
+##dtm are for the set of comparison documents D (as opposed to the
+##documents requiring matches
+##' @return the output of similarity()
+##' @author Mark Huberty
+similarity.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
+
+  N <- length(idx.collection)
+  ft <- colSums(dtm[idx.collection,] > 0)
+
+  out <- similarity(dtm[idx.dtm1,], dtm[idx.dtm2,], N, ft)
+
+  return(out)
+
+
+}
+##' <description>
+##' Computes similarity measure #5 from Hoad & Zobel (2003)
+##' <details>
+##' @title similarity
+##' @param vec.d a term-freqency vector from a set of candidate
+##matches D
+##' @param vec.q a term-frequency vector of a document being matched
+##to candidates in D
+##' @param N The number of documents in D
+##' @param ft The number of documents in D containing term t
+##' @return a numeric similarity measure, where larger numbers
+##indicate more similar documents
+##' @author Mark Huberty
+similarity <-function(vec.d,
+                      vec.q,
+                      N,
+                      ft
+                      ){
+
+  ## These two lines were wrong--don't want number of
+  ## unique terms, want number of terms. 
+  #fd <- sum(vec.d > 0)
+  #fq <- sum(vec.q > 0)
+
+  
+  fd <- sum(vec.d)
+  fq <- sum(vec.q)
+  
+  T <- (vec.q > 0 & vec.d > 0)
+  
+  ft_sub = ft[T]
+  
+  vec.weights <- (N / ft_sub) / (1 + abs(vec.d[T] - vec.q[T]))
+  
+  weight<- sum(vec.weights)
+  
+  out = 1 / (1 + log(1 + abs(fd - fq))) * weight
+
+  return(out)
+
+}
+
+cosine.length <- function(vec.d, vec.q){
+
+  out = 1 / (1 + log(1 + abs(sum(vec.d) - sum(vec.q)))) * cosine(vec.d, vec.q)
+
+  return(out)
+
+
+}
+
+cosine.length.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
+
+  out <- cosine.length(dtm[idx.dtm1,], dtm[idx.dtm2,])
+  return(out)
+  
+}
+
+cosine.length.mat <- function(dtm, idx.collection){
+
+  rq <- rowSums(dtm[-idx.collection,])
+  rd <- rowSums(dtm[idx.collection,])
+
+  out <- 1 / (1 + log(1 + outer(rd, rq, vector.diff))) * cosine.mat(dtm, idx.collection)
+
+
+}
+
+vector.diff <- function(x, y){
+
+  abs(x - y)
+
+}
+
+## Could do the matrix/vector diffs with outer(x, y, fun)
+
+## This isn't tested. Trying for a vectorized version of the
+## cosine similarity to cut out the loop function. Notice that this
+## returns the entire distance matrix, so it doesn't slot in correctly
+## just yet. Would have to rewrite everything else to take as inputs
+## the dtm, and idx.final / idx.initial, idx.collection. Then
+## could return the sets of distance matrices, etc. Trying to make
+## this much faster, to cut out the 130k loops that result. 
+cosine.mat <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
+
+  idx.final <- (1:nrow(dtm))[-idx.collection]
+  dtm.final <- dtm[idx.final,]
+  dtm.collection <- dtm[idx.collection,]
+  
+  numerator <- dtm.collection %*% t(dtm.final)
+
+  print(dim(numerator))
+  
+  denominator.a <- sqrt(rowSums(dtm[idx.final,]^2))
+  denominator.b <- sqrt(rowSums(dtm[idx.collection,]^2))
+
+  denominator <- denominator.b %*% t(denominator.a)
+
+  print(dim(denominator))
+  
+  out <- numerator / denominator
+
+  return(out)
+
+}
+
 
 ## ## Not at all clear this will work. See the .py
 ## ## code for doing this with EU bills. Very very messy.
@@ -987,6 +1164,4 @@ SanitizeTex <- function(string){
 ## (i.e. party or committee or whatever) and impact (substance, admin)
 
 
-## Questions:
-## How to handle deletions? As in, amendments that push to drop a
-## paragraph? would want some way to formalize this
+
