@@ -24,12 +24,6 @@ import urllib
 def partition(alist, indices):
     return [alist[i:j] for i, j in zip([0]+indices, indices+[None])]
 
-def parse_amend_html_raw(url):
-    conn = urllib.urlopen(url)
-    doc = conn.read()
-    conn.close()
-
-    sections = []
     
 
 ## parse_amend_html_doc
@@ -283,7 +277,9 @@ def parse_w3m_output(doc,
                      amend_idx=None,
                      clean_html=True,
                      amend_string = 'Amendment\s*?[0-9]+?(?=\n)',
-                     end_string = 'Justification|PROCEDURE'
+                     end_string = 'Justification|PROCEDURE',
+                     committee_names=None,
+                     len_threshold=0
                      ):
 
     print 'Getting amendment indices'
@@ -296,7 +292,7 @@ def parse_w3m_output(doc,
                 amend_idx = amend_test.span()
                 amend_idx = amend_idx[0]
                 break
-    elif doc_type is not 'clean_html' and amend_idx is None:
+    elif not clean_html and amend_idx is None:
         return 'If not clean_html, then must supply the column index for amendment paragraph justification'
 
     print 'Getting amendment interval indices'
@@ -325,48 +321,108 @@ def parse_w3m_output(doc,
     print 'Concatenating amendments'
     amendments_final = []
     for a in amendments:      
+        this_amend = {}
+        para_counter = 0
         amend_text = ''
-        for r in a:
-            is_not_empty = len(re.sub(" ", "", r)) > 0
-            if is_not_empty:
+        for i, r in enumerate(a):
+            if i > 0:
+                prior_not_empty = len(re.sub("[\s0-9]", "", a[i-1])) > 0
+            else:
+                prior_not_empty = True
+                
+            current_not_empty = len(re.sub("[\s0-9]", "", r)) > 0
+
+            ## Checks for whether we are at a paragraph break,
+            ## Defined as an empty line between two sections within an amendment
+            if prior_not_empty and current_not_empty:
                 r = r[amend_idx:-1]
                 amend_text += r
                 amend_text += ' '
-        amend_text = re.sub('^.*?Amendment\s', '', amend_text)
-        amendments_final.append(amend_text)
+            if not prior_not_empty and current_not_empty:
+                r = r[amend_idx:-1]
+                amend_text += r
+                amend_text += ' '                
+            elif prior_not_empty and not current_not_empty:
+                amend_text = re.sub('^.*?Amendment\s', '', amend_text)
+                if len(re.sub('[\s0-9]*', '', amend_text)) > len_threshold: 
+                    this_amend['Paragraph ' + str(para_counter)] = amend_text
+                    para_counter += 1
+                    amend_text = ''
+            elif not prior_not_empty and not current_not_empty:
+                continue
+            # if is_not_empty:
+            #     r = r[amend_idx:-1]
+            #     amend_text += r
+            #     amend_text += ' '
+        amendments_final.append(this_amend)
 
     amendment_labels = re.findall(amend_string, ''.join(doc))
 
-    out = {'labels':amendment_labels, 'amendments':amendments_final}
+    ## Get the amend1 locations:
+    dup_index = []
+    for i, a in enumerate(amendment_labels):
+        if re.match('Amendment\s{1,}1{1}$', a):
+            dup_index.append(i)
+    print dup_index
+    if len(dup_index) > 1:
+        dup_index.pop(0)
+    else:
+        dup_index = None
+    if dup_index:
+        amend_labels = partition(amendment_labels, dup_index)
+        amend_labels = dict(zip(committee_names, amend_labels))
+    else:
+        amend_labels = amendment_labels
+        amend_labels = {committee_names[0]: amend_labels}
 
-    return(out)
+    
+    out_labels = []
+    for key in committee_names:
+        for a in amend_labels[key]:
+            out_labels.append([key, a]) ## fails here b/c index is wrong
+            print a
+    out_paras = []
+    for element in amendments_final:
+        this_para = [[k, v] for k, v in iter(sorted(element.iteritems()))]
+        out_paras.append(this_para)
 
-conn = open('./rese/2007/test.out', 'rb')
-doc = [unicode(row, errors='replace') for row in conn]
-conn.close()
+    out_list = []
+    for l, m in zip(out_labels, out_paras):
+        for p in m:
+            lab = list(l)
+            lab.extend(p)
+            out_list.append(lab)
 
-clean_doc = [row.replace(u'\ufffd', ' ') for row in doc]
+    #out = {'labels':amend_labels, 'amendments':amendments_final}
 
-test_parse = parse_w3m_output(clean_doc,
-                              clean_html=True,
-                              amend_idx=None,
-                              amend_string = 'Amendment\s*?[0-9]+?(?=\n)',
-                              end_string = 'Justification|PROCEDURE'
-                              )
+    return(out_list)
 
-conn = open('./rese/2001/test.out', 'rb')
-doc = [unicode(row, errors='replace') for row in conn]
-conn.close()
+# conn = open('./rese/2007/test.out', 'rb')
+# doc = [unicode(row, errors='replace') for row in conn]
+# conn.close()
 
-clean_doc = [row.replace(u'\ufffd', ' ') for row in doc]
-clean_doc = [re.sub('<.*?>', ' ', row) for row in clean_doc]
+# clean_doc = [row.replace(u'\ufffd', ' ') for row in doc]
 
-test_parse_2 = parse_w3m_output(clean_doc,
-                                amend_idx=39,
-                                clean_html=False,
-                                amend_string = 'Amendment.*?(?=\))',
-                                end_string = 'Justification|PROCEDURE'
-                                )
+# test_parse = parse_w3m_output(clean_doc,
+#                               clean_html=True,
+#                               amend_idx=None,
+#                               amend_string = 'Amendment\s*?[0-9]+?(?=\n)',
+#                               end_string = 'Justification|PROCEDURE'
+#                               )
+
+# conn = open('./rese/2001/test.out', 'rb')
+# doc = [unicode(row, errors='replace') for row in conn]
+# conn.close()
+
+# clean_doc = [row.replace(u'\ufffd', ' ') for row in doc]
+# clean_doc = [re.sub('<.*?>', ' ', row) for row in clean_doc]
+
+# test_parse_2 = parse_w3m_output(clean_doc,
+#                                 amend_idx=39,
+#                                 clean_html=False,
+#                                 amend_string = 'Amendment.*?(?=\))',
+#                                 end_string = 'Justification|PROCEDURE'
+#                                 )
 
 
 
@@ -394,14 +450,14 @@ def parse_inline_amendments(raw_html, section_string, amend_string = ''):
 
     return(out)
 
-conn = open('./intl_mkt/2007/parl_second_reading.html', 'rb')
-doc = [unicode(row, errors='replace') for row in conn]
-conn.close()
+# conn = open('./intl_mkt/2007/parl_second_reading.html', 'rb')
+# doc = [unicode(row, errors='replace') for row in conn]
+# conn.close()
 
-clean_doc = [row.replace(u'\ufffd', ' ') for row in doc]
-clean_doc = ''.join(clean_doc)
+# clean_doc = [row.replace(u'\ufffd', ' ') for row in doc]
+# clean_doc = ''.join(clean_doc)
 
-test_parse_3 = parse_inline_amendments(clean_doc,
-                                       amend_string = '<span.*?italic.*?bold.*?>'
-                                       )
+# test_parse_3 = parse_inline_amendments(clean_doc,
+#                                        amend_string = '<span.*?italic.*?bold.*?>'
+#                                        )
 

@@ -74,6 +74,23 @@ for row in conn:
     input_string += (row + ' ')
 conn.close()
 
+test = parse_amend_html_word(input_string,
+                             re_tables=re_tables,
+                             re_clean = [re_clean_tables,
+                                               re_clean_table_tags,
+                                               re_span,
+                                               re_newline,
+                                               re_fn,
+                                               re_markup,
+                                               re_markup_links,
+                                               re_unicode_quote,
+                                               re_amp_quote,
+                                               re_semicolon,
+                                               re_endash,
+                                               re_parl_amend_header]
+                             )
+
+
 ## Messy; might be better after all to parse the html
 ## from the website if available. Idea:
 ## first split at the amendment + number tag (and do a findall to get the
@@ -101,7 +118,7 @@ for c,p in zip(committee_list, parl_list):
                                                re_endash,
                                                re_parl_amend_header],
                            re_amend_header = re_amend,
-                           re_amend_header_cleanup = [re_amend_clean, re_newline],
+                           re_amend_header_cleanup = [re_amend_cleanb, re_newline],
                            committee_names = c
                            )
     out_name = re.sub('htm', 'txt', p)

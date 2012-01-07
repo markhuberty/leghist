@@ -128,7 +128,7 @@ doc.list <- CreateAllVectorSpaces(initial.bill,
                                     ep.second.reading$text,
                                     commission.proposal
                                     ),
-                                  ngram=1,
+                                  ngram=2,
                                   stem=FALSE,
                                   rm.stopwords=TRUE,
                                   rm.whitespace=TRUE,
@@ -145,34 +145,38 @@ doc.list <- CreateAllVectorSpaces(initial.bill,
 ##                           distance.fun="similarity.dist"
 ##                           )
 
+map.bills.cos <- MapBills(doc.list,
+                          distance.fun="cosine.mat"
+                          )
+
 map.bills.cos.len <- MapBills(doc.list,
-                              distance.fun="cosine.length.dist"
+                              distance.fun="cosine.length.mat"
                               )
 
-## composite.bill.cos <- GetLikelyComposite(map.bills.cos,
-##                                          initial.bill,
-##                                          final.bill,
-##                                          c(ep.first.reading$text,
-##                                            ep.second.reading$text,
-##                                            commission.proposal
-##                                            ),
-##                                          c(ep.first.reading$committee,
-##                                            ep.second.reading$committee,
-##                                            rep("Commission 2001",
-##                                                length(commission.proposal)
-##                                                )
-##                                            ),
-##                                          filter="max",
-##                                          dist.threshold=0.5
-##                                          )
+composite.bill.cos <- GetLikelyComposite(map.bills.cos,
+                                         initial.bill,
+                                         final.bill,
+                                         c(ep.first.reading$text,
+                                           ep.second.reading$text,
+                                           commission.proposal
+                                           ),
+                                         c(ep.first.reading$committee,
+                                           ep.second.reading$committee,
+                                           rep("Commission 2001",
+                                               length(commission.proposal)
+                                               )
+                                           ),
+                                         filter="max",
+                                         dist.threshold=0.2
+                                         )
 
 
-## write.side.by.side.cos <- WriteSideBySide(composite.bill.cos,
-##                                           final.bill,
-##                                           cavs.out=doc.list,
-##                                           file.out="ep_2003_intl_mkt_sbs_cos.tex",
-##                                           pdflatex=TRUE
-##                                           )
+write.side.by.side.cos <- WriteSideBySide(composite.bill.cos,
+                                          final.bill,
+                                          cavs.out=doc.list,
+                                          file.out="ep_2003_intl_mkt_sbs_cos.tex",
+                                          pdflatex=TRUE
+                                          )
 
 ## composite.bill.sim <- GetLikelyComposite(map.bills.sim,
 ##                                          initial.bill,

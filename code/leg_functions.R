@@ -28,6 +28,7 @@ require(topicmodels)
 require(stringr)
 require(lsa)
 require(Matrix)
+require(RWeka)
 #require(openNLP) ## For the sentence tokenizer functionality
 
 ##' ##' <description>
@@ -163,19 +164,7 @@ MapFun <- function(dtm,
     
   dist.fun <- match.fun(distance.fun)
 
-  dist.mat <- sapply(idx.final, function(x){
-    sapply(idx.compare, function(y){
-      
-      dist.out <- dist.fun(dtm,
-                           idx.dtm1=y,
-                           idx.dtm2=x,
-                           idx.collection
-                           )
-
-      return(dist.out)
-
-    })
-  })
+  dist.mat <- dist.fun(dtm, idx.final, idx.compare, idx.collection)
 
   print("Getting match indices")
   match.idx <- sapply(1:ncol(dist.mat), function(x){
@@ -340,7 +329,10 @@ CreateVectorSpace <- function(docs,
                               filter=NULL,
                               filter.thres=NULL
                               ){
-  
+
+  tokenizer <- function(x) NGramTokenizer(x, Weka_control(min = ngram,
+                                                          max = ngram)
+                                          )
 
   corpus.in <-Corpus(VectorSource(docs),
                      readerControl=list(readPlain),
@@ -380,7 +372,8 @@ CreateVectorSpace <- function(docs,
       
   ##   }
   dtm.corpus <- DocumentTermMatrix(corpus.in,
-                                   control=list(dictionary=dictionary)
+                                   control=list(dictionary=dictionary,
+                                     tokenizer=tokenizer)
                                    )
 
 
@@ -463,6 +456,7 @@ ComputeIdentity <- function(){
 WriteSideBySide <- function(composite.match,
                             doc.final,
                             cavs.out,
+                            dir.out,
                             col.highlight="red",
                             box.amendments=TRUE,
                             col.box="lightyellow",
@@ -481,7 +475,7 @@ WriteSideBySide <- function(composite.match,
                          )
 
   
-  sink(file.out)
+  sink(paste(dir.out, file.out, sep=""))
 
   cat(preamble)
   cat(texthighlight)
@@ -512,13 +506,22 @@ WriteSideBySide <- function(composite.match,
       alt.origin <- composite.match[i, "alt.origin"]
       origin.idx <- composite.match[i, "match.idx"]
 
+      if(origin == "doc.initial")
+        {
+          idx.subset <- cavs.out$idx.initial
+        }else if(origin == "amendment"){  
+          idx.subset <- cavs.out$idx.amendments
+        }else{
+          idx.subset <- cavs.out$idx.final
+        }
+      
       ## This stuff is now wrong b/c of changes to the structure of
       ## the cavs output
-      word.diff <- ( cavs.out[["doc.final"]][i,] > 0 ) -
-        ( cavs.out[[origin]][origin.idx,] > 0 )
+      word.diff <- ( cavs.out[["vs.out"]][cavs.out$idx.final,][i,] > 0 ) -
+        ( cavs.out[["vs.out"]][idx.subset,][origin.idx,] > 0 )
       
       highlight.words <-
-        colnames(cavs.out[["doc.final"]])[word.diff > 0]
+        colnames(cavs.out[["vs.out"]])[word.diff > 0]
 
       highlight.words <- highlight.words[highlight.words != " "]
       
@@ -540,11 +543,11 @@ WriteSideBySide <- function(composite.match,
       cat("\n")
       cat("\\end{minipage}")
 
-      word.diff <- ( cavs.out[[origin]][origin.idx,] > 0 ) -
-        ( cavs.out[["doc.final"]][i,] > 0 ) 
+      word.diff <- ( cavs.out[["vs.out"]][idx.subset,][origin.idx,] > 0 ) -
+        ( cavs.out[["vs.out"]][cavs.out$idx.final,][i,] > 0 ) 
              
       highlight.words <-
-        colnames(cavs.out[["doc.final"]])[word.diff > 0]
+        colnames(cavs.out[["vs.out"]])[word.diff > 0]
 
       highlight.words <- highlight.words[highlight.words != " "]
       
@@ -574,7 +577,12 @@ WriteSideBySide <- function(composite.match,
   
   if(pdflatex)
     {
-      call <- paste("pdflatex", file.out, sep=" ")
+      call <- paste("pdflatex -output-directory=",
+                    dir.out, " ",
+                    dir.out,
+                    file.out,
+                    sep=""
+                    )
       system(call)
       system(call)
     }
@@ -956,7 +964,7 @@ DtmToMatrix <- function(dtm){
 ##' @author Mark Huberty
 SanitizeTex <- function(string){
 
-  out <- str_replace_all(string, "([%$_{}\\~^&])", "\\\\\\1")
+  out <- str_replace_all(string, "([%$_{}\\~\\^&])", "\\\\\\1")
   return(out)
   
 }
@@ -1004,15 +1012,18 @@ cosine.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
 ##documents requiring matches
 ##' @return the output of similarity()
 ##' @author Mark Huberty
-similarity.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
+similarity.dist <- function(dtm, idx.query, idx.compare, idx.collection){
 
   N <- length(idx.collection)
   ft <- colSums(dtm[idx.collection,] > 0)
-
-  out <- similarity(dtm[idx.dtm1,], dtm[idx.dtm2,], N, ft)
+  
+  out <- sapply(idx.query, function(x){
+    sapply(idx.compare, function(y){
+      similarity(dtm[x,], dtm[y,], N, ft)
+    })
+  })
 
   return(out)
-
 
 }
 ##' <description>
@@ -1057,29 +1068,20 @@ similarity <-function(vec.d,
 
 }
 
-cosine.length <- function(vec.d, vec.q){
 
-  out = 1 / (1 + log(1 + abs(sum(vec.d) - sum(vec.q)))) * cosine(vec.d, vec.q)
+
+cosine.length.mat <- function(dtm, idx.query, idx.compare, idx.collection){
+
+  rq <- rowSums(dtm[idx.query,])
+  rd <- rowSums(dtm[idx.compare,])
+
+  out <- 1 / (1 + log(1 + outer(rd, rq, vector.diff))) *
+    cosine.mat(dtm,
+               idx.query,
+               idx.compare,
+               collection)
 
   return(out)
-
-
-}
-
-cosine.length.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
-
-  out <- cosine.length(dtm[idx.dtm1,], dtm[idx.dtm2,])
-  return(out)
-  
-}
-
-cosine.length.mat <- function(dtm, idx.collection){
-
-  rq <- rowSums(dtm[-idx.collection,])
-  rd <- rowSums(dtm[idx.collection,])
-
-  out <- 1 / (1 + log(1 + outer(rd, rq, vector.diff))) * cosine.mat(dtm, idx.collection)
-
 
 }
 
@@ -1088,6 +1090,7 @@ vector.diff <- function(x, y){
   abs(x - y)
 
 }
+
 
 ## Could do the matrix/vector diffs with outer(x, y, fun)
 
@@ -1098,18 +1101,17 @@ vector.diff <- function(x, y){
 ## the dtm, and idx.final / idx.initial, idx.collection. Then
 ## could return the sets of distance matrices, etc. Trying to make
 ## this much faster, to cut out the 130k loops that result. 
-cosine.mat <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
+cosine.mat <- function(dtm, idx.query, idx.compare, idx.collection){
 
-  idx.final <- (1:nrow(dtm))[-idx.collection]
-  dtm.final <- dtm[idx.final,]
-  dtm.collection <- dtm[idx.collection,]
+  dtm.query <- dtm[idx.query,]
+  dtm.compare <- dtm[idx.compare,]
   
-  numerator <- dtm.collection %*% t(dtm.final)
+  numerator <- dtm.compare %*% t(dtm.query)
 
   print(dim(numerator))
   
-  denominator.a <- sqrt(rowSums(dtm[idx.final,]^2))
-  denominator.b <- sqrt(rowSums(dtm[idx.collection,]^2))
+  denominator.a <- sqrt(rowSums(dtm[idx.query,]^2))
+  denominator.b <- sqrt(rowSums(dtm[idx.compare,]^2))
 
   denominator <- denominator.b %*% t(denominator.a)
 
