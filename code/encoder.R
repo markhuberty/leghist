@@ -11,7 +11,8 @@ source("leg_functions.R")
 encoder <- function(target.text,
                     match.text,
                     distance.mat,
-                    n.matches.to.show=5
+                    n.matches.to.show=5,
+                    target.idx
                     ){
 
   idx.mat <- sapply(1:ncol(distance.mat), function(x){
@@ -34,7 +35,6 @@ encoder <- function(target.text,
     {
 
       ## Get the potential targets
-      good.selection <- FALSE
       target <- target.text[r]
       match.idx <- idx.mat[,r]
       potential.matches <- match.text[match.idx]
@@ -66,19 +66,22 @@ encoder <- function(target.text,
           print(potential.matches[i])
         }
 
-      while(!good.selection)
+      ## Loop over the target text to get user input
+      valid.selection <- FALSE
+      while(!valid.selection)
         {
           selection <- readline(prompt="Enter index of best match: ")
+
           if(selection == "")
             {
               print("Empty entries not valid, please try again")
-              good.selection <- FALSE
+              valid.selection <- FALSE
             }else{
               selection <- as.integer(selection)
               if(selection %in% c(1:n.matches.to.show) |
                  is.na(selection))
                 {
-                  good.selection <- TRUE
+                  valid.selection <- TRUE
                 }else{
                   print("Invalid choice. Please try again")
                 }
@@ -101,7 +104,7 @@ encoder <- function(target.text,
   match.selections <- as.integer(match.selections)
   dist.selections <- as.numeric(dist.selections)
   
-  df.out <- data.frame(1:length(target.text), match.selections, dist.selections)
+  df.out <- data.frame(target.idx, match.selections, dist.selections)
   names(df.out) <- c("target.index", "match.index", "match.dist")
   return(df.out)
 
@@ -132,9 +135,39 @@ run.encoder <- function(target.text,
                         filter=NULL,
                         filter.thres=NULL,
                         dist.fun="cosine.mat",
-                        n.matches.to.show=5
+                        n.matches.to.show=5,
+                        encode.random=FALSE,
+                        pct.encode=NULL
                         ){
 
+  if(encode.random)
+    {
+      if(is.null(pct.encode))
+        {
+
+          idx.to.test <-
+            sample(1:length(target.text),
+                   ceiling(length(target.text)/10)
+                   )
+          
+        }else{
+
+          idx.to.test <-
+            sample(1:length(target.text),
+                   ceiling(pct.encode * length(target.text))
+                   )
+          
+        }
+
+      target.text <- target.text[idx.to.test]
+      target.idx <- idx.to.test
+      
+    }else{
+
+      target.idx <- 1:length(target.text)
+      
+    }
+  
   doc.list <- CreateAllVectorSpaces(original.text,
                                     target.text,
                                     amendments,
@@ -164,13 +197,15 @@ run.encoder <- function(target.text,
   match.df.orig <- encoder(target.text,
                            original.text,
                            distance.mat.orig,
-                           n.matches.to.show=n.matches.to.show
+                           n.matches.to.show=n.matches.to.show,
+                           target.idx
                            )
   print("Encoding matches to the amendment text")
   match.df.amend <- encoder(target.text,
                             amendments,
                             distance.mat.amend,
-                            n.matches.to.show=n.matches.to.show
+                            n.matches.to.show=n.matches.to.show,
+                            target.idx
                             )
 
   df.out <- cbind(match.df.orig,

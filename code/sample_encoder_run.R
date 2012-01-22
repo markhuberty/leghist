@@ -47,7 +47,8 @@ df.test <- run.encoder(final.bill,
                        filter=NULL,
                        filter.thres=NULL,
                        dist.fun="cosine.mat",
-                       n.matches.to.show=5
+                       n.matches.to.show=5,
+                       encode.random=TRUE
                        )
 
 
