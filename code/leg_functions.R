@@ -658,8 +658,8 @@ GetLikelyComposite <- function(mapbills.out,
                              match.dist > dist.threshold
                              )
     
-    if(is.na(dist.idx) | is.na(pass.threshold) | !pass.threshold)
-      {
+    if(is.na(dist.idx) | is.na(pass.threshold) |
+       !pass.threshold | length(dist.idx) == 0){
 
         vec.out <- c(x, x, "doc.final", "Final", doc.final[x])
 
