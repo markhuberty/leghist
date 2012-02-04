@@ -8,6 +8,7 @@ source("encoder.R")
 
 ## Change the directory to where you've put the text files
 setwd("~/Documents/Research/Dissertation/master/notes/leg_hist_sources/intl_mkt/")
+
 ## Load in the plain text files 
 ep.first.reading <- read.csv("./2007/txt/ep_first_reading_report.txt",
                              header=TRUE,
@@ -35,10 +36,11 @@ final.bill <- readLines("./2007/txt/directive_2009_72_ec.txt")
 ## Whether your choice was valid
 df.test <- run.encoder(final.bill,
                        initial.bill,
-                       c(ep.first.reading$text,
-                         ep.second.reading$text,
-                         commission.proposal
-                         ),
+                       amendments=NULL,
+                       ##c(ep.first.reading$text,
+                       #  ep.second.reading$text,
+                       #  commission.proposal
+                       #  ),
                        ngram=2,
                        stem=FALSE,
                        rm.stopwords=TRUE,
@@ -48,7 +50,8 @@ df.test <- run.encoder(final.bill,
                        filter.thres=NULL,
                        dist.fun="cosine.mat",
                        n.matches.to.show=5,
-                       encode.random=TRUE
+                       encode.random=TRUE,
+                       pct.encode=0.02
                        )
 
 

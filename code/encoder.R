@@ -9,49 +9,124 @@ source("leg_functions.R")
 ## then ask user which is the right one.
 
 encoder <- function(target.text,
-                    match.text,
-                    distance.mat,
+                    initial.match.text,
+                    amend.match.text,
+                    initial.distance.mat,
+                    amend.distance.mat=NULL,
                     n.matches.to.show=5,
                     target.idx
                     ){
 
-  idx.mat <- sapply(1:ncol(distance.mat), function(x){
+  if(!is.null(amend.distance.mat) & !is.null(amend.match.text))
+    {
+    
+      has.amend <- TRUE
+      n.matches.to.show <- ceiling(n.matches.to.show / 2)
+      print(n.matches.to.show)
+      
+    }else{
 
-    order(distance.mat[,x], decreasing=TRUE)[1:n.matches.to.show]
+      has.amend <- FALSE
+
+    }
+
+  idx.initial.mat <- sapply(1:ncol(initial.distance.mat), function(x){
+
+    order(initial.distance.mat[,x], decreasing=TRUE)[1:n.matches.to.show]
 
   })
 
+  if(has.amend)
+     {
+       idx.amend.mat <- sapply(1:ncol(amend.distance.mat), function(x){
+         
+         order(amend.distance.mat[,x], decreasing=TRUE)[1:n.matches.to.show]
+         
+       })
+     }
 
+  source.selections <- c()
   match.selections <- c()
   dist.selections <- c()
   sep.string <- "***************"
 
-  print(paste("VALID ENTRIES ARE:",
-              paste(1:n.matches.to.show, collapse=","),
-              "or NA if no good match is shown"
-              )
-        )
+  print("starting loop")
   for(r in 1:length(target.text))
     {
 
       ## Get the potential targets
+
+      ## Issue here: need to handle the 'no amendments' case
       target <- target.text[r]
-      match.idx <- idx.mat[,r]
-      potential.matches <- match.text[match.idx]
-     
-      dist.vec <- distance.mat[match.idx,r]
 
-      ## Randomize the order so
-      ## the user doesn't know which potential
-      ## match was the closest
-      shuffle.vec <- sample(1:n.matches.to.show)
-      potential.matches <-
-        potential.matches[shuffle.vec]
-      potential.match.distances <-
-        dist.vec[shuffle.vec]
-      potential.match.idx <-
-        match.idx[shuffle.vec]
+      potential.initial.match.idx <-
+        idx.initial.mat[,r]
+      potential.initial.matches <-
+        initial.match.text[potential.initial.match.idx]
+      potential.initial.match.distances <-
+        initial.distance.mat[potential.initial.match.idx, r]
+      
+      ## potential.initial.matches <-
+      ##   potential.initial.matches[shuffle.vec]
+      ## potential.initial.match.distances <-
+      ##   dist.vec[shuffle.vec]
+      ## potential.initial.match.idx <-
+      ##   match.idx[shuffle.vec]
 
+
+      if(has.amend)
+        {
+
+          potential.amend.match.idx <-
+            idx.amend.mat[,r]
+          potential.amend.matches <-
+            amend.match.text[potential.amend.match.idx]
+          potential.amend.match.distances <-
+            amend.distance.mat[potential.amend.match.idx, r]
+
+        }
+
+      ## Generate the list of matches
+
+      if(has.amend)
+        {
+          match.len <- 2 * n.matches.to.show
+          shuffle.master <- sample(1:match.len, replace=FALSE)
+          
+          match.source <- c(rep("amend", n.matches.to.show),
+                            rep("initial", n.matches.to.show)
+                            )[shuffle.master]
+          
+          potential.matches <-
+            c(potential.amend.matches,
+              potential.initial.matches
+              )[shuffle.master]
+
+          potential.match.distances <-
+            c(potential.amend.match.distances,
+              potential.initial.match.distances
+              )[shuffle.master]
+
+          potential.match.idx <-
+            c(potential.amend.match.idx,
+              potential.initial.match.idx
+              )[shuffle.master]
+          
+        }else{
+          match.len <- n.matches.to.show
+          shuffle.master <- sample(1:match.len, replace=FALSE)
+
+          match.source <-
+            rep("initial", n.matches.to.show)[shuffle.master]
+
+          potential.matches <-
+            potential.initial.matches[shuffle.master]
+          potential.match.distances <-
+            potential.initial.match.distances[shuffle.master]
+          potential.match.idx <-
+            potential.initial.match.idx[shuffle.master]
+          
+        }
       ## Run the print statements
       print(sep.string)
       print("TEXT TO MATCH:")
@@ -68,20 +143,31 @@ encoder <- function(target.text,
 
       ## Loop over the target text to get user input
       valid.selection <- FALSE
+      valid.matches <- c(as.character(1:match.len), "NA")
+      prompt.text <-
+        paste("Enter index of best match (valid entries:",
+              paste(1:match.len, collapse=" "),
+              "or NA): ",
+              sep=" "
+              )
+              
       while(!valid.selection)
         {
-          selection <- readline(prompt="Enter index of best match: ")
+          
+          selection <- readline(prompt=prompt.text)
 
           if(selection == "")
             {
+
               print("Empty entries not valid, please try again")
               valid.selection <- FALSE
+
             }else{
-              selection <- as.integer(selection)
-              if(selection %in% c(1:n.matches.to.show) |
-                 is.na(selection))
+
+              if(selection %in% valid.matches)
                 {
                   valid.selection <- TRUE
+                  selection <- as.integer(selection)
                 }else{
                   print("Invalid choice. Please try again")
                 }
@@ -95,17 +181,40 @@ encoder <- function(target.text,
            dist.selections <- append(dist.selections,
                                      potential.match.distances[selection]
                                      )
+           source.selections <- append(source.selections,
+                                       match.source[selection]
+                                       )
          }else{
+
            match.selections <- append(match.selections, selection)
            dist.selections <- append(dist.selections, selection)
+           source.selections <- append(source.selections, selection)
+
          }
-        
+
+      print(paste("Matched",
+                  r,
+                  "of",
+                  length(target.text),
+                  "necessary matches"
+                  )
+            )
     }
   match.selections <- as.integer(match.selections)
   dist.selections <- as.numeric(dist.selections)
+  source.selections <- as.character(source.selections)
   
-  df.out <- data.frame(target.idx, match.selections, dist.selections)
-  names(df.out) <- c("target.index", "match.index", "match.dist")
+  df.out <- data.frame(target.idx,
+                       match.selections,
+                       dist.selections,
+                       source.selections
+                       )
+
+  ## if(!is.null(partial.encoding))
+  ##   {
+  ##     df.out <- rbind(partial.encoding, df.out)
+  ##   }
+  names(df.out) <- c("target.index", "match.index", "match.dist", "match.source")
   return(df.out)
 
 }
@@ -123,10 +232,15 @@ encoder <- function(target.text,
 ##        amendmnets: a character string of amendment paragraphs
 ##          ngram, stem, rm.stopwords, rm.whitespace, rm.punctuation,
 ##          filter, filter.thres: see CreateAllVectorSpaces
-##        n.matches.to.show: how many candidate matches should be provided?  
-run.encoder <- function(target.text,
-                        original.text,
-                        amendments,
+##        n.matches.to.show: how many candidate matches should be
+##          provided?
+##        encode.random: should only a random subset of the target
+##          text be coded?
+##        pct.encode: If encode.random, then what percentage of the
+##          target text should be coded? Assumes 10% if not specified
+run.encoder <- function(target.text=NULL,
+                        original.text=NULL,
+                        amendments=NULL,
                         ngram=2,
                         stem=FALSE,
                         rm.stopwords=TRUE,
@@ -165,8 +279,12 @@ run.encoder <- function(target.text,
     }else{
 
       target.idx <- 1:length(target.text)
-      
+                
     }
+
+  stopifnot(!is.null(original.text) &
+            !is.null(target.text)
+            )
   
   doc.list <- CreateAllVectorSpaces(original.text,
                                     target.text,
@@ -187,37 +305,66 @@ run.encoder <- function(target.text,
                                 doc.list$idx.final,
                                 doc.list$idx.initial
                                 )
-  distance.mat.amend <- dist.fun(doc.list$vs.out,
-                                 doc.list$idx.final,
-                                 doc.list$idx.amendments
-                                 )
-
+  if(is.null(amendments))
+    {
+      distance.mat.amend <- NULL
+    }else{
+      
+      distance.mat.amend <- dist.fun(doc.list$vs.out,
+                                     doc.list$idx.final,
+                                     doc.list$idx.amendments
+                                     )
+    }
+  
   print("Distance matrices created, starting the encoding sequence")
-  print("Encoding matches to the original text")
+
   match.df.orig <- encoder(target.text,
                            original.text,
+                           amendments,
                            distance.mat.orig,
+                           distance.mat.amend,
                            n.matches.to.show=n.matches.to.show,
                            target.idx
                            )
-  print("Encoding matches to the amendment text")
-  match.df.amend <- encoder(target.text,
-                            amendments,
-                            distance.mat.amend,
-                            n.matches.to.show=n.matches.to.show,
-                            target.idx
-                            )
 
-  df.out <- cbind(match.df.orig,
-                  match.df.amend[,2:3]
-                  )
-
-  names(df.out) <- c("idx.final",
-                     "idx.orig",
-                     "dist.orig",
-                     "idx.amend",
-                     "dist.amend"
-                     )
-  return(df.out)
+  return(match.df.orig)
   
+}
+
+
+test.accuracy <- function(automated.match,
+                          human.match,
+                          doc.initial,
+                          doc.final,
+                          amendments,
+                          amendment.origin=NULL,
+                          filter="max",
+                          dist.threshold=0
+                          ){
+
+  
+  best.automated.match <- GetLikelyComposite(automated.match,
+                                             doc.initial,
+                                             doc.final,
+                                             amendments,
+                                             filter=filter,
+                                             dist.threshold=dist.threshold
+                                             )
+
+  best.human.match <- GetLikelyComposite(human.match,
+                                         doc.initial,
+                                         doc.final,
+                                         amendments,
+                                         filter=filter,
+                                         dist.threshold=dist.threshold
+                                         )
+
+  ## Not right, needs to compare both idx and origin...
+  match.pct <- sum(best.automated.match$match.idx ==
+                   best.human.match$match.idx) /
+                     length(best.automated.match$match.idx)
+
+  
+
+
 }

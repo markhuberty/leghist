@@ -34,18 +34,494 @@
 \lstset{backgroundcolor=\color{LightYellow}}
 \lstset{framextopmargin=6pt, framexbottommargin=6pt, framerule=4pt, rulecolor=\color{White}}
 
-\title{\thanks{}}
-\author{Mark Huberty\thanks{Travers Department of Political Science,
+\title{LegHist:\\ Automated legislative history analysis for
+  R\thanks{Original version: 30 January 2012.}}
+\author{Mark Huberty and Hillary Sanders\thanks{Travers Department of Political Science,
     University of California, Berkeley. Contact:
-    \url{markhuberty@berkeley.edu}.}}
+    \url{markhuberty@berkeley.edu}. Hillary Sanders provided vital
+    research support. Thanks to Adrienne Hosek for discussions on the
+  comparative legislative processes for the United States Congress and
+the European Parliament.}}
 \date{\today}
 
-\graphicspath{{../figures/}
+\graphicspath{{../figures/}}
 
 \begin{document}
 %\input{/Users/markhuberty/Documents/Technology/Documentation/Typesetting/prospectusTitle.tex}
 \maketitle
-\doublespacing
+%\doublespacing
+
+\begin{abstract}
+  
+\end{abstract}
+
+\section{Introduction}
+\label{sec:introduction}
+
+Analysis of legislative history plays a central role in political
+science. The data often present barriers to making straightforward, or
+quantifiable progress. Few legislatures provide marked-up versions of final bills
+indicating when and how proposed legislation was amended, or by
+whom. Particularly for very large bills with many amendments,
+identifying these important sources of information on legislative
+influence and process constitute a very large search problem. 
+
+Here, we provide tools to automate the process of legislative history
+analysis. The \texttt{leghist} package for R provides tools for
+processing text from proposed legislation and amendments, matching
+sections of the final bill to their most likely origin in either the
+proposed bill or subsequent amendments, and quantifying the degree and
+from of variation among both successful and unsuccessful
+amendments. We show, through hand-coded trials, that the unsupervised
+methods used here generate valid matches at a high degree of accuracy
+in terms of both human-identified textual similarity and evidence from
+the formal legislative record. Finally, we emphasize that the tools
+provided here should work for other document history processes
+analagous to the legislative history model we present below.
+
+\section{How a bill becomes a law: a model}
+\label{sec:how-bill-becomes}
+
+The tools presented here implement an abstracted view of how a bill
+becomes a law. This section presents this stylized model. The
+following section suggests deviations from this model and ways in
+which the tools provided here can be used to make progress on these
+deviations as well. 
+
+We treat a bill as a document $D$ composed of $I$ sections $d_i$. The
+legislative process begins with an initial bill $D_i$, and concludes
+with a successful bill $D_f$. Alon ghte way, amendments $A_j$ are
+proposed by some set of legislative actors $L$, of which $A_k, k \leq
+j$ are adopted. For $D_i, D_f, and A$, we assume that the sections
+$d_{i,i}, d_{f,i}$, and $a_j$ are all at the same level of
+disaggregation. The tools presented here are agnostic to that level of
+disaggregation, but for the rest of this paper we assume that sections
+are analagous to paragraphs. This is consistent with the structure of
+amendments for the European Parliamentary bills considered in section
+\ref{sec:vign-2009-europ}.
+
+For a complete bill, then, we can assume that the final bill is a
+combination of the initial proposed bill and the proposed
+amendments. We can represent that process as a functional form of $D_f
+= f(D_i, A_j)$. Given that, the challenge is to identify the sections
+of the original bill and the amendments that comprise the final
+bill. 
+
+We may raise a set of questions that we want to answer with regard to
+the history of a bill as it evolves through a legislative process:
+\begin{itemize}
+\item Which sections of the original bill survived to the final version?
+\item Which amendments were adopted, and which weren't?
+\item Who originated the adopted amendments, versus those not adopted?
+\item What was the content of the amendments, and does that content
+  categorize in systematic ways (i.e., did amendments focus on
+  particular topics within the policy domain)?
+\item Were there aspects of the final bill that have no good match,
+  suggesting changes made behind the scenes (i.e., in the
+  reconcilliation process between the House and Senate in the United States Congress)
+\item 
+\end{itemize}
+
+This package provides tools to automate the study of each of these
+questions. In particular, we provide a suite of tools that establishes
+the most likely origin of each component of the final bill, based on
+their similarity to candidate matches in the original bill and
+subsequent proposed amendments. Given that set of matches, we then
+provide tools to generate synthetic bills, analyze the content of
+the included and excluded amendments and dropped sections of the
+original bill, and tabulate contribution of legislative entities to the
+final bill. Finally, we also provide tools to aid manual coding of
+matches that can be used in evaluating the accuracy of the matching
+process for any bill. 
+
+\section{Legislative section matching}
+\label{sec:legisl-sect-match}
+
+Given the model presented in section \ref{sec:how-bill-becomes}, the
+analytic problem thus becomes identifying which amendments and
+portions of the initial bill become the final bill. We treat this as a
+subset of the plagiarism problem, wherein we know with probability
+approaching one that $D_f$ has plagiarized content from $D_i$ and
+$A_j$. As with other versions of plagiarism detection, the problem
+then becomes establishing an effective and efficient comparison
+strategy. 
+
+We implement a generic comparison strategy in four steps:
+\begin{enumerate}
+\item Transform each section of $D_f$, $D_i$, and $A$ into a
+  vector-space representation
+\item Construct the pairwise distance between each section of $D_f$
+  and all sections in $D_i$ and $A$.
+\item Use nearest-neighbor matching without replacement to establish
+  the closest match between each section of $D_f$ and a section in
+  $D_i$ and a candidate amendment in $A$
+\item Pick the closest match of the pair of potential matches $d_i$
+  and $a$
+\end{enumerate}
 
 
+Implementation of step (1) occurs via the \texttt{tm} package for R \citep{meyer2008text},
+and uses the Weka natural language tokenizer for term
+tokenization \citep{hall2009weka}. This infrastructure provides users the ability to
+specify whether words should be stemmed; whether punctuation, excess
+whitespace or stopwords should be
+removed; the n-gram used for constructing the vector space
+representation of text, and whether the term list should be filtered
+on the basis of one of several metrics including term-frequency and
+term frequency / inverse document frequency measures. 
+
+The R package comes with several alternative distance metrics for use
+in step (2). We implement a standard cosine distance, a
+length-weighted cosine distance, and a length-weighted joint
+information distance measure as described by () in their successful
+plagiarism detection software. In other applications, length-sensitive
+distance metrics have performed well in identifying correct documents
+from otherwise quite similar candidate matches. However, as section \ref{} will show,
+the matching process here appears to favor the fuzzy matches provided
+by the cosine distance. This may, as we will discuss, de due to the
+somewhat arbitrary choice of what constitutes a document section, and
+its instability over time. Finally, the function interfaces allow the
+user to supply any distance function so long as it returns a
+correctly-formatted distance matrix. 
+
+Step (3) uses simple nearest neighbor matching with replacement to
+identify the most likely candidate matches from both the initial
+document and the set of amendments. Both matches are returned in an
+intermediate step to permit users to identify the connection to the
+initial bill and to the potential amendments. Finally, since the cosine distance metric
+is consistent on the $[0,1]$ scale, we can then in step (4) compare
+this pair of potential matches to determine the best potential match
+from all candidate matches. 
+
+We may, however, believe that the matching process lacks resolution
+below some distance threshold. For instance, we may think that matches
+reliant on a pairwise distance of 0.2 when the average match for the
+document as a whole is 0.75 may not be very good. The package thus
+provides mechanisms for assigning, in step 4, a distance threshold
+that must be surpassed before the match is considered ``valid''. 
+
+Based on the pairwise matches between sections in the final bill and
+the set of potential sources for the final version of those sections,
+we can construct a synthetic bill for comparison purposes. The package
+provides tools to construct a side-by-side comparison of the final
+bill sections to their candidate matches. When doing so, the threshold
+value described above is used to determine whether the actual match
+should be used. If the threshold value is not met, then the final
+document section is matched to itself. In all cases, the source of the
+matched pairs is called out with margin notes. 
+
+The final document is
+returned as a two-column \LaTeX document, which can be directly
+compiled into a PDF. Within that document, each paragraph of the final
+bill is shown side-by-side with its match. Word differences between
+the matched pair are called out 
+
+Finally, \texttt{leghist} provides tools for post-hoc text-based
+clustering of accepted and rejected amendments. We implement this via
+the \texttt{topicmodels} \citep{grun2011topicmodels} package and provide facilities for use of
+either the Latent Dirchelet Allocation or Coordinated Topic
+probabalistic topic modeling methods \citep{blei2003latent,blei2006correlated}. 
+
+\section{Language theory}
+\label{sec:language-theory}
+
+\section{Vignette: the 2009 European Electricity Market Regulation }
+\label{sec:vign-2009-europ}
+
+In 2008, the European Commission proposed a new round of reforms to
+the regulation of European electricity markets. This reform followed
+on the first (1996) and second (2003) internal market directives. Each
+aimed to break up the vertically integrated utilities that dominated
+national electricity markets, facilitate cross-border market
+integration, and support greater consumer choice over energy
+suppliers. The reforms also played a facilitating role for the
+incorporation of greater amounts of renewable energy into Europe's
+electricity supply. 
+
+The original bill in this case was a package of amendments to the 2003
+legislation proposed by the European Commission as Commission document
+COM 2007 (528). Based on this document, the European Parliament
+introduced a first round of amendments through its First Reading. On
+the basis of that document, the European Council subsequently
+negotiated a Common Position. This replaced the Commission's
+legislative proposal as a complete bill. The Parliament subsequently
+amended this further, in a Second Reading Report. The final bill was
+adoped as Directive 2009 (72). 
+
+This section demonstrates the operation of the \texttt{leghist}
+package in analyzing the amendment process for this legislation. We
+treat the initial bill as the 2003 legislation which the Commission
+proposed to change. Amendments then constitute the Commission proposal
+and the amendments contained in the First and Second Reading
+Reports. We do not treat the Council Common Position as a set of
+amendments, as it was released as a complete bill with no indication
+of where the Council had amended it. Instead, we use this as a feature
+to demonstrate the ability of the \texttt{leghist} package to reveal
+changes not represented in formal amendments. 
+
+We begin by reading in the bills and amendments as plain text. In each
+case, the bills had been parsed from original documents available from
+the European Legislative Observatory. 
+
+\begin{lstlisting}[language=R, numbers=none]
+ep.first.reading <- 
+  read.csv("./2007/txt/ep_first_reading_report.txt",
+           header=TRUE,
+           stringsAsFactors=FALSE
+           )
+ep.second.reading <-
+  read.csv("./2007/txt/ep_second_reading_report.txt",
+           header=TRUE,
+           stringsAsFactors=FALSE
+           )
+
+initial.bill <- readLines("./2003/txt/directive_2003_54_ec.txt")
+commission.proposal <- readLines("./2007/txt/com_2007_528_final.txt")
+council.common.position <- readLines("./2007/txt/council_common_position.txt")
+final.bill <- readLines("./2007/txt/directive_2009_72_ec.txt")
+\end{lstlisting}
+
+We then transform this set of documents into a single document-term
+matrix. Each row of the matrix represents one section of one document,
+while the columns represent unique terms in those documents, and
+matrix entries the term frequencyes for those terms in each
+document. In this case, we do not stem the terms, but do remove
+English stopwords, excess whitespace, and punctuation. We also use
+bigrams, on the supposition that the added semantic content of unique
+2-consecutive-word combinations may give greater resolution.
+
+\begin{lstlisting}[language=R, numbers=none]
+doc.list <- CreateAllVectorSpaces(initial.bill,
+                                  final.bill,
+                                  c(ep.first.reading$text,
+                                    ep.second.reading$text,
+                                    commission.proposal
+                                    ),
+                                  ngram=2,
+                                  stem=FALSE,
+                                  rm.stopwords=TRUE,
+                                  rm.whitespace=TRUE,
+                                  rm.punctuation=TRUE,
+                                  filter=NULL,
+                                  filter.thres=NULL
+                                  )
+
+\end{lstlisting}
+
+The \texttt{doc.list} object takes the form of a list containing four
+objects:
+\begin{itemize}
+\item \texttt{vs.out}, the document-term matrix represented as a
+  sparse Matrix object
+\item \texttt{idx.final}, an integer vector of row indices
+  representing documents in the final bill
+\item \texttt{idx.initial}, an integer vector of row indices
+  representing documents from the initial bill
+\item \texttt{idx.amendments}, an integer vector of row indices
+  representing documents from the proposed amendments
+\end{itemize} 
+
+With the document-term matrix, we can now map the final bill to its
+potential matches in the initial bill and amendments. The function
+\texttt{MapBills} takes as input the \texttt{doc.list} object and a
+specification for the distance function. Here, we use
+\texttt{cosine.mat}, a version of the \texttt{cosine} distance
+optimized for this use case by using matrix algebra to compute all
+distances simultaneously. However, any function that returns a
+distance matrix of the $N_{final} \times N_{compare}$, where the rows
+are the sections of the final bill and columns the sections of the
+potential matches. 
+
+\begin{lstlisting}[language=R, numbers=none]
+map.bills.cos <- MapBills(doc.list,
+                          distance.fun="cosine.mat"
+                          )
+\end{lstlisting}
+
+\texttt{MapBills} returns an R data frame with five columns: the
+section index of the final bill, and the section index and distance
+measure of both the original bill match and the amendment match. We
+can see a sample of that data frame here:
+
+\begin{lstlisting}
+  
+\end{lstlisting}
+
+With this dataframe, we can now get the most likely composite given
+the distance metric we used. 
+
+\begin{lstlisting}
+  composite.bill.cos <- 
+    GetLikelyComposite(map.bills.cos,
+                       initial.bill,
+                       final.bill,
+                       c(ep.first.reading$text,
+                       ep.second.reading$text,
+                       commission.proposal
+                       ),
+                       c(ep.first.reading$committee,
+                       rep("Parliament 2nd Reading", 
+                            nrow(ep.second.reading)
+                          ),
+                       rep("Commission 2007",
+                       length(commission.proposal)
+                       )
+                       ),
+                       filter="max",
+                       dist.threshold=0.2
+                       )
+                       
+\end{lstlisting}"
+
+As we can see, this takes a series of arguments: the output from
+MapFun, the plain text used to create the original \texttt{doc.list}
+object, and a series of committee labels that indicate from where the
+amendments came (in this case, the Parliamentary committees from the
+first reading, the Parliamentary second reading, and the European
+Commission). Crucially, we are able to specify a distance
+threshold. If the program is unable to find a ``best match'' whose
+distance to the target section of the final document exceeds that
+value, it will insert the same section of the "final" bill as the best
+match. This can be used to identify sections of the bill with
+uncertain origins, which perhaps arose outside of the formal amendment
+process. 
+
+Finally, we may wish to write out a side-by-side comparison of the
+actual final bill with the ``best match'' synthetic version returned
+by \texttt{GetLikelyComposite}. That can be done with the
+\texttt{WriteSideBySide} function, which builds and compiles a \LaTeX
+file with that comparison. Margin notes indicate the source of the
+matched paragraph, its index number, and the distance or similarity
+measure for its match to the target paragraph in the final
+bill. Sample PDF output is shown in figure \ref{fig:pdf-output}.
+
+\begin{lstlisting}[language=R]
+write.side.by.side.cos <- 
+   WriteSideBySide(composite.bill.cos,
+                   final.bill,
+                   cavs.out=doc.list,
+                   file.out="ep_2007_intl_mkt_sbs_cos.tex",
+                   dir.out="./2007/tex/",
+                   pdflatex=TRUE
+                   )
+\end{lstlisting}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.75\textwidth]{sample_pdf_output}
+  \label{fig:pdf-output}
+  \caption{Sample PDF output from the \texttt{WriteSideBySide} function, for the 2009 European energy market reform legislation.}
+\end{figure}
+
+\section{Accuracy trials}
+\label{sec:accuracy-trials}
+
+We assess the accuracy of the matching algorithm against two different
+standards: a human-matched document and the legislative record of
+adopted amendments. The human-matched document makes use of the
+\texttt{Encoder} tools provided in \texttt{leghist}. These tools take
+as input the same set of documents provided to the matching algorithm,
+generate a set of candidate matches for each section in the final
+bill, and provide a user interface to indicate which of the candidate
+matches is in fact the best match. A sample of the user interface,
+running in the R console, is show in figure \ref{fig:encoder-interface}.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\textwidth]{encoder}
+  \caption{Sample of the \texttt{Encoder} interface, running in the R console. }
+  \label{fig:encoder-interface}
+\end{figure}
+
+For the legislative record, we used the record of European
+Parliamentary debate for the 2009 energy market reform. The EU process
+provides a particularly interesting test of the tools given its
+somewhat convoluted process. After the Commission proposes legislation
+to the Parliament, one or more committees can propose amendments,
+which are numbered $1:N$ for each committee. Some subset of those
+amendments are adopted, but the final adoption record does not
+explicitly number the amendments or provide a mapping from the new
+legislative document to the amendments. The Commission then indicates
+which amendments it considers acceptable. The revised legislation and
+the Commission's comment document are then taken up by the Council,
+which can also amend the document. The Council, however, provides no
+record of its internal proceedings and does not indicate, in the
+version of the legislation it produces, which sections it
+changed. Finally, the Parliament can conduct a second reading, where
+it can again propose amendments. Those amendments may represent
+agreed-upon changes to the bill arrived at through negotiation with
+the Council, or new amendments. The final bill, ultimately, provides
+no indication of which, if any, of these amendments were
+adopted. Furthermore, subtle changes in language may occur to any
+section of the bill, or to accepted amendments, during the legislative
+process. 
+
+For the first
+Parliamentary reading, the Commission provided detailed responses on
+each adopted Parliamentary amendment, which shaped which amendments
+were accepted as part of the Co-Decision process between the
+Commission, the Council, and the Parliament. We use that record to
+identify actual adopted amendments from the first reading. For the
+second reading, however, we do not have any such record. 
+
+
+\section{Content modeling}
+\label{sec:content-modeling}
+
+Finally, given the number of potential changes, we may wish to
+summarize the content of those changes. This may not, of course,
+capture subtle changes to wording that make large differences to the
+impact of legislation. But it can help identify issue areas or policy
+domains in which the legislative process made or failed to make
+broader changes. It can also help identify areas of contention within
+the broader domain of legislation. 
+
+The \texttt{leghist} package provides the \texttt{ModelDocSet}
+function as an interface to topic model capabilities in the
+\texttt{topicmodels} package \citep{grun2011topicmodels}. These, in
+turn, provide R interfaces to the Latent Dirichelet Allocation methods
+implemented by \cite{blei2003latent} and
+\cite{blei2006correlated}. These methods infer a set of topics from
+the term distributions over a set of documents, on the assumption that
+topics are differentiated by different distributions over a set of
+terms. \texttt{ModelDocSet} provides the ability to feed one of four
+subsets of documents to these models: the included or rejected
+amendments; and the surviving or rejected portions of the original
+bill. 
+
+\begin{lstlisting}[language=R, numbers=none]
+model.incl.amend <- ModelDocSet(doc.list,
+                                composite.bill.cos,
+                                type="incl.amend",
+                                k=5,
+                                control=list(seed=2342)
+                                )
+model.rej.amend <- ModelDocSet(doc.list,
+                               composite.bill.cos,
+                               type="rej.amend",
+                               k=5,
+                               control=list(seed=2342)
+                               )
+\end{lstlisting}
+
+
+
+\bibliography{/Users/markhuberty/Documents/Research/Papers/leghist/bib/leghist}
+\bibliographystyle{apalike}
 \end{document}
+
+%% Want to be very specific that this is only pointing to the Morgan
+%% report, which deals w/ internal market rules, and not to the other
+%% reports, see here:
+
+%% WE deal w/ this one
+% Recommendation for second reading: on the Council common position for adopting a directive of the European Parliament and of the Council concerning common rules for the internal market in electricity and repealing Directive 2003/54/EC [14539/2/2008 - C6-0024/2009 - 2007/0195(COD)] - Committee on Industry, Research and Energy. Rapporteur: Eluned Morgan (A6-0216/2009)
+
+%% Not these, which are separate...
+% Recommendation for second reading: on the Council common position for adopting a regulation of the European Parliament and of the Council establishing an Agency for the Cooperation of Energy Regulators [14541/1/2008 - C6-0020/2009 - 2007/0197(COD)] - Committee on Industry, Research and Energy. Rapporteur: Giles Chichester (A6-0235/2009)
+
+% Recommendation for second reading: on the Council common position for adopting a regulation of the European Parliament and of the Council on conditions for access to the network for cross-border exchanges in electricity and repealing Regulation (EC) No 1228/2003 [14546/2/2008 - C6-0022/2009 - 2007/0198(COD)] - Committee on Industry, Research and Energy. Rapporteur: Alejo Vidal-Quadras (A6-0213/2009)
+
+% Recommendation for second reading: on the Council common position for adopting a directive of the European Parliament and of the Council concerning common rules for the internal market in natural gas and repealing Directive 2003/55/EC [14540/2/2008 - C6-0021/2009 - 2007/0196(COD)] - Committee on Industry, Research and Energy. Rapporteur: Antonio Mussa (A6-0238/2009)
+
+% Recommendation for second reading: on the Council common position for adopting a regulation of the European Parliament and of the Council on conditions for access to the natural gas transmission networks and repealing Regulation (EC) No 1775/2005 [14548/2/2008 - C6-0023/2009 - 2007/0199(COD)] - Committee on Industry, Research and Energy. Rapporteur: Atanas Paparizov (A6-0237/2009)

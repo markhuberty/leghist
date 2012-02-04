@@ -173,6 +173,8 @@ MapFun <- function(dtm,
 
     ## TODO: add threshold value here
     ## as in if dist > thresh, idx, else NA
+    ## TODO: this is too inflexible for use with min/max
+    ## Should pass T/F to decreasing based on min/max
     idx.vec <- order(dist.vec, decreasing=TRUE)
 
     return(c(idx.vec[1], dist.vec[idx.vec[1]]))
@@ -241,15 +243,24 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
 
   
   if(!is.null(amendments))
-    stopifnot(is.character(amendments))
+    {
+      
+      stopifnot(is.character(amendments))
+      text.vec <- c(doc.final, doc.initial, amendments)
+      
+    }else{
+      
+      text.vec <- c(doc.final, doc.initial)
 
+    }
+  
   ## Check to ensure that ngram is structured correctly
   stopifnot(ngram >= 1)
 
   ## Ensure that ngram is integer-valued
   ngram <- round(ngram, 0)
 
-  vs.all <- CreateVectorSpace(c(doc.final, doc.initial, amendments),
+  vs.all <- CreateVectorSpace(text.vec,
                               ngram=ngram,
                               stem=stem,
                               rm.stopwords=rm.stopwords,
@@ -275,8 +286,8 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
       
     }
 
-  vs.out <- sparseMatrix(i = vs.all$i,
-                         j= vs.all$j,
+  vs.out <- sparseMatrix(i=vs.all$i,
+                         j=vs.all$j,
                          x=vs.all$v,
                          dimnames=vs.all$dimnames
                          )
@@ -505,7 +516,8 @@ WriteSideBySide <- function(composite.match,
       origin <- composite.match[i, "match.origin"]
       alt.origin <- composite.match[i, "alt.origin"]
       origin.idx <- composite.match[i, "match.idx"]
-
+      dist <- composite.match[i, "match.dist"]
+      
       if(origin == "doc.initial")
         {
           idx.subset <- cavs.out$idx.initial
@@ -530,6 +542,7 @@ WriteSideBySide <- function(composite.match,
                                        highlight.words=highlight.words,
                                        origin=alt.origin,
                                        origin.idx=origin.idx,
+                                       dist=NULL,
                                        marginnote=FALSE
                                        )
       
@@ -556,6 +569,7 @@ WriteSideBySide <- function(composite.match,
                                        highlight.words=highlight.words,
                                        origin=alt.origin,
                                        origin.idx=origin.idx,
+                                       dist=dist,
                                        marginnote=TRUE
                                        )
       
@@ -625,8 +639,8 @@ GetLikelyComposite <- function(mapbills.out,
   ## Make sure that if the amendment origin list is provided,
   ## it's the the same length as the amendments
   stopifnot((!is.null(amendment.origin) &
-            length(amendments) == length(amendment.origin)) |
-            is.null(amendment.origin)
+            length(amendments) == length(amendment.origin))##  |
+            ## is.null(amendment.origin)
             )
   
   ## Check distance function and then grab it
@@ -650,7 +664,9 @@ GetLikelyComposite <- function(mapbills.out,
 
     print(dist.idx)
     
-    match.dist <- mapbills.out[x, c("bill1.dist","amend.dist")[dist.idx]]
+    match.dist <- mapbills.out[x,
+                               c("bill1.dist","amend.dist")[dist.idx]]
+    match.dist <- ifelse(is.null(match.dist), NA, match.dist)
     print(match.dist)
     
     pass.threshold <- ifelse(filter == "min",
@@ -661,12 +677,13 @@ GetLikelyComposite <- function(mapbills.out,
     if(is.na(dist.idx) | is.na(pass.threshold) |
        !pass.threshold | length(dist.idx) == 0){
 
-        vec.out <- c(x, x, "doc.final", "Final", doc.final[x])
+        vec.out <- c(x, x, "doc.final", "Final", match.dist, doc.final[x])
 
       }else{
 
         match.idx <- mapbills.out[x, c("bill1.idx",
-        "amend.idx")[dist.idx]]
+                                       "amend.idx")[dist.idx]
+                                  ]
         print(match.idx)
         match.origin <- c("doc.initial", "amendment")[dist.idx]
         print(match.origin)
@@ -675,6 +692,7 @@ GetLikelyComposite <- function(mapbills.out,
                             amendments[match.idx]
                             )
 
+        
         if(dist.idx == 1)
           {
             
@@ -696,7 +714,9 @@ GetLikelyComposite <- function(mapbills.out,
           }
         
        
-        vec.out <- c(x, match.idx, match.origin, alt.origin, match.txt)
+        vec.out <- c(x, match.idx, match.origin, alt.origin,
+                     match.dist,
+                     match.txt)
 
         
       }
@@ -706,14 +726,18 @@ GetLikelyComposite <- function(mapbills.out,
     
   }) ## End sapply
 
+  
   mat.out <- data.frame(t(mat.out), stringsAsFactors=FALSE)
   colnames(mat.out) <- c("doc.final.idx",
                          "match.idx",
                          "match.origin",
                          "alt.origin",
+                         "match.dist",
                          "match.txt"
                          )
+
   mat.out$doc.final.idx <- as.integer(mat.out$doc.final.idx)
+  mat.out$match.dist <- as.numeric(mat.out$match.dist)
   mat.out$match.idx <- as.integer(mat.out$match.idx)
 
   return(mat.out)
@@ -886,6 +910,7 @@ WriteTexSection <- function(section,
                             highlight.words=NULL,
                             origin=NULL,
                             origin.idx=NULL,
+                            dist=NULL,
                             marginnote=TRUE
                             ){
   
@@ -915,8 +940,10 @@ WriteTexSection <- function(section,
 
       string.out <- paste("\\marginnote{",
                           origin,
-                          " ",
+                          "\n",
                           origin.idx,
+                          "\n",
+                          round(dist, 3),
                           "}",
                           trim(string.out),
                           sep=""
@@ -1108,14 +1135,10 @@ cosine.mat <- function(dtm, idx.query, idx.compare, idx.collection){
   
   numerator <- dtm.compare %*% t(dtm.query)
 
-  print(dim(numerator))
-  
   denominator.a <- sqrt(rowSums(dtm[idx.query,]^2))
   denominator.b <- sqrt(rowSums(dtm[idx.compare,]^2))
 
   denominator <- denominator.b %*% t(denominator.a)
-
-  print(dim(denominator))
   
   out <- numerator / denominator
 
@@ -1124,46 +1147,155 @@ cosine.mat <- function(dtm, idx.query, idx.compare, idx.collection){
 }
 
 
-## ## Not at all clear this will work. See the .py
-## ## code for doing this with EU bills. Very very messy.
-## FormatText <- function(candidate.text,
-##                        disagg.level="p",
-##                        disagg.lables=NULL,
-##                        sep="\\n\\n"){
-##   ## Takes as input an undifferentiated character string with the
-##   ## text of interest and formats it for use by other models
-
-##   ## Note that the input strings should be clean--no page nos, artifacts
-##   ## of OCR'ing, etc.
-
-##   ## sep refers to the distinguishing feature that divides the string
-##   ## at the disagg level (one of c:clause, p:paragraph; s:sentence)
 
 
-## }
-## End FormatText
+##' <description>
+##' Provides a facility to easily model the content of different
+##classes of matched content
+##' <details>
+##' @title ModelDocSet
+##' @param doc.list the output from CreateAllVectorSpaces
+##' @param composite.mat the output from GetLikelyComposite
+##' @param type the subset of the text to be clustered by topic: one
+##' of "incl.amend" (default), "rej.amend", "incl.orig", "rej.orig"
+##' @param k the number of topics to model
+##' @param method the topicmodeling method to use (one of "LDA" or
+##' "CTM")
+##' @param n.terms the number of terms to show in the returned object
+##' @param ... other arguments as required; see ModelTopics
+##' @return a ModelTopics object, and additionally an index of
+## of the documents as it points to the text inputs, rather than the
+##document-term matrix
+##' @author Mark Huberty
+ModelDocSet <- function(doc.list,
+                        composite.mat,
+                        type="incl.amend",
+                        k=NULL,
+                        method="LDA",
+                        n.terms=5,
+                        ...){
+
+  stopifnot(type %in% c("incl.amend", "rej.amend",
+                        "incl.orig", "rej.orig"
+                        )
+            )
+  
+  if(type == "incl.amend")
+    {
+
+      dtm.idx <- doc.list$idx.amendments
+      orig.idx <-
+        composite.mat$match.idx[composite.mat$match.origin=="amendment"]
+
+      topic.idx <- dtm.idx[orig.idx]
+      
+    }else if(type=="rej.amend"){
+
+      dtm.idx <- doc.list$idx.amendments
+      orig.idx <-
+        composite.mat$match.idx[composite.mat$match.origin=="amendment"]
+
+      topic.idx <- dtm.idx[-orig.idx]
+      
+    }else if(type=="incl.orig"){
+
+      dtm.idx <- doc.list$idx.initial
+      orig.idx <-
+        composite.mat$match.idx[composite.mat$match.origin=="doc.initial"]
+
+      topic.idx <- dtm.idx[orig.idx]
 
 
+    }else{
 
-## Other potential functions:
-## FormatText: takes as input some text in a particular format (clean)
-##             and returns the files needed as input to the main functions
-##             This could be a little weird--would ideally want to map
-##             to actual clause/paragraph stuff, but could use dummies
-##             if not provided. What about the deletion problem(see
-##             below)?
-##             Maybe provides a means of choosing the level of disagg
-##             you want (clause, paragraph, sentence) with defaults
-##             for the requisite separator
-##                     (clause: ?, paragraph: \n\n, sentence: [.]\w)
-## AmendmentSimilarity: provides a measure of similarty among accepted
-##      amendments
-## PrintAnnotatedBill: Stuffs final bill text into a LaTeX file,
-##      color-coded by origin, with legend and (maybe) margin notes
-##      (marginpar package) about
-##      where sections came from or distance measure?
-## TabulateContributions: Tabulate contributions by provided origin
-## (i.e. party or committee or whatever) and impact (substance, admin)
+      dtm.idx <- doc.list$idx.initial
+      orig.idx <-
+        composite.mat$match.idx[composite.mat$match.origin=="doc.initial"]
+
+      topic.idx <- dtm.idx[-orig.idx]
+      
+    }
+
+  print(type)
+  print(topic.idx)
+  
+  model.out <- ModelTopics(doc.list$vs.out,
+                           topic.idx,
+                           k=k,
+                           method=method,
+                           n.terms=n.terms,
+                           ...
+                           )
+
+  model.out$txt.idx <- model.out$dtm.idx - min(dtm.idx) + 1
+  
+  return(model.out)
 
 
+}
+
+
+###
+##' <description>
+##' Provides an interface to model the content of different amendment
+##slices using Latent Dirichelet Allocation methods as supported in
+##the topicmodels package. 
+##' <details>
+##' @title ModelTopics
+##' @param dtm A document-term matrix as output from CreateAllVectorSpaces
+##' @param idx The indices of the document-term matrix to model
+##' @param k The number of topics to model
+##' @param method one of "LDA" (default) or "CTM. See the topicmodels
+##documentation for details. The LDA default assumes independence in
+##term distributions across topics. This may not be appropriate. 
+##' @param n.terms the number of terms by topic to return. See the
+##terms() function in topicmodels for details.
+##' @param ... other arguments as passed to the LDA or CTM methods
+##' @return A list containing the topic model, the top N terms by
+##topic, and the topic assignments for each document indicated by idx
+##' @author Mark Huberty
+ModelTopics <- function(dtm, idx, k=NULL, method="LDA", n.terms, ...){
+
+  dtm.sub <- dtm[idx,]
+
+  ## Check to ensure that all rows have at least one term
+  has.terms <- rowSums(dtm.sub) > 0
+  dtm.sub <- dtm.sub[has.terms,]
+  idx <- idx[has.terms]
+  
+  this.dtm <- sparseToDtm(dtm.sub)
+
+  if(is.null(k))
+    k <- ceiling(nrow(this.dtm) / 10)
+
+  topic.fun <- match.fun(method)
+
+  out <- topic.fun(this.dtm, k=k, ...)
+
+  terms.out <- terms(out, n.terms)
+  topics.out <- topics(out)
+  list.out <- list(out, terms.out, topics.out, idx)
+  names(list.out) <- c("topic.model", "terms", "topics", "dtm.idx")
+  return(list.out)
+
+}
+
+##' <description>
+##' Helper function to translate a sparse Matrix into
+##' a document-term matrix equivalent to that produced by the tm package
+##' <details>
+##' @title sparseToDtm
+##' @param sparseM : a sparse Matrix of form dgCMatrix
+##' @return a simple_triplet_matrix as described in the slam package,
+##with the same dimensions and properties as sparseM
+##' @author Mark Huberty
+sparseToDtm <- function(sparseM){
+
+  require(slam)
+  stm <- as.simple_triplet_matrix(sparseM)
+  class(stm) <- append(class(stm), "DocumentTermMatrix")
+
+  return(stm)
+
+}
 

@@ -440,11 +440,11 @@ def parse_w3m_output(doc,
 ## a list of amendments
 def parse_inline_amendments(raw_html, section_string, amend_string = ''):
 
-    paras = re.findall(section_string, raw_html)
+    paras = re.findall(section_string, raw_html, re.DOTALL)
 
     out = []
     for p in paras:
-        if re.search(amend_string, p):
+        if re.search(amend_string, p, re.DOTALL):
             p = re.sub('<.*?>', '', p)
             out.append(p)
 
