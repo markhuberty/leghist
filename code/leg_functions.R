@@ -981,8 +981,8 @@ DtmToMatrix <- function(dtm){
 
 ##' <description>
 ##' Sanitizes special LaTeX characters in a string so that pdflatex
-##will handle them correctly. All special characters are replaced with
-##their escaped equivalents.
+##' will handle them correctly. All special characters are replaced
+##' with their escaped equivalents.
 ##' <details>
 ##' @title SanitizeTex
 ##' @param string a string to be inserted in a LaTeX file
@@ -1025,13 +1025,13 @@ cosine.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
 
 ##' <description>
 ##' A wrapper function for similarity() that takes a standard set of
-##inputs and handles pre-processing for the outputs
+##' inputs and handles pre-processing for the outputs
 ##' <details>
 ##' @title similarity.dist
 ##' @param dtm a document-term matrix, such as is output from
-##CreateAllVectorSpaces(), containing the term frequency vectors of
-##both the documents for which matches are needed, and the set of
-##candidate match documents D
+##' CreateAllVectorSpaces(), containing the term frequency vectors of
+##' both the documents for which matches are needed, and the set of
+##' candidate match documents D
 ##' @param idx.dtm1 a row index indicating the location of the first document
 ##' @param idx.dtm2 a row indiex indicating the location of a second document
 ##' @param idx.collection a vector of indices indicating which rows in
@@ -1127,7 +1127,19 @@ vector.diff <- function(x, y){
 ## just yet. Would have to rewrite everything else to take as inputs
 ## the dtm, and idx.final / idx.initial, idx.collection. Then
 ## could return the sets of distance matrices, etc. Trying to make
-## this much faster, to cut out the 130k loops that result. 
+## this much faster, to cut out the 130k loops that result.
+
+
+##' <description>
+##'
+##' <details>
+##' @title 
+##' @param dtm 
+##' @param idx.query 
+##' @param idx.compare 
+##' @param idx.collection 
+##' @return 
+##' @author Mark Huberty
 cosine.mat <- function(dtm, idx.query, idx.compare, idx.collection){
 
   dtm.query <- dtm[idx.query,]
@@ -1171,7 +1183,8 @@ ModelDocSet <- function(doc.list,
                         composite.mat,
                         type="incl.amend",
                         k=NULL,
-                        method="LDA",
+                        topic.method="LDA",
+                        sampling.method="VEM",
                         n.terms=5,
                         ...){
 
@@ -1216,13 +1229,14 @@ ModelDocSet <- function(doc.list,
       
     }
 
-  print(type)
-  print(topic.idx)
+  #print(type)
+  #print(topic.idx)
   
   model.out <- ModelTopics(doc.list$vs.out,
                            topic.idx,
                            k=k,
-                           method=method,
+                           topic.method=topic.method,
+                           sampling.method=sampling.method,
                            n.terms=n.terms,
                            ...
                            )
@@ -1245,16 +1259,14 @@ ModelDocSet <- function(doc.list,
 ##' @param dtm A document-term matrix as output from CreateAllVectorSpaces
 ##' @param idx The indices of the document-term matrix to model
 ##' @param k The number of topics to model
-##' @param method one of "LDA" (default) or "CTM. See the topicmodels
-##documentation for details. The LDA default assumes independence in
-##term distributions across topics. This may not be appropriate. 
-##' @param n.terms the number of terms by topic to return. See the
-##terms() function in topicmodels for details.
+##' @param method one of "LDA" (default) or "CTM. See the topicmodels documentation for details. The LDA default assumes independence in term distributions across topics. This may not be appropriate. 
+##' @param n.terms the number of terms by topic to return. See the terms() function in topicmodels for details.
 ##' @param ... other arguments as passed to the LDA or CTM methods
-##' @return A list containing the topic model, the top N terms by
-##topic, and the topic assignments for each document indicated by idx
+##' @return A list containing the topic model, the top N terms by topic, and the topic assignments for each document indicated by idx
 ##' @author Mark Huberty
-ModelTopics <- function(dtm, idx, k=NULL, method="LDA", n.terms, ...){
+ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
+                        sampling.method,
+                        n.terms, ...){
 
   dtm.sub <- dtm[idx,]
 
@@ -1268,9 +1280,9 @@ ModelTopics <- function(dtm, idx, k=NULL, method="LDA", n.terms, ...){
   if(is.null(k))
     k <- ceiling(nrow(this.dtm) / 10)
 
-  topic.fun <- match.fun(method)
+  topic.fun <- match.fun(topic.method)
 
-  out <- topic.fun(this.dtm, k=k, ...)
+  out <- topic.fun(this.dtm, method=sampling.method, k=k, ...)
 
   terms.out <- terms(out, n.terms)
   topics.out <- topics(out)
