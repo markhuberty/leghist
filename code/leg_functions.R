@@ -103,7 +103,7 @@ MapBills <- function(doc.list,
 }
 ## End MapBills
 
-
+## Should add roxygen comments here...
 ModelChanges <- function(bill1,
                          bill2,
                          map.output,
@@ -127,7 +127,7 @@ ModelChanges <- function(bill1,
   ##     model.deleted: a topic model of the deleted text
   ##     model.added: a topic model of the added text
   
-
+  
 
 
 
