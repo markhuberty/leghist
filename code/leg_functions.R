@@ -374,6 +374,11 @@ CreateVectorSpace <- function(docs,
       corpus.in <- tm_map(corpus.in, removePunctuation)
     }
 
+  if(stem)
+    {
+      corpus.in <- tm_map(corpus.in, stemDocument)
+    }
+
   ## if(ngram > 1)
   ##   {
 
@@ -1102,11 +1107,10 @@ cosine.length.mat <- function(dtm, idx.query, idx.compare, idx.collection){
   rq <- rowSums(dtm[idx.query,])
   rd <- rowSums(dtm[idx.compare,])
 
-  out <- 1 / (1 + log(1 + outer(rd, rq, vector.diff))) *
-    cosine.mat(dtm,
-               idx.query,
-               idx.compare,
-               collection)
+  len.coef <- 1 / (1 + log(1 + outer(rd, rq, vector.diff)))
+  mat <- cosine.mat(dtm, idx.query, idx.compare, idx.collection)
+
+  out <- len.coef * mat
 
   return(out)
 
@@ -1186,6 +1190,7 @@ ModelDocSet <- function(doc.list,
                         topic.method="LDA",
                         sampling.method="VEM",
                         n.terms=5,
+                        addl.stopwords="NULL",
                         ...){
 
   stopifnot(type %in% c("incl.amend", "rej.amend",
@@ -1232,7 +1237,7 @@ ModelDocSet <- function(doc.list,
 
       dtm.idx <- doc.list$idx.final
       orig.idx <-
-        composit.mat$match.idx[composite.mat$match.origin=="doc.final"]
+        composite.mat$match.idx[composite.mat$match.origin=="doc.final"]
 
       topic.idx <- dtm.idx[orig.idx]
 
@@ -1248,6 +1253,7 @@ ModelDocSet <- function(doc.list,
                            topic.method=topic.method,
                            sampling.method=sampling.method,
                            n.terms=n.terms,
+                           addl.stopwords,
                            ...
                            )
 
@@ -1262,30 +1268,61 @@ ModelDocSet <- function(doc.list,
 ###
 ##' <description>
 ##' Provides an interface to model the content of different amendment
-##slices using Latent Dirichelet Allocation methods as supported in
-##the topicmodels package. 
+##' slices using Latent Dirichelet Allocation methods as supported in
+##' the topicmodels package. See the topicmodels package documentation
+##' for more details.
 ##' <details>
 ##' @title ModelTopics
-##' @param dtm A document-term matrix as output from CreateAllVectorSpaces
+##' @param dtm A document-term matrix as output from
+##' CreateAllVectorSpaces
 ##' @param idx The indices of the document-term matrix to model
 ##' @param k The number of topics to model
-##' @param method one of "LDA" (default) or "CTM. See the topicmodels documentation for details. The LDA default assumes independence in term distributions across topics. This may not be appropriate. 
-##' @param n.terms the number of terms by topic to return. See the terms() function in topicmodels for details.
+##' @param topic.method One of "LDA" or "CTM"
+##' @param sampling.method One of "VEM" or "Gibbs
+##' @param addl.stopwords Additional stopwords to remove
+##' @param n.terms the number of terms by topic to return. See the
+##' terms() function in topicmodels for details.
 ##' @param ... other arguments as passed to the LDA or CTM methods
+##' @param method one of "LDA" (default) or "CTM. See the topicmodels
+##' documentation for details. The LDA default assumes independence in
+##' term distributions across topics. This may not be appropriate. 
 ##' @return A list containing the topic model, the top N terms by topic, and the topic assignments for each document indicated by idx
 ##' @author Mark Huberty
 ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
-                        sampling.method,
+                        sampling.method, addl.stopwords=NULL,
                         n.terms, ...){
 
-  dtm.sub <- dtm[idx,]
+  if(!is.null(addl.stopwords))
+    {
 
+      to.remove <-
+        lapply(addl.stopwords, function(x){
+
+          grepl(x, colnames(dtm))
+          
+          })
+
+      remove.vec <- rep(FALSE, ncol(dtm))
+      for(i in 1:length(to.remove))
+        {
+          remove.vec <- remove.vec | to.remove[[i]]
+        }
+      print(sum(remove.vec))
+      dtm <- dtm[, !remove.vec]
+  
+    }
+
+  
+  dtm.sub <- dtm[idx,]
+  print(dim(dtm.sub))
   ## Check to ensure that all rows have at least one term
   has.terms <- rowSums(dtm.sub) > 0
   dtm.sub <- dtm.sub[has.terms,]
   idx <- idx[has.terms]
+
   
   this.dtm <- sparseToDtm(dtm.sub)
+  print(dim(this.dtm))
 
   if(is.null(k))
     k <- ceiling(nrow(this.dtm) / 10)
