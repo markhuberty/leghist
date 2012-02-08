@@ -1189,7 +1189,8 @@ ModelDocSet <- function(doc.list,
                         ...){
 
   stopifnot(type %in% c("incl.amend", "rej.amend",
-                        "incl.orig", "rej.orig"
+                        "incl.orig", "rej.orig",
+                        "final"
                         )
             )
   
@@ -1219,7 +1220,7 @@ ModelDocSet <- function(doc.list,
       topic.idx <- dtm.idx[orig.idx]
 
 
-    }else{
+    }else if(type=="rej.orig"){
 
       dtm.idx <- doc.list$idx.initial
       orig.idx <-
@@ -1227,6 +1228,15 @@ ModelDocSet <- function(doc.list,
 
       topic.idx <- dtm.idx[-orig.idx]
       
+    }else{
+
+      dtm.idx <- doc.list$idx.final
+      orig.idx <-
+        composit.mat$match.idx[composite.mat$match.origin=="doc.final"]
+
+      topic.idx <- dtm.idx[orig.idx]
+
+
     }
 
   #print(type)
