@@ -7,7 +7,26 @@ source("leg_functions.R")
 ## Basic idea: generate the set of all possible matches to a target;
 ## then show user the target and N closest matches from a category;
 ## then ask user which is the right one.
-
+##' <description>
+##' Provides a streamlined interface to manually match text under the
+##' same conditions as used for the automated MapBills process. Output
+##' is directly comparable with the output of GetLikelyComposite.
+##' <details>
+##' @title encoder 
+##' @param target.text the final bill 
+##' @param initial.match.text the initial bill
+##' @param amend.match.text any amendments (should be passed in the
+##' same order as they are passed to CreateAllVectorSpaces)
+##' @param initial.distance.mat the pairwise distance matrix between
+##' initial.match.text and target.text
+##' @param amend.distance.mat the pairwise distance matrix between
+##' amend.match.text and target text.
+##' @param n.matches.to.show the number of potential matches to show
+##' @param target.idx the index of the target text 
+##' @return A matrix mapping from each entry in the target text to a
+##' user-supplied index of the best match in either the initial text or
+##' the amendment text.
+##' @author Mark Huberty
 encoder <- function(target.text,
                     initial.match.text,
                     amend.match.text,
@@ -93,8 +112,8 @@ encoder <- function(target.text,
           match.len <- 2 * n.matches.to.show
           shuffle.master <- sample(1:match.len, replace=FALSE)
           
-          match.source <- c(rep("amend", n.matches.to.show),
-                            rep("initial", n.matches.to.show)
+          match.source <- c(rep("amendment", n.matches.to.show),
+                            rep("doc.initial", n.matches.to.show)
                             )[shuffle.master]
           
           potential.matches <-
@@ -184,11 +203,11 @@ encoder <- function(target.text,
            source.selections <- append(source.selections,
                                        match.source[selection]
                                        )
-         }else{
+         }else{ ## No match, append as final
 
-           match.selections <- append(match.selections, selection)
+           match.selections <- append(match.selections, r)
            dist.selections <- append(dist.selections, selection)
-           source.selections <- append(source.selections, selection)
+           source.selections <- append(source.selections, "doc.final")
 
          }
 
@@ -210,26 +229,16 @@ encoder <- function(target.text,
                        source.selections
                        )
 
-  ## if(!is.null(partial.encoding))
-  ##   {
-  ##     df.out <- rbind(partial.encoding, df.out)
-  ##   }
   names(df.out) <- c("target.index", "match.index", "match.dist", "match.source")
   return(df.out)
 
 }
 
 ## run.encoder
-## Takes the text to be matched, the initial text and amendment
-## candidate matches, and settings for
-## CreateAllVectorSpaces. Generates a set of candidate matches and
-## asks the user to select the best (or no good match). Returns
-## a data frame that maps from the final paragraph to both the initial
-## bill and the amendments.
-## Input: target.text: a character string of pargraphs needing matches
-##        original.text: a character string of the original proposed
-##                       text
-##        amendmnets: a character string of amendment paragraphs
+## 
+## Input: target.text: 
+##        original.text: 
+##        amendmnets: 
 ##          ngram, stem, rm.stopwords, rm.whitespace, rm.punctuation,
 ##          filter, filter.thres: see CreateAllVectorSpaces
 ##        n.matches.to.show: how many candidate matches should be
@@ -238,6 +247,39 @@ encoder <- function(target.text,
 ##          text be coded?
 ##        pct.encode: If encode.random, then what percentage of the
 ##          target text should be coded? Assumes 10% if not specified
+##' <description>
+##' Takes the text to be matched, the initial text and amendment
+##' candidate matches, and settings for
+##' CreateAllVectorSpaces. Generates a set of candidate matches and
+##' asks the user to select the best (or no good match). Returns
+##' a data frame that maps from the final paragraph to both the initial
+##' bill and the amendments.
+##' <details>
+##' @title 
+##' @param target.text a character string of pargraphs needing matches
+##' @param original.text a character string of the original proposed
+##'                      text
+##' @param amendments a character string of proposed amendments
+##' @param ngram the n-gram to be used in creating a vector space of
+## each document
+##' @param stem should words be stemmed?
+##' @param rm.stopwords should English stopwords be removed?
+##' @param rm.whitespace should excess whitespace be removed?
+##' @param rm.punctuation should punctuation be removed?
+##' @param filter Should a tfidf filter be applied?
+##' @param filter.thres What filter threshold should be used?
+##' @param dist.fun a distance function consistent with that of cosine.mat
+##' @param n.matches.to.show integer, how many potential matches
+##' should be shown to the user?
+##' @param encode.random should only a random subset of the target text be
+##' encoded?
+##' @param pct.encode If a random subset is to be encoded, what
+##' percent of the text should be encoded?
+##' @return Returns a matrix of the form
+## targetidx:match.idx:match.dist:match.source. For ease of automated
+##' comparison, the values in each are
+##' equivalent to similar values in the output of GetLikelyComposite. 
+##' @author Mark Huberty
 run.encoder <- function(target.text=NULL,
                         original.text=NULL,
                         amendments=NULL,

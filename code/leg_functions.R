@@ -193,31 +193,32 @@ MapFun <- function(dtm,
 
 ##' <description>
 ##' Creates the document-term vector space representations of the
-##initial and final documents, and any (optional) amendments. Vector
-##space representations are baselined to a common dictionary based on
-##the final document.
+##' initial and final documents, and any (optional) amendments. Vector
+##' space representations are baselined to a common dictionary based on
+##' the final document.
 ##' <details>
 ##' @title CreateAllVectorSpaces
 ##' @param doc.initial the first version of a document
 ##' @param doc.final the final version of the same document
 ##' @param amendments an optional list of proposed changes to the
-##initial document
+##' initial document
 ##' @param ngram the length of the word set that should be used for
-##the document-term matrix (1-grams are single words, 2-grams are
-##unique 2-word combinations, etc)
+##' the document-term matrix (1-grams are single words, 2-grams are
+##' unique 2-word combinations, etc)
 ##' @param stem should words in the documents be stemmed?
 ##' @param rm.stopwords boolean, should english stopwords be removed?
-##' @param rm.whitespace boolean, should excess whitespace be stripped?
+##' @param rm.whitespace boolean, should excess whitespace be
+##' stripped?
 ##' @param rm.punctuation boolean, should punctuation be removed?
-##' @param filter one of 'NULL', 'sparse', 'tf' and 'tfidf' specifying the
-  ##           base value for filtering
+##' @param filter one of 'NULL', 'sparse', 'tf' and 'tfidf' specifying
+##' the           base value for filtering
 ##' @param filter.thres numeric, indicating filter threshold
-##appropriate for the filter chosen
+##' appropriate for the filter chosen
+##' @param weighting one of weightTf, weightTfIdf, or weightBin
 ##' @return a list of document-term matrices, for the initial and
-##final documents and any proposed amendments, formatted as sparse
-##Matrix objects. The terms in each matrix are consistent with the set
-##of unique terms in the final document.
-##' @author Mark Huberty
+##' final documents and any proposed amendments, formatted as sparse
+##' Matrix objects. The terms in each matrix are consistent with the set
+##' of unique terms in the final document.
 CreateAllVectorSpaces <- function(doc.initial, doc.final,
                                   amendments=NULL,
                                   ngram=1,
@@ -226,7 +227,8 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
                                   rm.whitespace=FALSE,
                                   rm.punctuation=FALSE,
                                   filter=NULL,
-                                  filter.thres=NULL
+                                  filter.thres=NULL,
+                                  weighting=weightTf
                                   ){
 
   ## Check to ensure that the require args are there
@@ -267,7 +269,8 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
                               rm.whitespace=rm.whitespace,
                               rm.punctuation=rm.punctuation,
                               filter=filter,
-                              filter.thres=filter.thres
+                              filter.thres=filter.thres,
+                              weighting=weighting
                               )
 
   idx.final <- 1:length(doc.final)
@@ -338,7 +341,8 @@ CreateVectorSpace <- function(docs,
                               rm.whitespace=FALSE,
                               rm.punctuation=FALSE,
                               filter=NULL,
-                              filter.thres=NULL
+                              filter.thres=NULL,
+                              weighting=weightTf
                               ){
 
   tokenizer <- function(x) NGramTokenizer(x, Weka_control(min = ngram,
@@ -389,6 +393,7 @@ CreateVectorSpace <- function(docs,
   ##   }
   dtm.corpus <- DocumentTermMatrix(corpus.in,
                                    control=list(dictionary=dictionary,
+                                     weighting=weighting,
                                      tokenizer=tokenizer)
                                    )
 
@@ -667,12 +672,12 @@ GetLikelyComposite <- function(mapbills.out,
                 na.rm=TRUE)
             )[1] ## This is a hack, see if it works
 
-    print(dist.idx)
+    #print(dist.idx)
     
     match.dist <- mapbills.out[x,
                                c("bill1.dist","amend.dist")[dist.idx]]
     match.dist <- ifelse(is.null(match.dist), NA, match.dist)
-    print(match.dist)
+    #print(match.dist)
     
     pass.threshold <- ifelse(filter == "min",
                              match.dist < dist.threshold,
@@ -689,9 +694,9 @@ GetLikelyComposite <- function(mapbills.out,
         match.idx <- mapbills.out[x, c("bill1.idx",
                                        "amend.idx")[dist.idx]
                                   ]
-        print(match.idx)
+        #print(match.idx)
         match.origin <- c("doc.initial", "amendment")[dist.idx]
-        print(match.origin)
+        #print(match.origin)
         match.txt <- ifelse(match.origin=="doc.initial",
                             doc.initial[match.idx],
                             amendments[match.idx]
