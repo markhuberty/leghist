@@ -1363,3 +1363,196 @@ sparseToDtm <- function(sparseM){
 
 }
 
+##' <description>
+##' Provides a function interface for learning the best match quality
+##' threshold from a human-coded document. Given a mapping of source
+##' to target document and a sequence of threshold values, it will
+##' return the optimum based on either maximization of the accuracy rate
+##' or miniminzation of the false positive/negative rate.
+##' <details>
+##' @title 
+##' @param map.bills.out the output of MapBills for this document 
+##' @param initial.bill the text of the initial bill
+##' @param final.bill the text of the final bill
+##' @param amendments amendment text, in the same order as was passed
+##' to MapBills
+##' @param labels the origin of the amendments
+##' @param filter one of "min" or "max" depending on the distance
+##' function used in MapBills
+##' @param threshold.values a numeric vector of potential threshold
+##' values. See GetLikelyComposite for the definition of the threshold
+##' value. A suitable granular vector is recommended, as in seq(0,0.5, 0.005)
+##' @param encoder.out the output of run.encoder for the human-coded
+##' matches of these documents
+##' @param type one of "overall" (overall accuracy) or "tradeoff"
+##' (false positive/negative)
+##' @return a list containing the entire output of the algorithm and
+##' the best threshold value
+##' @author Mark Huberty
+learn.threshold <- function(map.bills.out,
+                            initial.bill,
+                            final.bill,
+                            amendments,
+                            labels,
+                            filter="max",
+                            threshold.values,
+                            encoder.out,
+                            type="overall"){
+
+  
+  if(type == "overall")
+    {
+      accuracy.measures <- get.accuracy.measures(map.bills.out,
+                                                 initial.bill,
+                                                 final.bill,
+                                                 amendments,
+                                                 labels,
+                                                 filter="max",
+                                                 threshold.values,
+                                                 encoder.out
+                                                 )
+
+      best.idx <- which(accuracy.measures$overall ==
+                        max(accuracy.measures$overall)
+                        )
+    }else if(type == "tradeoff"){
+
+      accuracy.measures <- get.type.errors(map.bills.out,
+                                           initial.bill,
+                                           final.bill,
+                                           amendments,
+                                           labels,
+                                           filter="max",
+                                           threshold.values,
+                                           encoder.out
+                                           )
+      ## Minimize the absolute difference between the
+      ## negative match accuracy rate and the positive match accuracy rate
+      accuracy.dif <- abs(accuracy.measures$pct.no.match -
+                          accuracy.measures$pct.positive.match)
+      best.idx <- which(accuracy.dif == min(accuracy.dif))
+    }
+
+  optimum.threshold <- accuracy.measures$threshold.value[best.idx]
+
+  return(list(optimum.threshold, accuracy.measures))
+
+}
+##' <description>
+##' Calculates the overall accuracy rate by threshold value for a set
+##' of documents based on a human-coded set of matches. See
+##' learn.threshold() for more details.
+##' <details>
+##' @title get.accuracy.measures 
+##' @param map.bills.out 
+##' @param initial.bill 
+##' @param final.bill 
+##' @param amendments 
+##' @param labels 
+##' @param filter 
+##' @param threshold.values 
+##' @param encoder.out 
+##' @return 
+##' @author Mark Huberty
+get.accuracy.measures <- function(map.bills.out,
+                                  initial.bill,
+                                  final.bill,
+                                  amendments,
+                                  labels,
+                                  filter="max",
+                                  threshold.values,
+                                  encoder.out){
+
+  accuracy.measures <- sapply(threshold.values, function(x){
+
+    cb <- GetLikelyComposite(map.bills.out,
+                             initial.bill,
+                             final.bill,
+                             amendments,
+                             labels,
+                             filter=filter,
+                             dist.threshold=x
+                             )
+    ## Subset in case only some of the bill was hand-coded
+    cb <- cb[encoder.out$target.index,]
+    
+    tab.source.acc <- table(cb$match.origin,
+                            encoder.out$match.source
+                            )
+    pct.source.acc <- sum(diag(tab.source.acc)) / sum(tab.source.acc)
+
+    overall.acc <- (cb$match.origin == encoder.out$match.source &
+                    cb$match.idx == encoder.out$match.index
+                    )
+    pct.overall.acc <- sum(overall.acc) / length(overall.acc)
+
+    out <- c(pct.overall.acc, pct.source.acc)
+
+
+  })
+
+  accuracy.measures <- data.frame(t(accuracy.measures))
+  names(accuracy.measures) <- c("overall", "source")
+  accuracy.measures$threshold.value <- threshold.values
+
+  return(accuracy.measures)
+}
+
+##' <description>
+##' Optimizes the tradeoff between false negative values (rejecting
+##' matches that should have been matched to source documents) and false
+##' positive values (accepting matches for which no match existed), on
+##' the basis of the threshold value. See learn.threshold for more detail.
+##' <details>
+##' @title get.type.error
+##' @param map.bills.out 
+##' @param initial.bill 
+##' @param final.bill 
+##' @param amendments 
+##' @param labelsfilter 
+##' @param threshold.values 
+##' @param encoder.out 
+##' @return 
+##' @author Mark Huberty
+get.type.errors <- function(map.bills.out,
+                            initial.bill,
+                            final.bill,
+                            amendments,
+                            labels,
+                            filter="max",
+                            threshold.values,
+                            encoder.out){
+  
+  accuracy.measures <- sapply(threshold.values, function(x){
+
+    cb <- GetLikelyComposite(map.bills.out,
+                             initial.bill,
+                             final.bill,
+                             amendments,
+                             labels,
+                             filter=filter,
+                             dist.threshold=x
+                             )
+    ## Subset in case only some of the bill was hand-coded
+    cb <- cb[encoder.out$target.index,]
+    
+    pct.no.match <- sum(cb$match.origin == "doc.final" &
+                        encoder.out$match.source == "doc.final"
+                        ) / sum(encoder.out$match.source ==
+                                "doc.final"
+                                )
+
+    pct.positive.match <- sum((cb$match.origin != "doc.final" &
+                               encoder.out$match.source != "doc.final") &
+                              cb$match.idx == encoder.out$match.index
+                              ) / sum(encoder.out$match.source !=
+                                      "doc.final")
+    
+    return(c(pct.no.match, pct.positive.match))
+  })
+  
+  accuracy.measures <- data.frame(t(accuracy.measures))
+  names(accuracy.measures) <- c("pct.no.match", "pct.positive.match")
+  accuracy.measures$threshold.value <- threshold.values
+  return(accuracy.measures)
+}
