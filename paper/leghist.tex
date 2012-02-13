@@ -35,13 +35,13 @@
 \lstset{framextopmargin=6pt, framexbottommargin=6pt, framerule=4pt, rulecolor=\color{White}}
 
 \title{LegHist:\\ Automated legislative history analysis for
-  R\thanks{Original version: 30 January 2012.}}
-\author{Mark Huberty and Hillary Sanders\thanks{Travers Department of Political Science,
-    University of California, Berkeley. Contact:
-    \url{markhuberty@berkeley.edu}. Hillary Sanders provided vital
-    research support. Thanks to Adrienne Hosek for discussions on the
+  R\thanks{Original version: 30 January 2012. Thanks to Adrienne Hosek for discussions on the
   comparative legislative processes for the United States Congress and
 the European Parliament.}}
+\author{Mark Huberty\thanks{Travers Department of Political Science,
+    University of California, Berkeley. Contact:
+    \url{markhuberty@berkeley.edu}.}~ and Hillary Sanders\thanks{University of
+California, Berkeley.}}
 \date{\today}
 
 \graphicspath{{../figures/}}
@@ -83,29 +83,15 @@ analagous to the legislative history model we present below.
 \label{sec:how-bill-becomes}
 
 The tools presented here implement an abstracted view of how a bill
-becomes a law. This section presents this stylized model. The
-following section suggests deviations from this model and ways in
-which the tools provided here can be used to make progress on these
-deviations as well. 
-
-We treat a bill as a document $D$ composed of $I$ sections $d_i$. The
-legislative process begins with an initial bill $D_i$, and concludes
-with a successful bill $D_f$. Alon ghte way, amendments $A_j$ are
-proposed by some set of legislative actors $L$, of which $A_k, k \leq
-j$ are adopted. For $D_i, D_f, and A$, we assume that the sections
-$d_{i,i}, d_{f,i}$, and $a_j$ are all at the same level of
-disaggregation. The tools presented here are agnostic to that level of
-disaggregation, but for the rest of this paper we assume that sections
-are analagous to paragraphs. This is consistent with the structure of
-amendments for the European Parliamentary bills considered in section
-\ref{sec:vign-2009-europ}.
-
-For a complete bill, then, we can assume that the final bill is a
-combination of the initial proposed bill and the proposed
-amendments. We can represent that process as a functional form of $D_f
-= f(D_i, A_j)$. Given that, the challenge is to identify the sections
-of the original bill and the amendments that comprise the final
-bill. 
+becomes a law. This section presents this stylized model in three,
+increasingly complex, steps. The biggest change imposed by the added
+complexity concerns whether we should use supervised or unsupervised
+methods to identify the origin of the components of the final
+bill. While the most basic case permits a purely unsupervised
+approach, the more complex cases benefit from some additional user
+input. The tools provided in the
+\texttt{leghist} package assist the analyst in making progress on both
+the most basic case and each extension. 
 
 We may raise a set of questions that we want to answer with regard to
 the history of a bill as it evolves through a legislative process:
@@ -119,66 +105,192 @@ the history of a bill as it evolves through a legislative process:
 \item Were there aspects of the final bill that have no good match,
   suggesting changes made behind the scenes (i.e., in the
   reconcilliation process between the House and Senate in the United States Congress)
-\item 
 \end{itemize}
 
-This package provides tools to automate the study of each of these
-questions. In particular, we provide a suite of tools that establishes
-the most likely origin of each component of the final bill, based on
-their similarity to candidate matches in the original bill and
-subsequent proposed amendments. Given that set of matches, we then
-provide tools to generate synthetic bills, analyze the content of
-the included and excluded amendments and dropped sections of the
-original bill, and tabulate contribution of legislative entities to the
-final bill. Finally, we also provide tools to aid manual coding of
-matches that can be used in evaluating the accuracy of the matching
-process for any bill. 
 
-\section{Legislative section matching}
+\subsection{The simple model: a pure legislative process}
+\label{sec:simple-model:-pure}
+
+We treat a bill as a document $D$ composed of $I$ sections $d_i$. The
+legislative process begins with an initial bill $D_i$, and concludes
+with a successful bill $D_f$. During the legislative process, $J$
+amendments $a_j \in A_J$ are
+proposed by some set of legislative actors $L$, of which $A_K, K \leq
+J$ are adopted. For $D_i, D_f,$ and $A_J$, we assume that the sections
+$d_{i,i}, d_{f,i}$, and $a_j$ are all at the same level of
+disaggregation. The tools presented here are agnostic to that level of
+disaggregation, but for the rest of this paper we assume that sections
+are analagous to paragraphs. This is consistent with the structure of
+amendments for the European Parliamentary bills considered in section
+\ref{sec:vign-2009-europ}.
+
+For the simple case, then, the final bill is a
+combination of the proposed bill and the proposed
+amendments. We can represent that process as a functional form of $D_f
+= f(D_i, A_j)$. Each section $d_{f,i}$ contains one and only one best
+match in $D_i, A_j$. Given that, the challenge is to identify the sections
+of the original bill and the amendments that comprise the final
+bill. 
+
+We can thus define a similarity measure $S$. For simiplicity, we
+assume that $S \in [0,1]$. For each final section $d_{f,i}$ we
+construct a distance vector $s_i$ between all possible matches in
+$D_i, A_j$. The best match is thus $arg max(d_i, a_j) s_i$. We can
+therefore use nearest-neighbor matching, since for each $d_{f,i}$
+there is one and only one best match.
+
+To construct the distance metric, we first construct a vector-space
+representation of each section of $D_f$, $D_i$, and $A_j$, using a
+common feature set. Given that vector-space representation of the
+language used in the final bill and all candidate matches, we can
+construct the similarity measure using any continuously-valued
+distance or similarity metric. 
+
+\subsection{Extensions: fuzzy matches}
+\label{sec:extens-fuzzy-match}
+
+The first extension to this stylized legislative process involves a
+set of fuzzy potential matches. Two possible developments will lead to
+fuzzy matches. First, specific language in a bill, such as
+cross-references to other bill sections, dates, or formal legal
+language, may change without affecting the substantive semantic
+content of the bill section and its best match. Second, the drafting
+process may split apart and recombine sections prior to the final
+bill, without necessarily affecting the origin of the legislative
+language.\footnote{We also note that this set of changes may be
+  introduced by the process of producing machine-readable text. Given
+  that much of this text must be scraped by the analyst, this form of
+  variation may be introduced by the scraping algorithm
+  itself. Validating the algorithm for each bill represents a
+  significant effort that we would like the analyst to avoid.} We would wish to identify both cases.
+
+We handle both cases as follows. By implementing nearest-neighbor
+matching with replacement, we enable matches between a single
+source paragraph and multiple final paragraphs. 
+
+This same approach also works for subtle changes in language
+introduced during final drafting of the bill. For instance, consider
+the final section of a bill (left) and the initial section of a bill
+(right) presented as below:
+\begin{quote}
+  \begin{minipage}[t]{0.45\linewidth}
+    to develop renewable energies to meet the commitment of the Com-
+    munity to using 20\% renewable energies by 2020, as well as to
+    develop other technologies contributing to the transition to a
+    safe and sustainable low-carbon economy and to help meet the commitment of the Community to increase energy effciency by 20\% by
+    2020;
+  \end{minipage}
+  \begin{minipage}[h]{0.08\linewidth}
+  \end{minipage}
+  \begin{minipage}[t]{0.45\linewidth}
+    to develop renewable energies to meet the commitment of the Com-
+    munity to using 20\% renewable energies by 2020, and to meet the
+    commitment of the Community to increase energy effciency by 20\%
+    by 2020;
+  \end{minipage}
+\end{quote}
+
+Here, the use of nearest-neighbor matching does not require the exact
+match between the final bill section and its candidate
+sources. Rather, so long as the similarity measure produces a
+well-ordered similarity vector, the match will return the correct value.
+
+It is important to note one situation in which this matching process
+breaks down. Introduction of the same amendment by multiple
+legislative actors will produce more than one match, since the
+similarity vector is no longer well-ordered. Absent additional
+information, it is impossible to determine which is the ``correct''
+match from this set. We will return to this issue when we discuss
+supervised processes.
+
+\subsection{Extensions: negotiated content and revisions}
+\label{sec:extens-negot-cont}
+
+Finally, some legislative processes may not require that all changes
+to a bill be introduced as formal amendments. This is particularly
+true where negotiated outcomes are common. Examples here include the
+reconciliation process in the United States Congress, and the
+co-decision process between the European Parliament and Council. In
+this case, substantial changes to a bill may occur without any
+matching record in either the original bill or the proposed
+amendments. 
+
+Given that the nearest-neighbor process defined above will return some
+match even if no actual match exists, handling this case requires a
+filter for ``poor'' matches. We implement this process with a filter
+on the similarity measure itself: for matches whose similarity
+measure $s$ is below a user-supplied threshold $T$, we reject the
+match and instead match the section to itself. This provides a set of
+valuable information to the analyst, identifying sections of a bill that
+came out of negotiated rather than formal amendment processes. 
+
+The use of a similarity threshold raises the question of how to set
+that threshold. Too high a threshold will catch all ``unsourced'' bill
+sections but throw out accurate matches. Likewise, too low a threshold
+will reduce match quality and lead to potentially incorrect
+inferences. 
+
+We propose to treat this as a supervised learning problem
+in which the optimal $T$ is derived from a set of user-coded data. We
+provide tools to automate the hand-matching of a random subset of the
+final bill to its potential sources. Based on that hand coding, the
+proper threshold value can be chosen to maximize the accuracy of the
+matching algorithm. We provide the capability to estimate the optimal
+$T$ based on both overall accuracy and the tradeoff of Type 1 and Type
+2 errors. 
+
+
+\section{The technical implementation}
 \label{sec:legisl-sect-match}
+
+
+\subsection{Matching and visual comparison}
+\label{sec:match-visu-comp}
 
 Given the model presented in section \ref{sec:how-bill-becomes}, the
 analytic problem thus becomes identifying which amendments and
 portions of the initial bill become the final bill. We treat this as a
+document retrieval problem, wherein we wish to query for a document
+$D_{f,i}$ and retrieve its most likely match from $D_i,
+A_j$. \footnote{This can, alternatively, be treated as a
 subset of the plagiarism problem, wherein we know with probability
 approaching one that $D_f$ has plagiarized content from $D_i$ and
 $A_j$. As with other versions of plagiarism detection, the problem
 then becomes establishing an effective and efficient comparison
-strategy. 
+strategy.}
 
 We implement a generic comparison strategy in four steps:
 \begin{enumerate}
-\item Transform each section of $D_f$, $D_i$, and $A$ into a
-  vector-space representation
-\item Construct the pairwise distance between each section of $D_f$
-  and all sections in $D_i$ and $A$.
+\item Transform each section of $D_f$, $D_i$, and $A_J$ into a
+  bag-of-words vector-space representation in which features are
+  n-grams of potentially heterogeneous length
+\item Construct the pairwise similarity, using some similarity metric,
+  between each section of $D_f$ and all sections in $D_i$ and $A_J$.
 \item Use nearest-neighbor matching without replacement to establish
   the closest match between each section of $D_f$ and a section in
-  $D_i$ and a candidate amendment in $A$
+  $D_i$ and a candidate amendment in $A_J$
 \item Pick the closest match of the pair of potential matches $d_i$
   and $a$
 \end{enumerate}
 
-
 Implementation of step (1) occurs via the \texttt{tm} package for R \citep{meyer2008text},
-and uses the Weka natural language tokenizer for term
+and uses the Weka tokenizer for term
 tokenization \citep{hall2009weka}. This infrastructure provides users the ability to
 specify whether words should be stemmed; whether punctuation, excess
 whitespace or stopwords should be
-removed; the n-gram used for constructing the vector space
+removed; the minimum and maximum n-gram length used for constructing the vector space
 representation of text, and whether the term list should be filtered
 on the basis of one of several metrics including term-frequency and
 term frequency / inverse document frequency measures. 
 
-The R package comes with several alternative distance metrics for use
-in step (2). We implement a standard cosine distance, a
-length-weighted cosine distance, and a length-weighted joint
-information distance measure as described by () in their successful
-plagiarism detection software. In other applications, length-sensitive
+The \texttt{leghist} package comes with several alternative distance metrics for use
+in step (2). We implement a standard cosine similarity, a
+length-weighted cosine similarity, and a length-weighted joint
+information distance measure as described by (). In plagiarism applications, length-sensitive
 distance metrics have performed well in identifying correct documents
 from otherwise quite similar candidate matches. However, as section \ref{} will show,
 the matching process here appears to favor the fuzzy matches provided
-by the cosine distance. This may, as we will discuss, de due to the
+by the length-insensitive cosine similarity. This may, as we will discuss, be due to the
 somewhat arbitrary choice of what constitutes a document section, and
 its instability over time. Finally, the function interfaces allow the
 user to supply any distance function so long as it returns a
@@ -186,49 +298,72 @@ correctly-formatted distance matrix.
 
 Step (3) uses simple nearest neighbor matching with replacement to
 identify the most likely candidate matches from both the initial
-document and the set of amendments. Both matches are returned in an
+document and the set of proposed amendments. Both matches are returned in an
 intermediate step to permit users to identify the connection to the
-initial bill and to the potential amendments. Finally, since the cosine distance metric
-is consistent on the $[0,1]$ scale, we can then in step (4) compare
+initial bill and to the potential amendments. Finally, under the
+assumption that the similarity metric is consistent and well-ordered, we can then in step (4) compare
 this pair of potential matches to determine the best potential match
 from all candidate matches. 
-
-We may, however, believe that the matching process lacks resolution
-below some distance threshold. For instance, we may think that matches
-reliant on a pairwise distance of 0.2 when the average match for the
-document as a whole is 0.75 may not be very good. The package thus
-provides mechanisms for assigning, in step 4, a distance threshold
-that must be surpassed before the match is considered ``valid''. 
 
 Based on the pairwise matches between sections in the final bill and
 the set of potential sources for the final version of those sections,
 we can construct a synthetic bill for comparison purposes. The package
 provides tools to construct a side-by-side comparison of the final
-bill sections to their candidate matches. When doing so, the threshold
-value described above is used to determine whether the actual match
+bill sections to their candidate matches. If the user supplies a
+non-zero threshold value as described in section
+\ref{sec:extens-negot-cont}, that
+value is used to determine whether the actual match
 should be used. If the threshold value is not met, then the final
-document section is matched to itself. In all cases, the source of the
-matched pairs is called out with margin notes. 
+document section is matched to itself. 
 
-The final document is
-returned as a two-column \LaTeX document, which can be directly
+Finally, \texttt{leghist} provides an interface to output the matched
+document as a two-column \LaTeX document, which can be directly
 compiled into a PDF. Within that document, each paragraph of the final
-bill is shown side-by-side with its match. Word differences between
-the matched pair are called out 
+bill is shown side-by-side with its match. Words differences between
+the paragraphs are highlighted as colored text. 
 
-Finally, \texttt{leghist} provides tools for post-hoc text-based
-clustering of accepted and rejected amendments. We implement this via
-the \texttt{topicmodels} \citep{grun2011topicmodels} package and provide facilities for use of
-either the Latent Dirchelet Allocation or Coordinated Topic
-probabalistic topic modeling methods \citep{blei2003latent,blei2006correlated}. 
+\subsection{Supervised learning of the optimal threshold value}
+\label{sec:superv-learn-optim}
 
-\section{Language theory}
-\label{sec:language-theory}
+Selection of an optimum threshold value will depend on the specifics
+of the legislative process behind each bill. While our experiments
+suggest that values on the order of 0.3 perform reasonably well, we
+recommend that users base threshold selection on the performance of
+the matching algorithm in their particular case. To facilitate this process, we provide tools that allow the user to
+hand-code a subset of a given bill and derive the optimum threshold
+value based on the algorithm's performance against that hand-coded
+data. 
+
+\subsection{Amendment content analysis and clustering}
+\label{sec:amendm-cont-analys}
+
+Finally, the legislative process rarely amends bills at
+random. Rather, specific sections or issue areas within bills will
+often prove more contentious than others. The user may wish to
+identify these areas on the basis of accepted and rejected amendments,
+sections of the original bill that persist to the final bill, and
+sections of the final bill for which no match was identified. 
+
+We provide a ready interface between the matched bill and the
+\texttt{topicmodels} package for R that enables topic modeling of
+these different slices of the matched bill. As described by
+\cite{blei2003latent,blei2003latent}, topic modeling assumes a latent
+structure within a set of documents. Each document--in this case, a
+bill section--is assumed to derive from a mixture of topics. Each
+topic, in turn, is represented by distribution over a
+set of terms. Latent Dirichlet Allocation provides a Bayesian method
+for inferring topics from empirical word distributions, and assigning
+documents to those topics on the basis of document-specific
+distributions. 
+
+
 
 \section{Vignette: the 2009 European Electricity Market Regulation }
 \label{sec:vign-2009-europ}
 
-In 2008, the European Commission proposed a new round of reforms to
+To illustrate each of these tools and their technical underpinnings,
+we now provide a vignette based on actual legislation as passed by the
+European Parliament. In 2008, the European Commission proposed a new round of reforms to
 the regulation of European electricity markets. This reform followed
 on the first (1996) and second (2003) internal market directives. Each
 aimed to break up the vertically integrated utilities that dominated
@@ -245,8 +380,11 @@ introduced a first round of amendments through its First Reading. On
 the basis of that document, the European Council subsequently
 negotiated a Common Position. This replaced the Commission's
 legislative proposal as a complete bill. The Parliament subsequently
-amended this further, in a Second Reading Report. The final bill was
-adoped as Directive 2009 (72). 
+amended this further, in a Second Reading. The final bill was
+adoped as Directive 2009 (72).\footnote{A full procedural record can
+  be found at
+  \url{http://www.europarl.europa.eu/oeil/popups/ficheprocedure.do?reference=2007/0195(COD)&lg=fr}. Referenced
+12 February 2012.} 
 
 This section demonstrates the operation of the \texttt{leghist}
 package in analyzing the amendment process for this legislation. We
@@ -261,7 +399,11 @@ changes not represented in formal amendments.
 
 We begin by reading in the bills and amendments as plain text. In each
 case, the bills had been parsed from original documents available from
-the European Legislative Observatory. 
+the European Legislative Observatory. We note that neither the bills
+nor the amendments were
+not available in easily machine-readable format. We provide more
+detail on how the available electronic records were parsed into
+machine-readable plain text in appendix (). 
 
 \begin{lstlisting}[language=R, numbers=none]
 ep.first.reading <- 
@@ -282,9 +424,10 @@ final.bill <- readLines("./2007/txt/directive_2009_72_ec.txt")
 \end{lstlisting}
 
 We then transform this set of documents into a single document-term
-matrix. Each row of the matrix represents one section of one document,
+matrix containing a vector space bag-of-words representation of each
+section of the bills and proposed amendments. Each row of the matrix represents one section of one document,
 while the columns represent unique terms in those documents, and
-matrix entries the term frequencyes for those terms in each
+matrix entries the term frequencies for those terms in each
 document. In this case, we do not stem the terms, but do remove
 English stopwords, excess whitespace, and punctuation. We also use
 bigrams, on the supposition that the added semantic content of unique
@@ -297,7 +440,8 @@ doc.list <- CreateAllVectorSpaces(initial.bill,
                                     ep.second.reading$text,
                                     commission.proposal
                                     ),
-                                  ngram=2,
+                                  ngram.min=1,
+                                  ngram.max=3,
                                   stem=FALSE,
                                   rm.stopwords=TRUE,
                                   rm.whitespace=TRUE,
@@ -330,7 +474,7 @@ optimized for this use case by using matrix algebra to compute all
 distances simultaneously. However, any function that returns a
 distance matrix of the $N_{final} \times N_{compare}$, where the rows
 are the sections of the final bill and columns the sections of the
-potential matches. 
+potential matches, may be used. 
 
 \begin{lstlisting}[language=R, numbers=none]
 map.bills.cos <- MapBills(doc.list,
@@ -347,8 +491,71 @@ can see a sample of that data frame here:
   
 \end{lstlisting}
 
-With this dataframe, we can now get the most likely composite given
-the distance metric we used. 
+Before we identify the most likely set of matches based on these
+distance metrics, we want to pick the optimum threshold value as
+discussed on section \ref{sec:extens-negot-cont}. To do so, we will
+use a hand-coded set of best matchs. The \texttt{leghist} package
+provides three tools for doing so. First, the user may encode the best
+match from the set of candidates using the same structure used by
+\texttt{MapBills}. The \texttt{run.encoder} routine allows the user to
+encode a randomly-sampled portion of the final bill. It presents the
+user with a set of candidate matches, based on likely matches from
+both the initial bill and amendments. The user provides the index of
+the best match, or \texttt{NA} if no valid match is
+available.\footnote{We note that users who do not want to use the
+  automated matching tools may still use the encoding tools to
+  hand-match amendments. The tools reduce the set of possible matches
+  to a set of likely matches based on the same vector space language
+  representation used by the automated match algorithms, thereby
+  reducing the search space for hand-coded matches.} Figure
+\ref{fig:encoder-interface} provides a sample of the 
+\texttt{run.encoder} interface.
+
+Based on the encoded sample, we may identify the optimum threshold
+value based on the empirical accuracy of the matching algorithm. To do
+so, we provide the \texttt{learn.threshold} interface. This takes as
+one of its arguments a sequence of potential threshold values. It then
+computes the accuracy of synthetic bill based on the output from \texttt{MapBills},
+for each threshold value, and returns the optimum threshold value from
+the sequence. The optimum
+threshold value may be identified in two ways based on the
+\texttt{type} argument. With \texttt{type=overall},
+the aggregate accuracy of the matched pairs is estimated, and the
+threshold value corresponding to the highest accuracy returned. With
+\texttt{type=tradeoff}, the Type 1/2 error tradeoff is estimated and
+the threshold value at the intersection of the type 1 and type 2 error
+curves is returned. We recommend that the threshold sequence be
+specified at a fairly granular level, such as \texttt{seq(0, 0.5, 0.005)}.
+
+Figure \ref{fig:learn-threshold-output} shows the
+output of both versions of this function as trained on a 30\% sample
+of the bill in question. We can see that the optimum choice of
+threshold value is about 0.3, such that any matches with simliarity
+values $s < 0.3$ should be treated as ``no match''.
+
+\begin{figure}[ht]
+  \centering
+  
+  \caption{Accuracy curves as returned from the \texttt{learn.threshold} function. Notice that the optimum threshold value is closer to the accuracy curve than the type 1/2 tradeoff curve intersection, owing to the relative flatness of the tradeoff curves.}
+  \label{fig:learn-threshold-output}
+\end{figure}
+
+With an optimum threshold in mind, we can now build the most likely
+composite on the basis of the matched
+bill. \texttt{GetLikelyComposite} provides functionality for doing
+so. As we can see, this takes a series of arguments: the output from
+MapBills, the plain text used to create the original \texttt{doc.list}
+object, and a series of labels that indicate from where the
+amendments came (in this case, the Parliamentary committees from the
+first reading, the Parliamentary second reading, and the European
+Commission). The argument \texttt{dist.threshold} represents the decision threshold $T$ described in section
+\ref{sec:extens-negot-cont}. If the program is unable to find a ``best match'' whose
+distance to the target section of the final document exceeds that
+value, it will insert the same section of the "final" bill as the best
+match. This can be used to identify sections of the bill with
+uncertain origins, which perhaps arose outside of the formal amendment
+process. 
+
 
 \begin{lstlisting}
   composite.bill.cos <- 
@@ -371,26 +578,13 @@ the distance metric we used.
                        dist.threshold=0.2
                        )
                        
-\end{lstlisting}"
-
-As we can see, this takes a series of arguments: the output from
-MapFun, the plain text used to create the original \texttt{doc.list}
-object, and a series of committee labels that indicate from where the
-amendments came (in this case, the Parliamentary committees from the
-first reading, the Parliamentary second reading, and the European
-Commission). Crucially, we are able to specify a distance
-threshold. If the program is unable to find a ``best match'' whose
-distance to the target section of the final document exceeds that
-value, it will insert the same section of the "final" bill as the best
-match. This can be used to identify sections of the bill with
-uncertain origins, which perhaps arose outside of the formal amendment
-process. 
+\end{lstlisting}
 
 Finally, we may wish to write out a side-by-side comparison of the
 actual final bill with the ``best match'' synthetic version returned
-by \texttt{GetLikelyComposite}. That can be done with the
-\texttt{WriteSideBySide} function, which builds and compiles a \LaTeX
-file with that comparison. Margin notes indicate the source of the
+by \texttt{GetLikelyComposite}. The 
+\texttt{WriteSideBySide} function provides an interface for building a
+2-columna \LaTeX document with that comparison. Margin notes indicate the source of the
 matched paragraph, its index number, and the distance or similarity
 measure for its match to the target paragraph in the final
 bill. Sample PDF output is shown in figure \ref{fig:pdf-output}.
@@ -419,7 +613,7 @@ write.side.by.side.cos <-
 We assess the accuracy of the matching algorithm against two different
 standards: a human-matched document and the legislative record of
 adopted amendments. The human-matched document makes use of the
-\texttt{Encoder} tools provided in \texttt{leghist}. These tools take
+\texttt{encoder} tools provided in \texttt{leghist}. These tools take
 as input the same set of documents provided to the matching algorithm,
 generate a set of candidate matches for each section in the final
 bill, and provide a user interface to indicate which of the candidate

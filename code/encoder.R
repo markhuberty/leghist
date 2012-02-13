@@ -193,7 +193,7 @@ encoder <- function(target.text,
             }
         }
 
-      if(is.integer(selection))
+      if(!is.na(selection))
          {
            match.selections <- append(match.selections,
                                       potential.match.idx[selection])
@@ -208,7 +208,10 @@ encoder <- function(target.text,
            match.selections <- append(match.selections, r)
            dist.selections <- append(dist.selections, selection)
            source.selections <- append(source.selections, "doc.final")
-
+           print(match.selections)
+           print(dist.selections)
+           print(source.selections)
+           
          }
 
       print(paste("Matched",
