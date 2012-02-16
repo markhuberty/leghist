@@ -10,11 +10,144 @@ from xml.etree import ElementTree as ET
 from xml.parsers.expat import ExpatError
 import copy
 import urllib
+import BeautifulSoup as BeautifulSoup
 
 ## Function definition
 ## NOTE: the functions defined below work for the following cases:
 ## EU Parliamentary amendments converted from MS Word format to html
 ## EU legislation dumped from the website as plaintext
+
+## This works really well for amendments parsed from their word documents
+## amend_html should be a html string of the entire document.
+def soup_amend_parser(amend_html, split_string='Amendment',
+                      clean_string='&nbsp;|&quot;|\n'):
+    a_split = re.split(split_string, amend_html)
+    amendments = []
+    for a in a_split:
+        temp = BeautifulSoup.BeautifulSoup(a)
+        temp_rows = temp.findAll('td')
+        temp_left_col = [t for t in temp_rows if re.search('border-left', str(t))]
+
+        if len(temp_left_col) > 0:
+            amend = [t.findAll(text=True) for t in temp_left_col]
+            amendments.append(amend)
+    print 'outputing labeled amendments'
+    labeled_amendments = []
+    for idx, a in enumerate(amendments):
+        for jdx, s in enumerate(a):
+            s_out = ''.join(s).encode('utf-8')
+            s_out = re.sub(clean_string, '', s_out)
+
+            if len(s_out) > 0:
+                out = {'amendment': idx,
+                       'paragraph': jdx,
+                       'text': s_out
+                       }
+                labeled_amendments.append(out)
+    return(labeled_amendments)
+
+## Basic idea:
+## 1. Extract all the rows
+## 2. For each row, get the cols
+## 3. Get the second col out of each of them
+## 4. Return the text
+def soup_amend_parser_2(amend_html, split_string='Amendment',
+                        clean_string='&nbsp;|&quot;|\n'):
+    soup = BeautifulSoup.BeautifulSoup(amend_html)
+
+    rows = soup.findAll('tr')
+    cols = []
+    amend_nums = []
+    section_nums = []
+    for idx, r in enumerate(rows):
+        temp = r.findAll('td')
+        if len(temp) > 1:
+            r_txt = temp[-1].findAll(text=True)
+            #r_txt = re.sub(clean_string, '', r_txt)
+            cols.append(''.join(r_txt))
+            amend_nums.append(idx)
+            section_nums.append(range(len(r_txt)))
+
+    ## Get the amendment locations
+    
+    return([cols, amend_nums, section_nums])
+
+def soup_amend_parser_3(amend_html, clean_string='&nbsp;|&quot;|\n'):
+    soup = BeautifulSoup.BeautifulSoup(amend_html)
+
+    tab = soup.findAll('table')
+
+    out = []
+    amend_idx = 1
+    for idx, t in enumerate(tab):
+        rows = t.findAll('tr')
+        has_amend = False
+        section_idx = 1
+        for jdx, r in enumerate(rows):
+            temp = r.findAll('td')
+            if len(temp) > 1:
+                has_amend=True
+                r_txt = temp[-1].findAll(text=True)
+                col = re.sub(clean_string, '',''.join(r_txt).encode('utf-8'))
+                if len(col) > 0:
+                    out.append({'amendment': amend_idx,
+                                'paragraph': section_idx,
+                                'text': col})
+                    section_idx += 1
+        if has_amend:
+            amend_idx += 1
+    return(out)
+
+                
+    cols = []
+    amend_nums = []
+    section_nums = []
+    for idx, r in enumerate(rows):
+        temp = r.findAll('td')
+        if len(temp) > 1:
+            r_txt = temp[-1].findAll(text=True)
+            r_txt = re.sub(clean_string, '', ''.join(r_txt))
+            cols.append(r_txt)
+            amend_nums.append(idx)
+            section_nums.append(range(len(r_txt)))
+
+    ## Get the amendment locations
+    
+    return([cols, amend_nums, section_nums])
+
+        
+    a_split = re.split(split_string, amend_html)
+    amendments = []
+    for a in a_split:
+        temp = BeautifulSoup.BeautifulSoup(a)
+        temp_rows = temp.findAll('tr')
+        
+        temp_cols = []
+        for r in temp_rows:
+            tc = temp_rows.findAll('td')
+            
+        temp_cols = temp_rows.findAll('td')
+        
+        if len(temp_cols) > 0:
+            amend = [t.findAll(text=True) for t in temp_cols if len(t) > 0]
+            amendments.append(amend)
+    return(amendments)
+
+    print 'outputing labeled amendments'
+    labeled_amendments = []
+    for idx, a in enumerate(amendments):
+        for jdx, s in enumerate(a):
+            s_out = ''.join(s).encode('utf-8')
+            s_out = re.sub(clean_string, '', s_out)
+
+            if len(s_out) > 0:
+                out = {'amendment': idx,
+                       'paragraph': jdx,
+                       'text': s_out
+                       }
+                labeled_amendments.append(out)
+    return(labeled_amendments)
+
 
 ## partition
 ## input: a list and indices for where to partition the list
