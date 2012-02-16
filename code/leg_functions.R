@@ -31,20 +31,18 @@ require(Matrix)
 require(RWeka)
 #require(openNLP) ## For the sentence tokenizer functionality
 
-##' ##' <description>
 ##' Maps the final bill to both the original bill and any proposed
-##amendments. Returns a matrix that maps from the final bill to the
-##initial bill and (if supplied) the amendments, with distance metrics
-##for the best match from each source. 
-##' <details>
+##' amendments. Returns a matrix that maps from the final bill to the
+##' initial bill and (if supplied) the amendments, with distance metrics
+##' for the best match from each source. 
 ##' @title MapBills
 ##' @param doc.list A list of document-term matrices, as output from
-##ComputeAllVectorSpaces()
+##' ComputeAllVectorSpaces().
 ##' @param distance.fun A distance function. The underlying distance
-##metric should return larger values for more similar objects. 
+##' metric should return larger values for more similar objects. 
 ##' @return A matrix mapping from the sections of the final document
-##to the sections of both the initial document and any proposed
-##amendments, with distance values for each matched pair.
+##' to the sections of both the initial document and any proposed
+##' amendments, with distance values for each matched pair.
 ##' @author Mark Huberty
 MapBills <- function(doc.list,
                      distance.fun="cosine.dist"
@@ -103,51 +101,45 @@ MapBills <- function(doc.list,
 }
 ## End MapBills
 
-## Should add roxygen comments here...
+##' Will model the additions and deletions between two bills based on a
+##' mapping between the two as provided by MapBills.
+##' Uses either LDA or CTM topic modeling to summarize additions and
+##' deletions. Not yet completed.
+##' @title ModelChanges
+##' @param bill1 character vectors, each element of which is a
+##'     section of a bill. Any level of disaggregation can be used.
+##' @param bill2 character vectors, each element of which is a
+##'     section of a bill. Any level of disaggregation can be used.
+##' @param map.output the output of MapBills for bill1 and bill2.
+##' @param n.topics: the number of topics to pass to the topic modeler.
+##' If NULL, then the default is set to 1/5 (?) of the section count,
+##' seperately for added and excluded text.
+##' @param topic.fun the topic modeling function to be used. Can be
+##' one of LDA,CTM, or a user supplied function. 
+##' @return Two topic models with n.topics topics in each:
+##'     model.deleted: a topic model of the deleted text.
+##'     model.added: a topic model of the added text.
+##' @author Mark Huberty
 ModelChanges <- function(bill1,
                          bill2,
                          map.output,
                          n.topics=NULL,
                          topic.fun="LDA", ...){
-  ## Models the additions and deletions between two bills based on a
-  ## mapping between the two as provided by MapBills
-  ## Uses either LDA or CTM topic modeling to summarize additions and
-  ## deletions
-  ## Inputs:
-  ##    bill1, bill2: character vectors, each element of which is a
-  ##     section of a bill. Any level of disaggregation can be used.
-  ##    map.output: the output of MapBills for bill1 and bill2
-  ##    n.topics: the number of topics to pass to the topic modeler.
-  ##     If NULL, then the default is set to 1/5 (?) of the section
-  ##     count, separately for added and excluded text
-  ##    topic.fun: the topic modeling function to be used. Can be one
-  ##    of LDA, CTM, or a user-supplied function
-  ## Outputs:
-  ##    Two topic models with n.topics topics in each:
-  ##     model.deleted: a topic model of the deleted text
-  ##     model.added: a topic model of the added text
-  
-  
-
-
-
-
-
+ 
 }
 ## End ModelChanges
 
-##' <description>
+
 ##' Does the actual pairwise mapping of bills. Maps from doc1:doc2
-##via nearest-neighbor matching on the basis of a user-supplied distance / similarity function
-##' <details>
+##' via nearest-neighbor matching on the basis of a user-supplied distance / similarity function.
 ##' @title MapFun
 ##' @param doc1 a document-term matrix 
 ##' @param doc2 a document-term matrix
 ##' @param distance.fun a distance function. The underlying distance
-##metric should return larger values when two objects are closer
+##' metric should return larger values when two objects are closer.
 ##' @param ... any other arguments to be passed to distance.fun
 ##' @return a 3-column matrix mapping the row index of doc2 to its
-##best match in doc1, and the distance between them
+##' best match in doc1, and the distance between them.
 ##' @author Mark Huberty
 MapFun <- function(dtm,
                    distance.fun="cosine.dist",
@@ -191,30 +183,28 @@ MapFun <- function(dtm,
 }
 ## End MapFun
 
-##' <description>
 ##' Creates the document-term vector space representations of the
 ##' initial and final documents, and any (optional) amendments. Vector
 ##' space representations are baselined to a common dictionary based on
 ##' the final document.
-##' <details>
 ##' @title CreateAllVectorSpaces
-##' @param doc.initial the first version of a document
-##' @param doc.final the final version of the same document
+##' @param doc.initial the first version of a document.
+##' @param doc.final the final version of the same document.
 ##' @param amendments an optional list of proposed changes to the
-##' initial document
+##' initial document.
 ##' @param ngram the length of the word set that should be used for
 ##' the document-term matrix (1-grams are single words, 2-grams are
-##' unique 2-word combinations, etc)
+##' unique 2-word combinations, etc).
 ##' @param stem should words in the documents be stemmed?
 ##' @param rm.stopwords boolean, should english stopwords be removed?
 ##' @param rm.whitespace boolean, should excess whitespace be
 ##' stripped?
 ##' @param rm.punctuation boolean, should punctuation be removed?
 ##' @param filter one of 'NULL', 'sparse', 'tf' and 'tfidf' specifying
-##' the           base value for filtering
+##' the base value for filtering.
 ##' @param filter.thres numeric, indicating filter threshold
-##' appropriate for the filter chosen
-##' @param weighting one of weightTf, weightTfIdf, or weightBin
+##' appropriate for the filter chosen.
+##' @param weighting one of weightTf, weightTfIdf, or weightBin.
 ##' @return a list of document-term matrices, for the initial and
 ##' final documents and any proposed amendments, formatted as sparse
 ##' Matrix objects. The terms in each matrix are consistent with the set
@@ -316,28 +306,27 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
 }
   ## End CreateAllVectorSpaces
 
-##' <description>
-##' Creates the vector space model of a document 
-##' <details>
+
+##' Creates the vector space model of a document. 
 ##' @title CreateVectorSpace
-##' @param docs a string vector of documents
+##' @param docs a string vector of documents.
 ##' @param ngram an integer specifying the n-gram to use for
-  ##                  the vector space
+##'                  the vector space.
 ##' @param stem boolean, should the document be stemmed?
 ##' @param dictionary character vector of terms on which to base
-##           the document-term matrix. Terms not in the dictionary
-##           will be dropped.See the tm package for
-##           documentation. 
+##'           the document-term matrix. Terms not in the dictionary
+##'           will be dropped.See the tm package for
+##'           documentation. 
 ##' @param rm.stopwords boolean, should stopwords be removed?
 ##' @param rm.whitespace boolean, should excess whitespace be removed?
 ##' @param rm.punctuation boolean, should punctuation be removed?
 ##' @param filter one of 'NULL', 'sparse', 'tf' and 'tfidf' specifying the
-  ##           base value for filtering
+##'           base value for filtering.
 ##' @param filter.thres numeric, indicating filter threshold
-##appropriate for the filter chosen
+##' appropriate for the filter chosen.
 ##' @return  a document-term matrix in sparse representation
-##           where each row is a document and each col is an
-##           ngram. Cell values are term frequency counts. 
+##'           where each row is a document and each col is an
+##'           ngram. Cell values are term frequency counts. 
 ##' @author Mark Huberty
 CreateVectorSpace <- function(docs,
                               ngram.min,
@@ -410,9 +399,7 @@ CreateVectorSpace <- function(docs,
 }
 ## End CreateVectorSpace
 
-##' <description>
-##'
-##' <details>
+##' Classifies changes as substantive or administrative. Not yet available.
 ##' @title ModelImpact
 ##' @return TBD
 ##' @author Mark Huberty
@@ -427,59 +414,47 @@ ModelImpact <- function(){
 
   ## Should return a class vector (S, A, ?)  w/ probabilities 
   
-
 }
 ## End ModelImpact
 
-##' ##' <description>
-##'
-##' <details>
+##' See Hoad and Zobel (2003) on plagiarism for background. This is
+##' their identity measure 5. 
+##' Computes an "identity" measure that goes beyond cosine distance
+##' to observe the length and complexity of a "document" as well as
+##' its terms.
+##' @param vec1 a vector, representing a document, which is to be
+##' compared to a set of possible matches.
+##' @param vec2 a vector of the same length as vec1, representing
+##' one possible match to vec1, drawn from a larger corpus of
+##' N documents. 
+##' @param N: total number of documents in the corpus from which
+##' vec2 was drawn.
+##' @param tf: a vector of length vec1, with integer counts of the
+##' number of documents in the comparison corpus that contain
+##' the terms represented by each entry in vec2.
 ##' @title ComputeIdentity
 ##' @return TBD
 ##' @author Mark Huberty
-ComputeIdentity <- function(){
-  
-  ## See Hoad and Zobel (2003) on plagiarism for background. This is
-  ## their identity measure 5. 
-  ## Computes an "identity" measure that goes beyond cosine distance
-  ## to observe the length and complexity of a "document" as well as
-  ## its terms.
-  ## Inputs: vec1: a vector, representing a document, which is to be
-  ## compared to a set of possible matches
-  ##         vec2: a vector of the same length as vec1, representing
-  ##         one possible match to vec1, drawn from a larger corpus of
-  ##         N documents 
-  ##         N: total number of documents in the corpus from which
-  ##         vec2 was drawn
-  ##         tf: a vector of length vec1, with integer counts of the
-  ##         number of documents in the comparison corpus that contain
-  ##         the terms represented by each entry in vec2 
-
-  
+ComputeIdentity <- function(){ }
 
 
-
-}
-
-##' <description>
+##' Returns a LaTeX document that presents the side-by-side comparison of the final
+##' document sections and their matched pairs, with sources for the matched document. 
 ##' Takes as input the ComputeVectorAllVectorSpaces output and the
-##result from that output from MapBills Returns a LaTeX document that
-##presents the side-by-side comparison of the final document sections
-##and their matched pairs, with sources for the matched document
-##' <details>
+##' result from that output from MapBills.
 ##' @title WriteSideBySide
 ##' @param composite.match the output of GetLikelyComposite
 ##' @param doc.final the original character string representing the
-##final document
+##' final document.
 ##' @param cavs.out the output of CreateAllVectorSpaces used to
-##generate the composite match
+##' generate the composite match.
 ##' @param col.highlight the color to highlight word changes
 ##' @param box.amendments boolean, should amendments be boxed?
-##' @param col.box the color to shade amendment boxes
-##' @param file.out a valid filename for the latex output file
+##' @param col.box the color to shade amendment boxes.
+##' @param file.out a valid filename for the latex output file.
 ##' @param pdflatex boolean, should PDFLATEX be run on the output file?
 ##' @return Returns silently. If PDFLATEX is true, returns both the
-##.tex file and its PDF output. Otherwise, returns only the .tex file.
+##' .tex file and its PDF output. Otherwise, returns only the .tex file.
 ##' @author Mark Huberty
 WriteSideBySide <- function(composite.match,
                             doc.final,
@@ -621,28 +596,30 @@ WriteSideBySide <- function(composite.match,
   print("Done")
   
 }
-##' <description>
-##'
-##' <details>
+##' Takes the initial and final versions of your documents (bills 1 ans 2),
+##' along with (possibly) the amendments, and outputs a matrix mapping
+##' from the index of each section in doc.final to its most likely match
+##' from doc.initial and amendments. The origin, index, text, and distance
+##' of the best match are all returned.
 ##' @title GetLikelyComposite
 ##' @param mapbills.out the output of MapBills 
 ##' @param doc.initial a character string, representing doc.initial as
-##used in MapBills
+##' used in MapBills.
 ##' @param doc.final a character string, representing doc.final as
-##used in MapBills
+##' used in MapBills.
 ##' @param amendments a character string, representing amendments as
-##used in MapBills 
+##' used in MapBills. 
 ##' @param amendment.origin a character vector, the same length as
-##amendments, indicating the origin of each amendment
+##' amendments, indicating the origin of each amendment.
 ##' @param filter One of "max" or "min", indicating how the best match
-##should be selected
+##' should be selected.
 ##' @param dist.threshold A threshold distance; if the best match does
-##not pass the threshold, then the best match is the same section of
-##the final document itself. 
+##' not pass the threshold, then the best match is the same section of
+##' the final document itself. 
 ##' @return A matrix mapping from the index of each section in
-##doc.final to its most likely match from doc.initial and
-##amendments. The origin, index, text, and distance of the best match
-##are all returned.
+##' doc.final to its most likely match from doc.initial and
+##' amendments. The origin, index, text, and distance of the best match
+##' are all returned.
 ##' @author Mark Huberty
 GetLikelyComposite <- function(mapbills.out,
                                doc.initial,
@@ -761,25 +738,23 @@ GetLikelyComposite <- function(mapbills.out,
 
 }
 
-##' <description>
 ##' Writes out a LaTeX representation of the final document, as built
-##up from components of the initial document plus amendments. Provides
-##options to highlight both word differences and sections that result
-##from amendments. The origin of each section is called out in a
-##margin note.
-##' <details>
+##' up from components of the initial document plus amendments. Provides
+##' options to highlight both word differences and sections that result
+##' from amendments. The origin of each section is called out in a
+##' margin note.
 ##' @title WriteCompositeFinal
-##' @param composite.match the output of GetLikelyComposite
+##' @param composite.match the output of GetLikelyComposite.
 ##' @param cavs.out the output of CreateAllVectorSpaces used to
-##generate the composite match
+##' generate the composite match.
 ##' @param col.highlight the color to use in highlighting word differences
 ##' @param box.amendments boolean, should matches that originate from
-##amendments be boxed?
+##' amendments be boxed?
 ##' @param col.box the color to use in shading amendment boxes
-##' @param file.out a valid filename for the latex output file
+##' @param file.out a valid filename for the latex output file.
 ##' @param pdflatex boolean, should PDFLATEX be run on the output file?
 ##' @return Returns silently. If PDFLATEX is true, returns both the
-##.tex file and its PDF output. Otherwise, returns only the .tex file.
+##' .tex file and its PDF output. Otherwise, returns only the .tex file.
 ##' @author Mark Huberty
 WriteCompositeFinal <- function(composite.match,
                                 cavs.out,
@@ -903,25 +878,23 @@ WriteCompositeFinal <- function(composite.match,
 
 }
 
-##' ##' <description>
-##' For a given text string and a list of words to highlight, it
-##reforms the string to be LaTeX-valid and highlights words. If the
-##necessary information is provided, the source of the string is
-##indicated in a margin note.
-##' <details>
+##' For a given text string and a list of words to highlight, WriteTexSection
+##' reforms the string to be LaTeX-valid and highlights words. If the
+##' necessary information is provided, the source of the string is
+##' indicated in a margin note.
 ##' @title WriteTexSection
-##' @param section a string representing a document section
+##' @param section a string representing a document section.
 ##' @param highlight.words a character vector of words to highlight
-##' @param origin a character string representing the origin of the section
+##' @param origin a character string representing the origin of the section.
 ##' @param origin.idx the index of the document in the origin source
-##(e.g. paragraph number)
-##' @param marginnote boolean, should margin notes be printed
+##' (e.g. paragraph number).
+##' @param marginnote boolean, should margin notes be printed.
 ##' @return A character string with all LaTeX-sensitive characters
-##appropriately escaped, and all highlights and origin information
-##inserted with LaTeX-appropriate data. This assumes that the final
-##LaTeX document will have a defined command of form \texthighlight{}
-##defined. Both WriteSideBySide and WriteComposite provide for this in
-##their preamble.
+##' appropriately escaped, and all highlights and origin information
+##' inserted with LaTeX-appropriate data. This assumes that the final
+##' LaTeX document will have a defined command of form \texthighlight{}
+##' defined. Both WriteSideBySide and WriteComposite provide for this in
+##' their preamble.
 ##' @author Mark Huberty
 WriteTexSection <- function(section,
                             highlight.words=NULL,
@@ -972,14 +945,12 @@ WriteTexSection <- function(section,
     
 
 }
-##' <description>
 ##' Converts a DocumentTermMatrix from the tm() package into a sparse
-##Matrix. This is the same function as John Myles White included in
-##his textregression() library.
-##' <details>
+##' Matrix. This is the same function as John Myles White included in
+##' his textregression() library.
 ##' @title DtmToMatrix
 ##' @param dtm a document-term matrix as output from the
-##DocumentTermMatrix from the tm() package
+##' DocumentTermMatrix from the tm() package.
 ##' @return an equivalent sparse matrix as represented in the Matrix package.
 ##' @author Mark Huberty
 DtmToMatrix <- function(dtm){
@@ -996,15 +967,13 @@ DtmToMatrix <- function(dtm){
   return(m)
 }
 
-##' <description>
 ##' Sanitizes special LaTeX characters in a string so that pdflatex
 ##' will handle them correctly. All special characters are replaced
 ##' with their escaped equivalents.
-##' <details>
 ##' @title SanitizeTex
-##' @param string a string to be inserted in a LaTeX file
+##' @param string a string to be inserted in a LaTeX file.
 ##' @return the same string, with the LaTeX special characters
-##(%$_{}\~^&) replaced with backslash-escaped equivalents
+##' (%$_{}\~^&) replaced with backslash-escaped equivalents.
 ##' @author Mark Huberty
 SanitizeTex <- function(string){
 
@@ -1014,20 +983,18 @@ SanitizeTex <- function(string){
 }
 
 ## TODO Need to be modified to take dtm, not done yet.
-##' <description>
 ##' A wrapper function for the cosine() function in the lsa package,
-##which allows it to work with the MapBills function
-##' <details>
+##' which allows it to work with the MapBills function.
 ##' @title cosine.dist
 ##' @param dtm a document-term matrix, such as is output from
-##CreateAllVectorSpaces(), containing the term frequency vectors of
-##both the documents for which matches are needed, and the set of
-##candidate match documents D
-##' @param idx.dtm1 a row index indicating the location of the first document
-##' @param idx.dtm2 a row indiex indicating the location of a second document
+##' CreateAllVectorSpaces(), containing the term frequency vectors of
+##' both the documents for which matches are needed, and the set of
+##' candidate match documents D
+##' @param idx.dtm1 a row index indicating the location of the first document.
+##' @param idx.dtm2 a row indiex indicating the location of a second document.
 ##' @param idx.collection a vector of indices indicating which rows in
-##dtm are for the set of comparison documents D (as opposed to the
-##documents requiring matches
+##' dtm are for the set of comparison documents D (as opposed to the
+##' documents requiring matches.
 ##' @return the output of cosine()
 ##' @author Mark Huberty
 cosine.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
@@ -1040,20 +1007,18 @@ cosine.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
 }
 
 
-##' <description>
 ##' A wrapper function for similarity() that takes a standard set of
 ##' inputs and handles pre-processing for the outputs
-##' <details>
 ##' @title similarity.dist
 ##' @param dtm a document-term matrix, such as is output from
 ##' CreateAllVectorSpaces(), containing the term frequency vectors of
 ##' both the documents for which matches are needed, and the set of
-##' candidate match documents D
+##' candidate match documents D.
 ##' @param idx.dtm1 a row index indicating the location of the first document
 ##' @param idx.dtm2 a row indiex indicating the location of a second document
 ##' @param idx.collection a vector of indices indicating which rows in
-##dtm are for the set of comparison documents D (as opposed to the
-##documents requiring matches
+##' dtm are for the set of comparison documents D (as opposed to the
+##' documents requiring matches.
 ##' @return the output of similarity()
 ##' @author Mark Huberty
 similarity.dist <- function(dtm, idx.query, idx.compare, idx.collection){
@@ -1070,18 +1035,16 @@ similarity.dist <- function(dtm, idx.query, idx.compare, idx.collection){
   return(out)
 
 }
-##' <description>
-##' Computes similarity measure #5 from Hoad & Zobel (2003)
-##' <details>
+##' Computes similarity measure #5 from Hoad & Zobel (2003).
 ##' @title similarity
 ##' @param vec.d a term-freqency vector from a set of candidate
-##matches D
+##' matches D.
 ##' @param vec.q a term-frequency vector of a document being matched
-##to candidates in D
-##' @param N The number of documents in D
-##' @param ft The number of documents in D containing term t
+##' to candidates in D.
+##' @param N The number of documents in D.
+##' @param ft The number of documents in D containing term t.
 ##' @return a numeric similarity measure, where larger numbers
-##indicate more similar documents
+##' indicate more similar documents.
 ##' @author Mark Huberty
 similarity <-function(vec.d,
                       vec.q,
@@ -1146,15 +1109,15 @@ vector.diff <- function(x, y){
 ## this much faster, to cut out the 130k loops that result.
 
 
-##' <description>
-##'
-##' <details>
-##' @title 
+##' Vectorized version (to cut out the loop function) of the cosine similarity
+##' distance measure.
+##' Not yet working perfectly. 
+##' @title cosine.mat
 ##' @param dtm 
 ##' @param idx.query 
 ##' @param idx.compare 
 ##' @param idx.collection 
-##' @return 
+##' @return A matrix
 ##' @author Mark Huberty
 cosine.mat <- function(dtm, idx.query, idx.compare, idx.collection){
 
@@ -1177,23 +1140,21 @@ cosine.mat <- function(dtm, idx.query, idx.compare, idx.collection){
 
 
 
-##' <description>
 ##' Provides a facility to easily model the content of different
-##classes of matched content
-##' <details>
+##' classes of matched content.
 ##' @title ModelDocSet
-##' @param doc.list the output from CreateAllVectorSpaces
-##' @param composite.mat the output from GetLikelyComposite
+##' @param doc.list the output from CreateAllVectorSpaces.
+##' @param composite.mat the output from GetLikelyComposite.
 ##' @param type the subset of the text to be clustered by topic: one
-##' of "incl.amend" (default), "rej.amend", "incl.orig", "rej.orig"
-##' @param k the number of topics to model
+##' of "incl.amend" (default), "rej.amend", "incl.orig", "rej.orig".
+##' @param k the number of topics to model.
 ##' @param method the topicmodeling method to use (one of "LDA" or
-##' "CTM")
+##' "CTM").
 ##' @param n.terms the number of terms to show in the returned object
-##' @param ... other arguments as required; see ModelTopics
+##' @param ... other arguments as required; see ModelTopics.
 ##' @return a ModelTopics object, and additionally an index of
-## of the documents as it points to the text inputs, rather than the
-##document-term matrix
+##' of the documents as it points to the text inputs, rather than the
+##' document-term matrix.
 ##' @author Mark Huberty
 ModelDocSet <- function(doc.list,
                         composite.mat,
@@ -1278,27 +1239,26 @@ ModelDocSet <- function(doc.list,
 
 
 ###
-##' <description>
 ##' Provides an interface to model the content of different amendment
 ##' slices using Latent Dirichelet Allocation methods as supported in
 ##' the topicmodels package. See the topicmodels package documentation
 ##' for more details.
-##' <details>
 ##' @title ModelTopics
 ##' @param dtm A document-term matrix as output from
-##' CreateAllVectorSpaces
-##' @param idx The indices of the document-term matrix to model
-##' @param k The number of topics to model
-##' @param topic.method One of "LDA" or "CTM"
-##' @param sampling.method One of "VEM" or "Gibbs
-##' @param addl.stopwords Additional stopwords to remove
+##' CreateAllVectorSpaces.
+##' @param idx The indices of the document-term matrix to model.
+##' @param k The number of topics to model.
+##' @param topic.method One of "LDA" or "CTM".
+##' @param sampling.method One of "VEM" or "Gibbs.
+##' @param addl.stopwords Additional stopwords to remove.
 ##' @param n.terms the number of terms by topic to return. See the
 ##' terms() function in topicmodels for details.
 ##' @param ... other arguments as passed to the LDA or CTM methods
 ##' @param method one of "LDA" (default) or "CTM. See the topicmodels
 ##' documentation for details. The LDA default assumes independence in
 ##' term distributions across topics. This may not be appropriate. 
-##' @return A list containing the topic model, the top N terms by topic, and the topic assignments for each document indicated by idx
+##' @return A list containing the topic model, the top N terms by topic, and the topic
+##' assignments for each document indicated by idx.
 ##' @author Mark Huberty
 ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
                         sampling.method, addl.stopwords=NULL,
@@ -1351,14 +1311,12 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
 
 }
 
-##' <description>
 ##' Helper function to translate a sparse Matrix into
-##' a document-term matrix equivalent to that produced by the tm package
-##' <details>
+##' a document-term matrix equivalent to that produced by the tm package.
 ##' @title sparseToDtm
-##' @param sparseM : a sparse Matrix of form dgCMatrix
+##' @param sparseM : a sparse Matrix of form dgCMatrix.
 ##' @return a simple_triplet_matrix as described in the slam package,
-##with the same dimensions and properties as sparseM
+##' with the same dimensions and properties as sparseM.
 ##' @author Mark Huberty
 sparseToDtm <- function(sparseM){
 
@@ -1370,31 +1328,29 @@ sparseToDtm <- function(sparseM){
 
 }
 
-##' <description>
 ##' Provides a function interface for learning the best match quality
 ##' threshold from a human-coded document. Given a mapping of source
 ##' to target document and a sequence of threshold values, it will
 ##' return the optimum based on either maximization of the accuracy rate
 ##' or miniminzation of the false positive/negative rate.
-##' <details>
 ##' @title 
-##' @param map.bills.out the output of MapBills for this document 
-##' @param initial.bill the text of the initial bill
-##' @param final.bill the text of the final bill
+##' @param map.bills.out the output of MapBills for this document. 
+##' @param initial.bill the text of the initial bill.
+##' @param final.bill the text of the final bill.
 ##' @param amendments amendment text, in the same order as was passed
-##' to MapBills
-##' @param labels the origin of the amendments
+##' to MapBills.
+##' @param labels the origin of the amendments.
 ##' @param filter one of "min" or "max" depending on the distance
-##' function used in MapBills
+##' function used in MapBills.
 ##' @param threshold.values a numeric vector of potential threshold
 ##' values. See GetLikelyComposite for the definition of the threshold
 ##' value. A suitable granular vector is recommended, as in seq(0,0.5, 0.005)
 ##' @param encoder.out the output of run.encoder for the human-coded
-##' matches of these documents
+##' matches of these documents.
 ##' @param type one of "overall" (overall accuracy) or "tradeoff"
-##' (false positive/negative)
+##' (false positive/negative).
 ##' @return a list containing the entire output of the algorithm and
-##' the best threshold value
+##' the best threshold value.
 ##' @author Mark Huberty
 learn.threshold <- function(map.bills.out,
                             initial.bill,
@@ -1445,11 +1401,9 @@ learn.threshold <- function(map.bills.out,
   return(list(optimum.threshold, accuracy.measures))
 
 }
-##' <description>
 ##' Calculates the overall accuracy rate by threshold value for a set
 ##' of documents based on a human-coded set of matches. See
 ##' learn.threshold() for more details.
-##' <details>
 ##' @title get.accuracy.measures 
 ##' @param map.bills.out 
 ##' @param initial.bill 
@@ -1505,12 +1459,10 @@ get.accuracy.measures <- function(map.bills.out,
   return(accuracy.measures)
 }
 
-##' <description>
 ##' Optimizes the tradeoff between false negative values (rejecting
 ##' matches that should have been matched to source documents) and false
 ##' positive values (accepting matches for which no match existed), on
 ##' the basis of the threshold value. See learn.threshold for more detail.
-##' <details>
 ##' @title get.type.error
 ##' @param map.bills.out 
 ##' @param initial.bill 
@@ -1566,22 +1518,20 @@ get.type.errors <- function(map.bills.out,
 
 
 
-##' <description>
 ##' Provides a streamlined interface to manually match text under the
 ##' same conditions as used for the automated MapBills process. Output
 ##' is directly comparable with the output of GetLikelyComposite.
-##' <details>
-##' @title encoder 
-##' @param target.text the final bill 
-##' @param initial.match.text the initial bill
+##' @title encoder. 
+##' @param target.text the final bill. 
+##' @param initial.match.text the initial bill.
 ##' @param amend.match.text any amendments (should be passed in the
-##' same order as they are passed to CreateAllVectorSpaces)
+##' same order as they are passed to CreateAllVectorSpaces).
 ##' @param initial.distance.mat the pairwise distance matrix between
-##' initial.match.text and target.text
+##' initial.match.text and target.text.
 ##' @param amend.distance.mat the pairwise distance matrix between
 ##' amend.match.text and target text.
 ##' @param n.matches.to.show the number of potential matches to show
-##' @param target.idx the index of the target text 
+##' @param target.idx the index of the target text. 
 ##' @return A matrix mapping from each entry in the target text to a
 ##' user-supplied index of the best match in either the initial text or
 ##' the amendment text.
@@ -1809,21 +1759,19 @@ encoder <- function(target.text,
 ##          text be coded?
 ##        pct.encode: If encode.random, then what percentage of the
 ##          target text should be coded? Assumes 10% if not specified
-##' <description>
 ##' Takes the text to be matched, the initial text and amendment
 ##' candidate matches, and settings for
 ##' CreateAllVectorSpaces. Generates a set of candidate matches and
 ##' asks the user to select the best (or no good match). Returns
 ##' a data frame that maps from the final paragraph to both the initial
 ##' bill and the amendments.
-##' <details>
-##' @title 
+##' @title run.encoder
 ##' @param target.text a character string of pargraphs needing matches
 ##' @param original.text a character string of the original proposed
-##'                      text
+##'                      text.
 ##' @param amendments a character string of proposed amendments
 ##' @param ngram the n-gram to be used in creating a vector space of
-## each document
+## each document.
 ##' @param stem should words be stemmed?
 ##' @param rm.stopwords should English stopwords be removed?
 ##' @param rm.whitespace should excess whitespace be removed?
