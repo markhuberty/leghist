@@ -101,33 +101,6 @@ MapBills <- function(doc.list,
 }
 ## End MapBills
 
-##' Will model the additions and deletions between two bills based on a
-##' mapping between the two as provided by MapBills.
-##' Uses either LDA or CTM topic modeling to summarize additions and
-##' deletions. Not yet completed.
-##' @title ModelChanges
-##' @param bill1 character vectors, each element of which is a
-##'     section of a bill. Any level of disaggregation can be used.
-##' @param bill2 character vectors, each element of which is a
-##'     section of a bill. Any level of disaggregation can be used.
-##' @param map.output the output of MapBills for bill1 and bill2.
-##' @param n.topics: the number of topics to pass to the topic modeler.
-##' If NULL, then the default is set to 1/5 (?) of the section count,
-##' seperately for added and excluded text.
-##' @param topic.fun the topic modeling function to be used. Can be
-##' one of LDA,CTM, or a user supplied function. 
-##' @return Two topic models with n.topics topics in each:
-##'     model.deleted: a topic model of the deleted text.
-##'     model.added: a topic model of the added text.
-##' @author Mark Huberty
-ModelChanges <- function(bill1,
-                         bill2,
-                         map.output,
-                         n.topics=NULL,
-                         topic.fun="LDA", ...){
- 
-}
-## End ModelChanges
 
 
 ##' Does the actual pairwise mapping of bills. Maps from doc1:doc2
@@ -417,26 +390,6 @@ ModelImpact <- function(){
 }
 ## End ModelImpact
 
-##' See Hoad and Zobel (2003) on plagiarism for background. This is
-##' their identity measure 5. 
-##' Computes an "identity" measure that goes beyond cosine distance
-##' to observe the length and complexity of a "document" as well as
-##' its terms.
-##' @param vec1 a vector, representing a document, which is to be
-##' compared to a set of possible matches.
-##' @param vec2 a vector of the same length as vec1, representing
-##' one possible match to vec1, drawn from a larger corpus of
-##' N documents. 
-##' @param N: total number of documents in the corpus from which
-##' vec2 was drawn.
-##' @param tf: a vector of length vec1, with integer counts of the
-##' number of documents in the comparison corpus that contain
-##' the terms represented by each entry in vec2.
-##' @title ComputeIdentity
-##' @return TBD
-##' @author Mark Huberty
-ComputeIdentity <- function(){ }
-
 
 ##' Returns a LaTeX document that presents the side-by-side comparison of the final
 ##' document sections and their matched pairs, with sources for the matched document. 
@@ -448,11 +401,13 @@ ComputeIdentity <- function(){ }
 ##' final document.
 ##' @param cavs.out the output of CreateAllVectorSpaces used to
 ##' generate the composite match.
+##' @param dir.out the directory in which to place the .tex files
 ##' @param col.highlight the color to highlight word changes
 ##' @param box.amendments boolean, should amendments be boxed?
 ##' @param col.box the color to shade amendment boxes.
 ##' @param file.out a valid filename for the latex output file.
-##' @param pdflatex boolean, should PDFLATEX be run on the output file?
+##' @param pdflatex boolean, should PDFLATEX be run on the output
+##' file?
 ##' @return Returns silently. If PDFLATEX is true, returns both the
 ##' .tex file and its PDF output. Otherwise, returns only the .tex file.
 ##' @author Mark Huberty
@@ -1014,12 +969,13 @@ cosine.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
 ##' CreateAllVectorSpaces(), containing the term frequency vectors of
 ##' both the documents for which matches are needed, and the set of
 ##' candidate match documents D.
-##' @param idx.dtm1 a row index indicating the location of the first document
-##' @param idx.dtm2 a row indiex indicating the location of a second document
+##' @param idx.query the indices in dtm of the documents being matched
+##' @param idx.compare the indices in dtm of the potential matches
 ##' @param idx.collection a vector of indices indicating which rows in
 ##' dtm are for the set of comparison documents D (as opposed to the
 ##' documents requiring matches.
-##' @return the output of similarity()
+##' @return a similarity matrix of dimension idx.query * idx.compare,
+##' containing the output of similiarty()
 ##' @author Mark Huberty
 similarity.dist <- function(dtm, idx.query, idx.compare, idx.collection){
 
@@ -1076,7 +1032,15 @@ similarity <-function(vec.d,
 }
 
 
-
+##' Provides a length-weighted cosine similarity measure
+##' @title cosine.length.mat
+##' @param dtm a document-term matrix
+##' @param idx.query the indices of one set of documents in dtm
+##' @param idx.compare the indices of the set of comparison documents
+##' in dtm
+##' @param idx.collection the indices of all non-query documents in dtm
+##' @return A similarity matrix of dimension idx.query * idx.compare
+##' @author Mark Huberty
 cosine.length.mat <- function(dtm, idx.query, idx.compare, idx.collection){
 
   rq <- rowSums(dtm[idx.query,])
@@ -1090,7 +1054,13 @@ cosine.length.mat <- function(dtm, idx.query, idx.compare, idx.collection){
   return(out)
 
 }
-
+##' Returns the vector of absolute differences of two vectors
+##' @title vector.diff
+##' @param x a numeric or integer vector
+##' @param y a numeric or integer vector of length x
+##' @return A vector of length x with the absolute pairwise
+##' differences between x and y
+##' @author Mark Huberty
 vector.diff <- function(x, y){
 
   abs(x - y)
@@ -1148,10 +1118,15 @@ cosine.mat <- function(dtm, idx.query, idx.compare, idx.collection){
 ##' @param type the subset of the text to be clustered by topic: one
 ##' of "incl.amend" (default), "rej.amend", "incl.orig", "rej.orig".
 ##' @param k the number of topics to model.
+##' @param topic.method one of "LDA" or "CTM"
+##' @param sampling.method one of "VEM" or "Gibbs"
+##' @param n.terms the number of terms to show in the returned object
+##' @param addl.stopwords specific stopwords to include not in the
+##' generic stopwords list used to generate the document-term matrix
+##' in doc.list
+##' @param ... other arguments as required; see ModelTopics.
 ##' @param method the topicmodeling method to use (one of "LDA" or
 ##' "CTM").
-##' @param n.terms the number of terms to show in the returned object
-##' @param ... other arguments as required; see ModelTopics.
 ##' @return a ModelTopics object, and additionally an index of
 ##' of the documents as it points to the text inputs, rather than the
 ##' document-term matrix.
@@ -1333,7 +1308,7 @@ sparseToDtm <- function(sparseM){
 ##' to target document and a sequence of threshold values, it will
 ##' return the optimum based on either maximization of the accuracy rate
 ##' or miniminzation of the false positive/negative rate.
-##' @title 
+##' @title learn.threshold
 ##' @param map.bills.out the output of MapBills for this document. 
 ##' @param initial.bill the text of the initial bill.
 ##' @param final.bill the text of the final bill.
@@ -1404,16 +1379,20 @@ learn.threshold <- function(map.bills.out,
 ##' Calculates the overall accuracy rate by threshold value for a set
 ##' of documents based on a human-coded set of matches. See
 ##' learn.threshold() for more details.
-##' @title get.accuracy.measures 
-##' @param map.bills.out 
-##' @param initial.bill 
-##' @param final.bill 
-##' @param amendments 
-##' @param labels 
-##' @param filter 
-##' @param threshold.values 
-##' @param encoder.out 
-##' @return 
+##' @title get.accuracy.measures
+##' ##' @param map.bills.out the output of MapBills
+##' @param initial.bill the character vector representation of the initial bill
+##' @param final.bill the character vector representation of the final bill
+##' @param amendments the character vector representation of the amendments
+##' @param labels committee labels for the amendments
+##' @param filter one of min or max, depending on the use of a
+##' distance or similarity metric
+##' @param threshold.values a vector of similarity thresholds, as in
+##' seq(0, 0.5, 0.005)
+##' @param encoder.out the output of run.encoder for the bill in
+##' question, using the same bill and amendment arguments in the same order
+##' @return Source and source+index accuracy of the automated match,
+##' compared with the hand-coded version
 ##' @author Mark Huberty
 get.accuracy.measures <- function(map.bills.out,
                                   initial.bill,
@@ -1464,14 +1443,18 @@ get.accuracy.measures <- function(map.bills.out,
 ##' positive values (accepting matches for which no match existed), on
 ##' the basis of the threshold value. See learn.threshold for more detail.
 ##' @title get.type.error
-##' @param map.bills.out 
-##' @param initial.bill 
-##' @param final.bill 
-##' @param amendments 
-##' @param labelsfilter 
-##' @param threshold.values 
-##' @param encoder.out 
-##' @return 
+##' @param map.bills.out the output of MapBills
+##' @param initial.bill the character vector representation of the initial bill
+##' @param final.bill the character vector representation of the final bill
+##' @param amendments the character vector representation of the amendments
+##' @param labels committee labels for the amendments
+##' @param filter one of min or max, depending on the use of a
+##' distance or similarity metric
+##' @param threshold.values a vector of similarity thresholds, as in
+##' seq(0, 0.5, 0.005)
+##' @param encoder.out the output of run.encoder for the bill in
+##' question, using the same bill and amendment arguments in the same order
+##' @return Type 1 and Type 2 accuracy rates by threshold value
 ##' @author Mark Huberty
 get.type.errors <- function(map.bills.out,
                             initial.bill,
@@ -1746,19 +1729,7 @@ encoder <- function(target.text,
 
 }
 
-## run.encoder
-## 
-## Input: target.text: 
-##        original.text: 
-##        amendmnets: 
-##          ngram, stem, rm.stopwords, rm.whitespace, rm.punctuation,
-##          filter, filter.thres: see CreateAllVectorSpaces
-##        n.matches.to.show: how many candidate matches should be
-##          provided?
-##        encode.random: should only a random subset of the target
-##          text be coded?
-##        pct.encode: If encode.random, then what percentage of the
-##          target text should be coded? Assumes 10% if not specified
+
 ##' Takes the text to be matched, the initial text and amendment
 ##' candidate matches, and settings for
 ##' CreateAllVectorSpaces. Generates a set of candidate matches and
@@ -1768,25 +1739,30 @@ encoder <- function(target.text,
 ##' @title run.encoder
 ##' @param target.text a character string of pargraphs needing matches
 ##' @param original.text a character string of the original proposed
-##'                      text.
+##' text.
 ##' @param amendments a character string of proposed amendments
-##' @param ngram the n-gram to be used in creating a vector space of
-## each document.
+##' @param ngram.min the minimum-length ngram to use in the
+##' document-term matrix
+##' @param ngram.max the maximum-length ngram to use in the
+##' document-term matrix
 ##' @param stem should words be stemmed?
 ##' @param rm.stopwords should English stopwords be removed?
 ##' @param rm.whitespace should excess whitespace be removed?
 ##' @param rm.punctuation should punctuation be removed?
 ##' @param filter Should a tfidf filter be applied?
 ##' @param filter.thres What filter threshold should be used?
-##' @param dist.fun a distance function consistent with that of cosine.mat
+##' @param dist.fun a distance function consistent with that of
+##' cosine.mat
 ##' @param n.matches.to.show integer, how many potential matches
 ##' should be shown to the user?
-##' @param encode.random should only a random subset of the target text be
-##' encoded?
+##' @param encode.random should only a random subset of the target
+##' text be encoded?
 ##' @param pct.encode If a random subset is to be encoded, what
 ##' percent of the text should be encoded?
+##' @param ngram the n-gram to be used in creating a vector space of
+##' each document.
 ##' @return Returns a matrix of the form
-## targetidx:match.idx:match.dist:match.source. For ease of automated
+##' targetidx:match.idx:match.dist:match.source. For ease of automated
 ##' comparison, the values in each are
 ##' equivalent to similar values in the output of GetLikelyComposite. 
 ##' @author Mark Huberty
@@ -1886,39 +1862,39 @@ run.encoder <- function(target.text=NULL,
 }
 
 
-test.accuracy <- function(automated.match,
-                          human.match,
-                          doc.initial,
-                          doc.final,
-                          amendments,
-                          amendment.origin=NULL,
-                          filter="max",
-                          dist.threshold=0
-                          ){
+## test.accuracy <- function(automated.match,
+##                           human.match,
+##                           doc.initial,
+##                           doc.final,
+##                           amendments,
+##                           amendment.origin=NULL,
+##                           filter="max",
+##                           dist.threshold=0
+##                           ){
 
   
-  best.automated.match <- GetLikelyComposite(automated.match,
-                                             doc.initial,
-                                             doc.final,
-                                             amendments,
-                                             filter=filter,
-                                             dist.threshold=dist.threshold
-                                             )
+##   best.automated.match <- GetLikelyComposite(automated.match,
+##                                              doc.initial,
+##                                              doc.final,
+##                                              amendments,
+##                                              filter=filter,
+##                                              dist.threshold=dist.threshold
+##                                              )
 
-  best.human.match <- GetLikelyComposite(human.match,
-                                         doc.initial,
-                                         doc.final,
-                                         amendments,
-                                         filter=filter,
-                                         dist.threshold=dist.threshold
-                                         )
+##   best.human.match <- GetLikelyComposite(human.match,
+##                                          doc.initial,
+##                                          doc.final,
+##                                          amendments,
+##                                          filter=filter,
+##                                          dist.threshold=dist.threshold
+##                                          )
 
-  ## Not right, needs to compare both idx and origin...
-  match.pct <- sum(best.automated.match$match.idx ==
-                   best.human.match$match.idx) /
-                     length(best.automated.match$match.idx)
+##   ## Not right, needs to compare both idx and origin...
+##   match.pct <- sum(best.automated.match$match.idx ==
+##                    best.human.match$match.idx) /
+##                      length(best.automated.match$match.idx)
 
   
 
 
-}
+## }
