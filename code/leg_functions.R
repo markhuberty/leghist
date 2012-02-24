@@ -1966,9 +1966,40 @@ run.encoder <- function(target.text=NULL,
 
 ## }
 
+##' Provides a 2-level hierarchical topic modeling interface for
+##' modeling the amendment content
+##' <details>
+##' @title model.amend.hierarchy
+##' @param doc.list the output of CreateAllVectorSpaces
+##' @param composite.mat the output of GetLikelyComposite, for this bill
+##' @param k the number of topics to model. May be one of NULL, an
+##' integer value, or an integer vector. If NULL, then the number of
+##' topics is assumed to be D/10, where D is either the count of
+##' amendments (level 1) or the count of amendments assigned to a topic
+##' (level 2). If a vector, the first element of the vector specifies
+##how many topics should be used for modeling level 1, and the
+##remaining elements how many topics should be used for modeling the
+##amendments assigned to those topics. In this case, the vector must
+##be of length V[1] ##' 
+##' @param topic.method One of "LDA" or "CTM"
+##' @param sampling.method One of "VEM", or "Gibbs"
+##' @param n.terms An integer value indicating how many terms should
+##' be returned for the purpose of inspecting the topics
+##' @param addl.stopwords Any additional stopwords that should be
+##' removed prior to modeling
+##' @param weighting One of weightTf, weightTfIdf, or weightBin
+##' @param ... 
+##' @return A list of of length 2. The first element in the list is a
+##' list of all models (both the top-level model and each of the
+##' secondary models). Model objects are of the form returned by
+##' ModelTopics(). The second element in the list is list of lists of terms,
+##' wherein the first element in each list is the set of terms that
+##' characterize that level-one category, and the second element
+##' contains the sets of terms that characterize the sub-categories
+##' within that level-one category.
+##' @author Mark Huberty
 model.amend.hierarchy <- function(doc.list,
                                   composite.mat,
-                                  type="incl.amend",
                                   k=NULL,
                                   topic.method="LDA",
                                   sampling.method="VEM",
@@ -1978,12 +2009,7 @@ model.amend.hierarchy <- function(doc.list,
                                   ...
                                   ){
 
-  ## ## Basic structure:
-  ## 1. Model all amendments
-  ## 2. For each topic
-  ## 3. Model amendments assigned to that topic
-  ## 4. Return full model, sub models, crosstab of topic
-  ##    assignments
+  ## Fix the K values appropriately
   if(is.null(k))
     {
 
@@ -2000,7 +2026,8 @@ model.amend.hierarchy <- function(doc.list,
       k.all <- k
 
     }
-  
+
+  ## Run the level one model with k.all[1] topics
   model.all <- ModelTopics(doc.list$vs.out,
                            doc.list$idx.amendments,
                            topic.method=topic.method,
@@ -2012,12 +2039,17 @@ model.amend.hierarchy <- function(doc.list,
                            ...
                            )
 
+  ## Now run the models for each sub-class of amendments, determined
+  ## by the topic to which model.all assigned them.
   idx.sub <- sort(unique(model.all$topics))
   models.sub <- lapply(idx.sub, function(x){
 
+    ## Drop the top terms that determined this topic, so we don't get
+    ## back totally homogeneous topics
     topic.words <- model.all$terms[,x]
     idx.to.remove <- which(colnames(doc.list$vs.out) %in% topic.words)
-    
+
+    ## Model the subset of amendments
     model.sub <- ModelTopics(doc.list$vs.out[doc.list$idx.amendments,
                                              -idx.to.remove
                                              ],
@@ -2033,7 +2065,11 @@ model.amend.hierarchy <- function(doc.list,
     
   })
 
+  ## Return the list of both models.
   out <- list(model.all, models.sub)
+
+  ## Then pull out the term sets of each topic, and structure by the
+  ## topic hierarchy
   terms.list <- lapply(1:k[1], function(x){
 
     terms.primary <- out[[1]]$terms[,x]
