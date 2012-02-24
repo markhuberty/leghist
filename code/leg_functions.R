@@ -22,14 +22,17 @@
 ## http://google-styleguide.googlecode.com/svn/trunk/google-r-style.html
 ## END
 #################################################################
-require(gdata)
-require(tm)
-require(topicmodels)
-require(stringr)
-require(lsa)
-require(Matrix)
-require(RWeka)
-#require(openNLP) ## For the sentence tokenizer functionality
+## require(gdata)
+## require(tm)
+## require(topicmodels)
+## require(stringr)
+## require(lsa)
+## require(Matrix)
+## require(RWeka)
+
+##' @import tm topicmodels stringr lsa Matrix RWeka
+##' @importFrom gdata trim
+NULL
 
 ##' Maps the final bill to both the original bill and any proposed
 ##' amendments. Returns a matrix that maps from the final bill to the
@@ -40,12 +43,17 @@ require(RWeka)
 ##' ComputeAllVectorSpaces().
 ##' @param distance.fun A distance function. The underlying distance
 ##' metric should return larger values for more similar objects. 
+##' @param filter.fun one of "min" or "max", indicating how the best
+##' match should be chosen. The choice should depend on whether
+##' distance.fun returns returns distance (min) or similarity (max)
 ##' @return A matrix mapping from the sections of the final document
 ##' to the sections of both the initial document and any proposed
 ##' amendments, with distance values for each matched pair.
+##' @export
 ##' @author Mark Huberty
 MapBills <- function(doc.list,
-                     distance.fun="cosine.dist"
+                     distance.fun="cosine.dist",
+                     filter.fun="max"
                      ){
 
 
@@ -62,7 +70,8 @@ MapBills <- function(doc.list,
                               distance.fun=distance.fun,
                               idx.final=doc.list[["idx.final"]],
                               idx.compare=doc.list[["idx.initial"]],
-                              idx.collection=idx.collection
+                              idx.collection=idx.collection,
+                              filter.fun
                               )
 
   
@@ -74,7 +83,8 @@ MapBills <- function(doc.list,
                                 distance.fun=distance.fun,
                                 idx.final=doc.list[["idx.final"]],
                                 idx.compare=doc.list[["idx.amendments"]],
-                                idx.collection=idx.collection
+                                idx.collection=idx.collection,
+                                filter.fun
                                 )
 
       map.all <- cbind(map.initial.final,
@@ -104,21 +114,35 @@ MapBills <- function(doc.list,
 
 
 ##' Does the actual pairwise mapping of bills. Maps from doc1:doc2
-##' via nearest-neighbor matching on the basis of a user-supplied distance / similarity function.
+##' via nearest-neighbor matching on the basis of a user-supplied
+##' distance / similarity function.
 ##' @title MapFun
-##' @param doc1 a document-term matrix 
-##' @param doc2 a document-term matrix
-##' @param distance.fun a distance function. The underlying distance
-##' metric should return larger values when two objects are closer.
-##' @param ... any other arguments to be passed to distance.fun
-##' @return a 3-column matrix mapping the row index of doc2 to its
-##' best match in doc1, and the distance between them.
+##' @param dtm A document-term matrix as output from
+##' CreateAllVectorSpaces
+##' @param distance.fun a distance or similarity function. The
+##' underlying distance metric should return larger values when two
+##' objects are closer. It should return a matrix of form idx.final *
+##' idx.compare
+##' @param idx.final 
+##' @param idx.compare an integer index vector indicating rows in dtm
+##' corresponding to potential matches for the target documents
+##' @param idx.collection all rows in dtm corresponding to potential
+##' matches
+##' @param idx.query an integer index vector indicating the rows in
+##' dtm corresponding to a set of target documents for which matches
+##' are desired
+##' @param filter.fun one of "min" or "max", indicating how the best
+##' match should be chosen. The choice should depend on whether
+##' distance.fun returns returns distance (min) or similarity (max)
+##' @return a 3-column matrix of form idx.query:idx.match:distance
+##' @export
 ##' @author Mark Huberty
 MapFun <- function(dtm,
                    distance.fun="cosine.dist",
                    idx.final,
                    idx.compare,
-                   idx.collection){
+                   idx.collection,
+                   filter.fun){
 
   if("DocumentTermMatrix" %in% class(dtm))
     dtm <- DtmToMatrix(dtm)
@@ -126,6 +150,11 @@ MapFun <- function(dtm,
     stopifnot(class(dtm) %in% c("data.frame", "matrix") |
               "dgCMatrix" %in% class(dtm)
               )
+
+  if(filter.fun=="max")
+    d <- TRUE
+  else
+    d <- FALSE
     
   dist.fun <- match.fun(distance.fun)
 
@@ -140,7 +169,7 @@ MapFun <- function(dtm,
     ## as in if dist > thresh, idx, else NA
     ## TODO: this is too inflexible for use with min/max
     ## Should pass T/F to decreasing based on min/max
-    idx.vec <- order(dist.vec, decreasing=TRUE)
+    idx.vec <- order(dist.vec, decreasing=d)
 
     return(c(idx.vec[1], dist.vec[idx.vec[1]]))
     
@@ -165,9 +194,10 @@ MapFun <- function(dtm,
 ##' @param doc.final the final version of the same document.
 ##' @param amendments an optional list of proposed changes to the
 ##' initial document.
-##' @param ngram the length of the word set that should be used for
-##' the document-term matrix (1-grams are single words, 2-grams are
-##' unique 2-word combinations, etc).
+##' @param ngram.min the minimum-length ngram to use in the
+##' document-term matrix
+##' @param ngram.max the maximum-length ngram to use in the
+##' document-term matrix
 ##' @param stem should words in the documents be stemmed?
 ##' @param rm.stopwords boolean, should english stopwords be removed?
 ##' @param rm.whitespace boolean, should excess whitespace be
@@ -178,10 +208,15 @@ MapFun <- function(dtm,
 ##' @param filter.thres numeric, indicating filter threshold
 ##' appropriate for the filter chosen.
 ##' @param weighting one of weightTf, weightTfIdf, or weightBin.
+##' @param ngram the length of the word set that should be used for
+##' the document-term matrix (1-grams are single words, 2-grams are
+##' unique 2-word combinations, etc).
 ##' @return a list of document-term matrices, for the initial and
 ##' final documents and any proposed amendments, formatted as sparse
 ##' Matrix objects. The terms in each matrix are consistent with the set
 ##' of unique terms in the final document.
+##' @export
+##' @author Mark Huberty
 CreateAllVectorSpaces <- function(doc.initial, doc.final,
                                   amendments=NULL,
                                   ngram.min=1,
@@ -283,20 +318,22 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
 ##' Creates the vector space model of a document. 
 ##' @title CreateVectorSpace
 ##' @param docs a string vector of documents.
-##' @param ngram an integer specifying the n-gram to use for
-##'                  the vector space.
+##' @param ngram.min the minimum-length ngram to use in the
+##' document-term matrix
+##' @param ngram.max the maximum-length ngram to use in the
+##' document-term matrix
 ##' @param stem boolean, should the document be stemmed?
 ##' @param dictionary character vector of terms on which to base
-##'           the document-term matrix. Terms not in the dictionary
-##'           will be dropped.See the tm package for
-##'           documentation. 
+##' the document-term matrix. Terms not in the dictionary
+##' will be dropped.See the tm package for           documentation. 
 ##' @param rm.stopwords boolean, should stopwords be removed?
 ##' @param rm.whitespace boolean, should excess whitespace be removed?
 ##' @param rm.punctuation boolean, should punctuation be removed?
-##' @param filter one of 'NULL', 'sparse', 'tf' and 'tfidf' specifying the
-##'           base value for filtering.
+##' @param filter one of 'NULL', 'sparse', 'tf' and 'tfidf' specifying
+##' the           base value for filtering.
 ##' @param filter.thres numeric, indicating filter threshold
 ##' appropriate for the filter chosen.
+##' @param weighting one of weightTf, weightTfIdf, or weightBin
 ##' @return  a document-term matrix in sparse representation
 ##'           where each row is a document and each col is an
 ##'           ngram. Cell values are term frequency counts. 
@@ -409,7 +446,9 @@ ModelImpact <- function(){
 ##' @param pdflatex boolean, should PDFLATEX be run on the output
 ##' file?
 ##' @return Returns silently. If PDFLATEX is true, returns both the
-##' .tex file and its PDF output. Otherwise, returns only the .tex file.
+##' .tex file and its PDF output. Otherwise, returns only the .tex
+##' file.
+##' @export
 ##' @author Mark Huberty
 WriteSideBySide <- function(composite.match,
                             doc.final,
@@ -575,6 +614,7 @@ WriteSideBySide <- function(composite.match,
 ##' doc.final to its most likely match from doc.initial and
 ##' amendments. The origin, index, text, and distance of the best match
 ##' are all returned.
+##' @export
 ##' @author Mark Huberty
 GetLikelyComposite <- function(mapbills.out,
                                doc.initial,
@@ -709,7 +749,9 @@ GetLikelyComposite <- function(mapbills.out,
 ##' @param file.out a valid filename for the latex output file.
 ##' @param pdflatex boolean, should PDFLATEX be run on the output file?
 ##' @return Returns silently. If PDFLATEX is true, returns both the
-##' .tex file and its PDF output. Otherwise, returns only the .tex file.
+##' .tex file and its PDF output. Otherwise, returns only the .tex
+##' file.
+##' @export
 ##' @author Mark Huberty
 WriteCompositeFinal <- function(composite.match,
                                 cavs.out,
@@ -906,7 +948,8 @@ WriteTexSection <- function(section,
 ##' @title DtmToMatrix
 ##' @param dtm a document-term matrix as output from the
 ##' DocumentTermMatrix from the tm() package.
-##' @return an equivalent sparse matrix as represented in the Matrix package.
+##' @return an equivalent sparse matrix as represented in the Matrix
+##' package.
 ##' @author Mark Huberty
 DtmToMatrix <- function(dtm){
   
@@ -937,7 +980,6 @@ SanitizeTex <- function(string){
   
 }
 
-## TODO Need to be modified to take dtm, not done yet.
 ##' A wrapper function for the cosine() function in the lsa package,
 ##' which allows it to work with the MapBills function.
 ##' @title cosine.dist
@@ -951,6 +993,7 @@ SanitizeTex <- function(string){
 ##' dtm are for the set of comparison documents D (as opposed to the
 ##' documents requiring matches.
 ##' @return the output of cosine()
+##' @export
 ##' @author Mark Huberty
 cosine.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
 
@@ -976,6 +1019,7 @@ cosine.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
 ##' documents requiring matches.
 ##' @return a similarity matrix of dimension idx.query * idx.compare,
 ##' containing the output of similiarty()
+##' @export
 ##' @author Mark Huberty
 similarity.dist <- function(dtm, idx.query, idx.compare, idx.collection){
 
@@ -1001,6 +1045,7 @@ similarity.dist <- function(dtm, idx.query, idx.compare, idx.collection){
 ##' @param ft The number of documents in D containing term t.
 ##' @return a numeric similarity measure, where larger numbers
 ##' indicate more similar documents.
+##' @export
 ##' @author Mark Huberty
 similarity <-function(vec.d,
                       vec.q,
@@ -1040,6 +1085,7 @@ similarity <-function(vec.d,
 ##' in dtm
 ##' @param idx.collection the indices of all non-query documents in dtm
 ##' @return A similarity matrix of dimension idx.query * idx.compare
+##' @export
 ##' @author Mark Huberty
 cosine.length.mat <- function(dtm, idx.query, idx.compare, idx.collection){
 
@@ -1080,14 +1126,19 @@ vector.diff <- function(x, y){
 
 
 ##' Vectorized version (to cut out the loop function) of the cosine similarity
-##' distance measure.
-##' Not yet working perfectly. 
+##' distance measure. This computes the entire cosine similarity
+##' between two row-major matrices at once using matrix algebra
 ##' @title cosine.mat
-##' @param dtm 
-##' @param idx.query 
-##' @param idx.compare 
-##' @param idx.collection 
-##' @return A matrix
+##' @param dtm A document-term matrix as output from CreateAllVectorSpaces 
+##' @param idx.query an integer index vector indicating the rows in
+##' dtm corresponding to a set of target documents for which matches
+##' are desired
+##' @param idx.compare an integer index vector indicating rows in dtm
+##' corresponding to potential matches for the target documents
+##' @param idx.collection all rows in dtm corresponding to potential matches
+##' @return A matrix of dimension idx.query * idx.compare, with values
+##' as the pairwise cosine similarity
+##' @export
 ##' @author Mark Huberty
 cosine.mat <- function(dtm, idx.query, idx.compare, idx.collection){
 
@@ -1116,7 +1167,8 @@ cosine.mat <- function(dtm, idx.query, idx.compare, idx.collection){
 ##' @param doc.list the output from CreateAllVectorSpaces.
 ##' @param composite.mat the output from GetLikelyComposite.
 ##' @param type the subset of the text to be clustered by topic: one
-##' of "incl.amend" (default), "rej.amend", "incl.orig", "rej.orig".
+##' of "incl.amend" (default), "rej.amend", "incl.orig", "rej.orig",
+##' "all.amend", or "final".
 ##' @param k the number of topics to model.
 ##' @param topic.method one of "LDA" or "CTM"
 ##' @param sampling.method one of "VEM" or "Gibbs"
@@ -1124,12 +1176,14 @@ cosine.mat <- function(dtm, idx.query, idx.compare, idx.collection){
 ##' @param addl.stopwords specific stopwords to include not in the
 ##' generic stopwords list used to generate the document-term matrix
 ##' in doc.list
+##' @param weighting one of weightTf, weightTfIdf, or weightBin,
+##' depending on the weighting used to construct the document-term
+##' matrix in doc.list. Note that only weightTf is supported at present.
 ##' @param ... other arguments as required; see ModelTopics.
-##' @param method the topicmodeling method to use (one of "LDA" or
-##' "CTM").
 ##' @return a ModelTopics object, and additionally an index of
 ##' of the documents as it points to the text inputs, rather than the
 ##' document-term matrix.
+##' @export
 ##' @author Mark Huberty
 ModelDocSet <- function(doc.list,
                         composite.mat,
@@ -1139,11 +1193,12 @@ ModelDocSet <- function(doc.list,
                         sampling.method="VEM",
                         n.terms=5,
                         addl.stopwords="NULL",
+                        weighting=weightTf,
                         ...){
 
   stopifnot(type %in% c("incl.amend", "rej.amend",
                         "incl.orig", "rej.orig",
-                        "final"
+                        "final", "all.amend"
                         )
             )
   
@@ -1181,6 +1236,10 @@ ModelDocSet <- function(doc.list,
 
       topic.idx <- dtm.idx[-orig.idx]
       
+    }else if(type=="all.amend"){
+
+      dtm.idx <- topic.idx <- doc.list$idx.amendments
+      
     }else{
 
       dtm.idx <- doc.list$idx.final
@@ -1202,6 +1261,7 @@ ModelDocSet <- function(doc.list,
                            sampling.method=sampling.method,
                            n.terms=n.terms,
                            addl.stopwords,
+                           weighting=weighting,
                            ...
                            )
 
@@ -1213,7 +1273,6 @@ ModelDocSet <- function(doc.list,
 }
 
 
-###
 ##' Provides an interface to model the content of different amendment
 ##' slices using Latent Dirichelet Allocation methods as supported in
 ##' the topicmodels package. See the topicmodels package documentation
@@ -1228,16 +1287,20 @@ ModelDocSet <- function(doc.list,
 ##' @param addl.stopwords Additional stopwords to remove.
 ##' @param n.terms the number of terms by topic to return. See the
 ##' terms() function in topicmodels for details.
+##' @param weighting one of weightTf, weightTfIdf, or weightBin,
+##' corresponding to the weighting used to construct dtm. Note that at
+##' present only weightTf is supported.
 ##' @param ... other arguments as passed to the LDA or CTM methods
 ##' @param method one of "LDA" (default) or "CTM. See the topicmodels
 ##' documentation for details. The LDA default assumes independence in
 ##' term distributions across topics. This may not be appropriate. 
 ##' @return A list containing the topic model, the top N terms by topic, and the topic
 ##' assignments for each document indicated by idx.
+##' @export
 ##' @author Mark Huberty
 ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
                         sampling.method, addl.stopwords=NULL,
-                        n.terms, ...){
+                        n.terms, weighting=weightTf, ...){
 
   if(!is.null(addl.stopwords))
     {
@@ -1268,8 +1331,9 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
   idx <- idx[has.terms]
 
   
-  this.dtm <- sparseToDtm(dtm.sub)
+  this.dtm <- sparseToDtm(dtm.sub, weighting=weighting)
   print(dim(this.dtm))
+  
 
   if(is.null(k))
     k <- ceiling(nrow(this.dtm) / 10)
@@ -1290,15 +1354,13 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
 ##' a document-term matrix equivalent to that produced by the tm package.
 ##' @title sparseToDtm
 ##' @param sparseM : a sparse Matrix of form dgCMatrix.
+##' @param weighting one of weightTf, weightTfIdf, or weightBin
 ##' @return a simple_triplet_matrix as described in the slam package,
 ##' with the same dimensions and properties as sparseM.
 ##' @author Mark Huberty
-sparseToDtm <- function(sparseM){
+sparseToDtm <- function(sparseM, weighting=weightTf){
 
-  require(slam)
-  stm <- as.simple_triplet_matrix(sparseM)
-  class(stm) <- append(class(stm), "DocumentTermMatrix")
-
+  stm <- as.DocumentTermMatrix(sparseM, weighting=weighting)
   return(stm)
 
 }
@@ -1326,6 +1388,7 @@ sparseToDtm <- function(sparseM){
 ##' (false positive/negative).
 ##' @return a list containing the entire output of the algorithm and
 ##' the best threshold value.
+##' @export
 ##' @author Mark Huberty
 learn.threshold <- function(map.bills.out,
                             initial.bill,
@@ -1393,6 +1456,7 @@ learn.threshold <- function(map.bills.out,
 ##' question, using the same bill and amendment arguments in the same order
 ##' @return Source and source+index accuracy of the automated match,
 ##' compared with the hand-coded version
+##' @export
 ##' @author Mark Huberty
 get.accuracy.measures <- function(map.bills.out,
                                   initial.bill,
@@ -1455,6 +1519,7 @@ get.accuracy.measures <- function(map.bills.out,
 ##' @param encoder.out the output of run.encoder for the bill in
 ##' question, using the same bill and amendment arguments in the same order
 ##' @return Type 1 and Type 2 accuracy rates by threshold value
+##' @export
 ##' @author Mark Huberty
 get.type.errors <- function(map.bills.out,
                             initial.bill,
@@ -1518,6 +1583,7 @@ get.type.errors <- function(map.bills.out,
 ##' @return A matrix mapping from each entry in the target text to a
 ##' user-supplied index of the best match in either the initial text or
 ##' the amendment text.
+##' @export
 ##' @author Mark Huberty
 encoder <- function(target.text,
                     initial.match.text,
@@ -1764,7 +1830,8 @@ encoder <- function(target.text,
 ##' @return Returns a matrix of the form
 ##' targetidx:match.idx:match.dist:match.source. For ease of automated
 ##' comparison, the values in each are
-##' equivalent to similar values in the output of GetLikelyComposite. 
+##' equivalent to similar values in the output of GetLikelyComposite.
+##' @export
 ##' @author Mark Huberty
 run.encoder <- function(target.text=NULL,
                         original.text=NULL,
@@ -1898,3 +1965,121 @@ run.encoder <- function(target.text=NULL,
 
 
 ## }
+
+model.amend.hierarchy <- function(doc.list,
+                                  composite.mat,
+                                  type="incl.amend",
+                                  k=NULL,
+                                  topic.method="LDA",
+                                  sampling.method="VEM",
+                                  n.terms=5,
+                                  addl.stopwords="NULL",
+                                  weighting=weightTf,
+                                  ...
+                                  ){
+
+  ## ## Basic structure:
+  ## 1. Model all amendments
+  ## 2. For each topic
+  ## 3. Model amendments assigned to that topic
+  ## 4. Return full model, sub models, crosstab of topic
+  ##    assignments
+  if(is.null(k))
+    {
+
+      k <- ceiling(length(idx.amendments) / 10)
+      k.all <- rep(k, k + 1)
+      
+    }else if(length(k) == 1){
+      
+      k.all <- rep(k, k + 1)
+      
+    }else{
+
+      stopifnot(length(k) == k[1] + 1)
+      k.all <- k
+
+    }
+  
+  model.all <- ModelTopics(doc.list$vs.out,
+                           doc.list$idx.amendments,
+                           topic.method=topic.method,
+                           sampling.method=sampling.method,
+                           addl.stopwords=addl.stopwords,
+                           weighting=weighting,
+                           k=k.all[1],
+                           n.terms=n.terms,
+                           ...
+                           )
+
+  idx.sub <- sort(unique(model.all$topics))
+  models.sub <- lapply(idx.sub, function(x){
+
+    topic.words <- model.all$terms[,x]
+    idx.to.remove <- which(colnames(doc.list$vs.out) %in% topic.words)
+    
+    model.sub <- ModelTopics(doc.list$vs.out[doc.list$idx.amendments,
+                                             -idx.to.remove
+                                             ],
+                             which(model.all$topics == x),
+                             topic.method=topic.method,
+                             sampling.method=sampling.method,
+                             addl.stopwords=addl.stopwords,
+                             weighting=weighting,
+                             k=k.all[x+1],
+                             n.terms=n.terms,
+                             ...
+                             )
+    
+  })
+
+  out <- list(model.all, models.sub)
+  terms.list <- lapply(1:k[1], function(x){
+
+    terms.primary <- out[[1]]$terms[,x]
+    terms.secondary <- out[[2]][[x]]$terms
+
+    this.out <- list(terms.primary, terms.secondary)
+    return(this.out)
+
+  })
+
+  out <- list(out, terms.list)
+  return(out)
+  
+}
+
+## Blah, this isn't working. Needs to properly subset everything
+## so that it re-aligns the topics and subtopics with the amendments. 
+ctab.amendment.topics <- function(topic.model, doc.list, composite.mat, type){
+
+  stopifnot(type %in% c("incl.amend", "rej.amend"))
+
+  if(type == "incl.amend")
+    {
+
+      dtm.idx <- doc.list$idx.amendments
+      orig.idx <-
+        composite.mat$match.idx[composite.mat$match.origin=="amendment"]
+
+      topic.idx <- dtm.idx[orig.idx]
+      topics <- topic.model$topics[orig.idx]
+      
+    }else{
+
+      dtm.idx <- doc.list$idx.amendments
+      orig.idx <-
+        composite.mat$match.idx[composite.mat$match.origin=="amendment"]
+
+      topic.idx <- dtm.idx[-orig.idx]
+      topics <- topic.model$topics[-orig.idx]
+      
+    }
+
+  tab <- table(topics
+
+
+}
+  
+
+

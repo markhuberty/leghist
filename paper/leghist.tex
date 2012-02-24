@@ -112,12 +112,12 @@ the history of a bill as it evolves through a legislative process:
 \label{sec:simple-model:-pure}
 
 We treat a bill as a document $D$ composed of $I$ sections $d_i$. The
-legislative process begins with an initial bill $D_i$, and concludes
-with a successful bill $D_f$. During the legislative process, $J$
+legislative process begins with an initial bill $D_1$, and concludes
+with a successful bill $D_2$. During the legislative process, $J$
 amendments $a_j \in A_J$ are
 proposed by some set of legislative actors $L$, of which $A_K, K \leq
-J$ are adopted. For $D_i, D_f,$ and $A_J$, we assume that the sections
-$d_{i,i}, d_{f,i}$, and $a_j$ are all at the same level of
+J$ are adopted. For $D_1, D_2,$ and $A_J$, we assume that the sections
+$d_{1,i}, d_{2,i}$, and $a_j$ are all at the same level of
 disaggregation. The tools presented here are agnostic to that level of
 disaggregation, but for the rest of this paper we assume that sections
 are analagous to paragraphs. This is consistent with the structure of
@@ -126,25 +126,29 @@ amendments for the European Parliamentary bills considered in section
 
 For the simple case, then, the final bill is a
 combination of the proposed bill and the proposed
-amendments. We can represent that process as a functional form of $D_f
-= f(D_i, A_j)$. Each section $d_{f,i}$ contains one and only one best
-match in $D_i, A_j$. Given that, the challenge is to identify the sections
+amendments. We can represent that process as a functional form of $D_2
+= f(D_1, A_J)$. Each section $d_{2,i}$ contains one and only one best
+match in $D_1, A_j$. Given that, the challenge is to identify the sections
 of the original bill and the amendments that comprise the final
 bill. 
 
-We can thus define a similarity measure $S$. For simiplicity, we
-assume that $S \in [0,1]$. For each final section $d_{f,i}$ we
-construct a distance vector $s_i$ between all possible matches in
-$D_i, A_j$. The best match is thus $arg max(d_i, a_j) s_i$. We can
-therefore use nearest-neighbor matching, since for each $d_{f,i}$
-there is one and only one best match.
+We can thus define a similarity measure $S$ to permit comparison
+between the final bill and its potential origins. For simiplicity, we
+assume that $S \in [0,1]$. For each final section $d_{2,i}$ we
+construct a similarity vector $s_i$ between all possible matches in
+$D_1, A_J$. The best match is thus $d \in arg \max_{s_i} S(D_1,
+A_J)$. Under the assumption that $S$ is well-ordered, we can use
+nearest-neighbor matching, since for each $d_{2,i}$ there is one and
+only one best match.\footnote{Of course, a distance metric can also be
+used, in which case the choice problem becomes $d \in arg \min_{s_i}
+S(D_1, A_J)$.}
 
 To construct the distance metric, we first construct a vector-space
-representation of each section of $D_f$, $D_i$, and $A_j$, using a
-common feature set. Given that vector-space representation of the
+representation of each section of $D_2$, $D_1$, and $A_j$, using a
+common dictionary. Given that vector-space representation of the
 language used in the final bill and all candidate matches, we can
 construct the similarity measure using any continuously-valued
-distance or similarity metric. 
+similarity or distance metric.
 
 \subsection{Extensions: fuzzy matches}
 \label{sec:extens-fuzzy-match}
@@ -164,11 +168,9 @@ language.\footnote{We also note that this set of changes may be
   itself. Validating the algorithm for each bill represents a
   significant effort that we would like the analyst to avoid.} We would wish to identify both cases.
 
-We handle both cases as follows. By implementing nearest-neighbor
-matching with replacement, we enable matches between a single
-source paragraph and multiple final paragraphs. 
-
-This same approach also works for subtle changes in language
+Nearest-neighbor matching with replacement handles both
+problems. Matching with replacement permits a single amendment to
+match to multiple sections of the final bill. This same approach also works for subtle changes in language
 introduced during final drafting of the bill. For instance, consider
 the final section of a bill (left) and the initial section of a bill
 (right) presented as below:
@@ -200,7 +202,9 @@ breaks down. Introduction of the same amendment by multiple
 legislative actors will produce more than one match, since the
 similarity vector is no longer well-ordered. Absent additional
 information, it is impossible to determine which is the ``correct''
-match from this set. We will return to this issue when we discuss
+match from this set. Thus the algorithm may return the correct
+\textit{semantic} origin without necessarily returning the correct
+\texttt{procedural} origin. We will return to this issue when we discuss
 supervised processes.
 
 \subsection{Extensions: negotiated content and revisions}
@@ -220,17 +224,24 @@ match even if no actual match exists, handling this case requires a
 filter for ``poor'' matches. We implement this process with a filter
 on the similarity measure itself: for matches whose similarity
 measure $s$ is below a user-supplied threshold $T$, we reject the
-match and instead match the section to itself. This provides a set of
-valuable information to the analyst, identifying sections of a bill that
+match and instead match the section to itself. This ``false'' match
+can aid the identification of elements in a bill that
 came out of negotiated rather than formal amendment processes. 
 
 The use of a similarity threshold raises the question of how to set
-that threshold. Too high a threshold will catch all ``unsourced'' bill
-sections but throw out accurate matches. Likewise, too low a threshold
+that threshold. Too high a threshold will correctly identify all ``unsourced'' bill
+sections, but throw out accurate matches. Likewise, too low a threshold
 will reduce match quality and lead to potentially incorrect
-inferences. 
+inferences. This leads to two different measures of match accuracy,
+which we refer to as Type 1 and Type 2 measures for their analogues in
+Type 1 and Type 2 errors. Type 1 accuracy measures the share of
+correctly attributed actual matches, while Type 2 measures the share
+of correctly attributed ``false'' matches. Raising the threshold value
+$T$ will increase Type 2 accuracy while harming Type 1
+accuracy.  
 
-We propose to treat this as a supervised learning problem
+We propose that balancing the Type 1 / Type 2 tradeoff can be treated
+as a supervised learning problem
 in which the optimal $T$ is derived from a set of user-coded data. We
 provide tools to automate the hand-matching of a random subset of the
 final bill to its potential sources. Based on that hand coding, the
@@ -244,6 +255,7 @@ $T$ based on both overall accuracy and the tradeoff of Type 1 and Type
 \label{sec:legisl-sect-match}
 
 
+
 \subsection{Matching and visual comparison}
 \label{sec:match-visu-comp}
 
@@ -251,26 +263,26 @@ Given the model presented in section \ref{sec:how-bill-becomes}, the
 analytic problem thus becomes identifying which amendments and
 portions of the initial bill become the final bill. We treat this as a
 document retrieval problem, wherein we wish to query for a document
-$D_{f,i}$ and retrieve its most likely match from $D_i,
-A_j$. \footnote{This can, alternatively, be treated as a
+$D_{2,i}$ and retrieve its most likely match from $D_2,
+A_J$. \footnote{This can, alternatively, be treated as a
 subset of the plagiarism problem, wherein we know with probability
-approaching one that $D_f$ has plagiarized content from $D_i$ and
-$A_j$. As with other versions of plagiarism detection, the problem
+approaching one that $D_2$ has plagiarized content from $D_1$ and
+$A_J$. As with other versions of plagiarism detection, the problem
 then becomes establishing an effective and efficient comparison
 strategy.}
 
 We implement a generic comparison strategy in four steps:
 \begin{enumerate}
-\item Transform each section of $D_f$, $D_i$, and $A_J$ into a
+\item Transform each section of $D_2$, $D_1$, and $A_J$ into a
   bag-of-words vector-space representation in which features are
   n-grams of potentially heterogeneous length
 \item Construct the pairwise similarity, using some similarity metric,
-  between each section of $D_f$ and all sections in $D_i$ and $A_J$.
-\item Use nearest-neighbor matching without replacement to establish
-  the closest match between each section of $D_f$ and a section in
-  $D_i$ and a candidate amendment in $A_J$
+  between each section of $D_2$ and all sections in $D_1$ and $A_J$.
+\item Use nearest-neighbor matching with replacement to establish
+  the closest match between each section of $D_2$ and a section in
+  $D_1$ and a candidate amendment in $A_J$
 \item Pick the closest match of the pair of potential matches $d_i$
-  and $a$
+  and $a_j$
 \end{enumerate}
 
 Implementation of step (1) occurs via the \texttt{tm} package for R \citep{meyer2008text},
@@ -286,9 +298,9 @@ term frequency / inverse document frequency measures.
 The \texttt{leghist} package comes with several alternative distance metrics for use
 in step (2). We implement a standard cosine similarity, a
 length-weighted cosine similarity, and a length-weighted joint
-information distance measure as described by (). In plagiarism applications, length-sensitive
+information distance measure as described by \cite{hoad2003methods}. In plagiarism applications, length-sensitive
 distance metrics have performed well in identifying correct documents
-from otherwise quite similar candidate matches. However, as section \ref{} will show,
+from otherwise quite similar candidate matches. However,
 the matching process here appears to favor the fuzzy matches provided
 by the length-insensitive cosine similarity. This may, as we will discuss, be due to the
 somewhat arbitrary choice of what constitutes a document section, and
@@ -317,22 +329,57 @@ should be used. If the threshold value is not met, then the final
 document section is matched to itself. 
 
 Finally, \texttt{leghist} provides an interface to output the matched
-document as a two-column \LaTeX document, which can be directly
+document as a two-column \LaTeX\ document, which can be directly
 compiled into a PDF. Within that document, each paragraph of the final
 bill is shown side-by-side with its match. Words differences between
 the paragraphs are highlighted as colored text. 
 
-\subsection{Supervised learning of the optimal threshold value}
+\subsection{Semi-supervised learning of the optimal threshold value}
 \label{sec:superv-learn-optim}
 
 Selection of an optimum threshold value will depend on the specifics
-of the legislative process behind each bill. While our experiments
+of the legislative process behind each bill. For instance, the right
+threshold value for a bill that was modified only via the amendment
+process may be much lower than a threshold value valid for a bill that
+went through a negotiation or reconcilliation process. While our experiments
 suggest that values on the order of 0.3 perform reasonably well, we
 recommend that users base threshold selection on the performance of
-the matching algorithm in their particular case. To facilitate this process, we provide tools that allow the user to
+the matching algorithm in their particular case. For instance,
+legislative procedures known to have significant negotiated content
+may benefit from a higher threshold value, while those with very
+little negotiated content might require a threshold value close to
+0. To facilitate identification of context-specific thrshold values, we provide tools that allow the user to
 hand-code a subset of a given bill and derive the optimum threshold
 value based on the algorithm's performance against that hand-coded
-data. 
+data. In practice, coding of 30\% of a bill appears sufficient to
+derive acceptable threshold values.
+
+Figure \ref{fig:bill-accuracy-curves} provides an example of the
+performance of the document retrieval process as established by this
+semi-supervised approach. For each of four different bills, 30\% of
+the final bill was hand-matched to the most semantically appropriate
+sources in either the original draft of the bill or
+subsequently-proposed amendments. Based on this sub-sample, we
+established the optimum threshold based on both overall accuracy and
+the tradeoff between Type 1 and Type 2 errors. In all cases, the
+optimum threshold lay between 0.3-0.45. The variation in the optimum
+threshold setting appears to derive from two primary sources: the
+degree of negotiation (as opposed to formal amendment) in the
+legislative process itself; and the amount of structural change that
+occurred when amendments were incorporated into formal legislative language.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.45\textwidth]{ets_2003_accuracy_curves}
+  \includegraphics[width=0.45\textwidth]{ets_2007_accuracy_curves}
+  \includegraphics[width=0.45\textwidth]{intl_2003_accuracy_curves}
+  \includegraphics[width=0.45\textwidth]{rese_2007_accuracy_curves}
+  \caption{Accuracy assessment curves for 30\% training samples in
+    each of four different bills. Bills were drawn from the European
+    Union in years 2001, 2003, and 2007. Optimum threshold values
+    ranged from 0.3-0.4 in all cases.}
+  \label{fig:bill-accuracy-curves}
+\end{figure}
 
 \subsection{Amendment content analysis and clustering}
 \label{sec:amendm-cont-analys}
@@ -347,7 +394,7 @@ sections of the final bill for which no match was identified.
 We provide a ready interface between the matched bill and the
 \texttt{topicmodels} package for R that enables topic modeling of
 these different slices of the matched bill. As described by
-\cite{blei2003latent,blei2003latent}, topic modeling assumes a latent
+\cite{blei2003latent}, topic modeling assumes a latent
 structure within a set of documents. Each document--in this case, a
 bill section--is assumed to derive from a mixture of topics. Each
 topic, in turn, is represented by distribution over a
@@ -456,7 +503,7 @@ The \texttt{doc.list} object takes the form of a list containing four
 objects:
 \begin{itemize}
 \item \texttt{vs.out}, the document-term matrix represented as a
-  sparse Matrix object
+  sparse \texttt{dgCMatrix} object
 \item \texttt{idx.final}, an integer vector of row indices
   representing documents in the final bill
 \item \texttt{idx.initial}, an integer vector of row indices
@@ -487,9 +534,14 @@ section index of the final bill, and the section index and distance
 measure of both the original bill match and the amendment match. We
 can see a sample of that data frame here:
 
-\begin{lstlisting}
-  
-\end{lstlisting}
+\begin{verbatim}
+  bill2.idx bill1.idx bill1.dist amend.idx amend.dist
+2         2         6  0.2377064       980  0.7196255
+3         3         3  0.7177070       980  0.3880453
+4         4         4  0.5805601       981  0.6782620
+5         5        24  0.1116871        94  0.8236878
+6         6         4  0.1034507        95  0.9701425
+\end{verbatim}
 
 Before we identify the most likely set of matches based on these
 distance metrics, we want to pick the optimum threshold value as
@@ -522,7 +574,8 @@ threshold value may be identified in two ways based on the
 \texttt{type} argument. With \texttt{type=overall},
 the aggregate accuracy of the matched pairs is estimated, and the
 threshold value corresponding to the highest accuracy returned. With
-\texttt{type=tradeoff}, the Type 1/2 error tradeoff is estimated and
+\texttt{type=tradeoff}, the Type 1/2 error tradeoff (rate of correct
+matches to amendments, versus rate of correct findings of ``no match'') is estimated and
 the threshold value at the intersection of the type 1 and type 2 error
 curves is returned. We recommend that the threshold sequence be
 specified at a fairly granular level, such as \texttt{seq(0, 0.5, 0.005)}.
@@ -535,7 +588,7 @@ values $s < 0.3$ should be treated as ``no match''.
 
 \begin{figure}[ht]
   \centering
-  
+  \includegraphics[width=0.75\textwidth]{intl_2007_accuracy_curves.pdf}
   \caption{Accuracy curves as returned from the \texttt{learn.threshold} function. Notice that the optimum threshold value is closer to the accuracy curve than the type 1/2 tradeoff curve intersection, owing to the relative flatness of the tradeoff curves.}
   \label{fig:learn-threshold-output}
 \end{figure}
@@ -628,7 +681,7 @@ running in the R console, is show in figure \ref{fig:encoder-interface}.
 \end{figure}
 
 For the legislative record, we used the record of European
-Parliamentary debate for the 2009 energy market reform. The EU process
+Parliamentary debate for the 2009 renewable energy law reform reform. The EU process
 provides a particularly interesting test of the tools given its
 somewhat convoluted process. After the Commission proposes legislation
 to the Parliament, one or more committees can propose amendments,
@@ -650,14 +703,32 @@ adopted. Furthermore, subtle changes in language may occur to any
 section of the bill, or to accepted amendments, during the legislative
 process. 
 
-For the first
-Parliamentary reading, the Commission provided detailed responses on
-each adopted Parliamentary amendment, which shaped which amendments
-were accepted as part of the Co-Decision process between the
-Commission, the Council, and the Parliament. We use that record to
-identify actual adopted amendments from the first reading. For the
-second reading, however, we do not have any such record. 
+For testing against the human-matched document, a user coded matches
+for all 380 paragraphs of the final bill, using the interface shown in
+figure \ref{fig:encoder-interface}. Possible origins for the final
+bill included the 2001 renewable energy law which was being amended;
+the Commission proposal for amendment; and the European Parliament's
+First Reading Report. We note that the bill also underwent review by
+the Council, which made other, non-specified changes. 
 
+This user-encoded bill was then compared to the algorithmic match
+across a range of threshold values, using the \texttt{learn.threshold}
+tools. Figure \ref{fig:rese-accuracy-test} shows the results of those
+comparisons. For a threshold value of 0.45, the algorithm correctly
+identified and matched amendments in 84\% of cases. While the rate of
+correct source + index matching was lower, examination of the matches
+shows that this discrepancy is due to two phenomena: first, some
+amendments were offered multiple times with the same language; and
+second, in some cases post hoc examination of human and algorithmic
+matches showed that the algorithm found a closer match than the human
+coder.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.75\textwidth]{rese_2007_accuracy_curves_full}
+  \caption{Algorithm accuracy as a function of the similarity threshold value. Baseline for comparison is a fully human-encoded bill. Source accuracy indicates where the algorithm identified the same source (amendment, original bill, or final bill) as the human coder. Source + index accuracy indicates where the algorithm found both the same source and the same index value (e.g. Amendment 24) as identified by the human coder.  }
+  \label{fig:rese-accuracy-test}
+\end{figure}
 
 \section{Content modeling}
 \label{sec:content-modeling}
@@ -678,10 +749,11 @@ implemented by \cite{blei2003latent} and
 \cite{blei2006correlated}. These methods infer a set of topics from
 the term distributions over a set of documents, on the assumption that
 topics are differentiated by different distributions over a set of
-terms. \texttt{ModelDocSet} provides the ability to feed one of four
+terms. \texttt{ModelDocSet} provides the ability to feed one of five
 subsets of documents to these models: the included or rejected
-amendments; and the surviving or rejected portions of the original
-bill. 
+amendments (\texttt{incl.amend}, \texttt{rej.amend}); the surviving or rejected portions of the original
+bill (\texttt{incl.orig}, \texttt{rej.orig}); and the portions that
+were determined to have no valid match (\texttt{final}). 
 
 \begin{lstlisting}[language=R, numbers=none]
 model.incl.amend <- ModelDocSet(doc.list,
@@ -697,6 +769,30 @@ model.rej.amend <- ModelDocSet(doc.list,
                                control=list(seed=2342)
                                )
 \end{lstlisting}
+
+\section{Conclusions}
+\label{sec:conclusions}
+
+The \texttt{leghist} package provides a range of utilities for
+identifying the origin of sections of a final piece of legislation
+given a set of possible sources. It further provides tools to analyze,
+cluster, and visualize these matches. We hope that these tools will
+prove useful to analysts of legislation and other documents in which
+the process of document preparation is as important as the document
+itself. 
+
+We anticipate several useful extensions. A more elaborate document
+retrieval process would perhaps improve on the quality of the
+matches. Likewise, we might imagine a further set of algorithms that
+help determine the optimal level at which to compare the final and
+source documents, on the basis of some loss function. Finally, the
+process presented here makes no use of positional information; the
+fact that amendments are proposed to specific sections of a document
+gets lost in the parsing stage. While the process of drafting
+legislation destroys the value of a specific index, it does not
+necessarily mean that a paragraph once at the center of a bill now
+appears at the very end. Exploiting that information to restrict the
+set of potential matches may improve overall match quality. 
 
 
 
