@@ -2049,11 +2049,29 @@ model.amend.hierarchy <- function(doc.list,
     topic.words <- model.all$terms[,x]
     idx.to.remove <- which(colnames(doc.list$vs.out) %in% topic.words)
 
-    ## Model the subset of amendments
+	# H.has.terms <-rowSums(doc.list$vs.out[doc.list$idx.amendments,]) == 0
+	# H.dtm <-doc.list$vs.out[doc.list$idx.amendments,
+                                             # -idx.to.remove
+                                             # ]
+    # H.dtm.sub <- H.dtm[H.has.terms,]
+
+
+    ## Model the subset of amendments    
     model.sub <- ModelTopics(doc.list$vs.out[doc.list$idx.amendments,
                                              -idx.to.remove
                                              ],
+                            ##Or:
+                            # dtm = H.dtm.sub,
+                                             # So now you're JUST looking at the dtm values
+                                             # for the amendments,(as opposed to everything) (x axis)
+                                             # with the idx.to.remove terms taken out (y axis)
                              which(model.all$topics == x),
+                     # Problem?: model.allneeds to correspond to doc.list$vs.out[doc.list$idx.amendments]
+                     #  = the big dtm, but only the amendments, and without the terms already used. The 
+                     # problem is that model.all's index may have been altered by the has.terms thing, so:
+                     # --> FIX: delete the dtm no-terms-rows before putting it in the function --> 
+                     # then the index will match that, and ModelTopics will not alter the index. 
+                     # (see the code underlined above)
                              topic.method=topic.method,
                              sampling.method=sampling.method,
                              addl.stopwords=addl.stopwords,
@@ -2088,34 +2106,88 @@ model.amend.hierarchy <- function(doc.list,
 ## Blah, this isn't working. Needs to properly subset everything
 ## so that it re-aligns the topics and subtopics with the amendments. 
 ctab.amendment.topics <- function(topic.model, doc.list, composite.mat, type){
+	
+# topic.model   =  ?   I'm not really sure. LDA(this.dtm, method=sampling.method, k=k, ...)
+# doc.list      =  list of indices (final, initial, amends) 1:n, and the big giant dtm, all in a list.
+# composite.mat =  GetLikelyComposite output: big list of c(x, match.idx, match.origin, alt.origin, match.dist, match.txt)'s
+				  # Note that match.idx is ordered by which amendment matched to mapbills.out$bill2.idx, i.e. 1:f 
+				  # so: match.idx <- mapbills.out[x, c("bill1.idx",
+                    #                   "amend.idx")[dist.idx]  ] i.e. the xth final bill paragraph, the index of
+                    #					whichever type was the best match (amend or bill1).                   
+                                     
+# type          =   the subset of the text to be clustered by topic: one
+					# of "incl.amend" (default), "rej.amend", "incl.orig", "rej.orig",
+					# "all.amend", or "final".
+					
+# Goal (?) the topic.model output above ("out"), but properly indexed.
 
   stopifnot(type %in% c("incl.amend", "rej.amend"))
 
   if(type == "incl.amend")
     {
 
-      dtm.idx <- doc.list$idx.amendments
+     
+      # = (f+o+1):n , length = # of amendments
       orig.idx <-
         composite.mat$match.idx[composite.mat$match.origin=="amendment"]
-
+        # = a list of numbers corresponding to the amendment matching to ordered final bill paragraphs.
+        # The final bill paragraphs are increasing, but only exist here if it's match is an amendment.
+        # We would like these numbers to be ordered from (f+o+1):n, instead of scrambled, but carry 
+        # the match information with them, so we know which final bill paragraph each (f+o+1):n amendments
+        # were matched to, if any. ?
+     	 final.idx <- composite.mat$x[composite.mat$match.origin=="amendment"]
+     	 match.idx <- composite.mat$match.idx[composite.mat$match.origin=="amendment"])
+      
+     	 order.midx. <- order(match.idx)
+    		 final.ordered <- final.idx[order.midx]
+   		 midx.ordered <- match.idx[order.midx]
+      
+      	 orig.idx2 <- cbind(midx.ordered,x.ordered)
+      	 
+      # still isn't perfect? match.idx amendments are named 1:m, instead of (f+o+1):n, so perhaps:
+     amend.x.idx <- cbind(midx.ordered +
+      							length(doc.list$idx.final) +
+      							length(doc.list$idx.initial),
+      					final.ordered)
+     # Represents an ordered list of the included amendments and their corresponding final bill paragraphs.
+     # --> index related to the dtm 1:N, i.e. how the topic assigment vector assigns topics to amendments.
+     
+		orig.idx <- amend.x.idx[,1]
+		# orig.idx should == doc.list$idx.amendments[composite.mat$match.origin=="amendment"]
+		# But now we have the final bill matches to go along with them... er, if that was wanted. hehe.
+		
+	  dtm.idx <- doc.list$idx.amendments
       topic.idx <- dtm.idx[orig.idx]
       topics <- topic.model$topics[orig.idx]
       
     }else{
-
-      dtm.idx <- doc.list$idx.amendments
-      orig.idx <-
-        composite.mat$match.idx[composite.mat$match.origin=="amendment"]
-
+    	
+ orig.idx <-composite.mat$match.idx[composite.mat$match.origin=="doc.initial"]
+          final.idx <- composite.mat$x[composite.mat$match.origin=="doc.initial"]
+     	 match.idx <- composite.mat$match.idx[composite.mat$match.origin=="doc.initial"])
+      
+     	 order.midx. <- order(match.idx)
+    		 final.ordered <- final.idx[order.midx]
+   		 midx.ordered <- match.idx[order.midx]
+      
+      	 orig.idx2 <- cbind(midx.ordered,final.ordered)
+     
+      amend.x.idx <- cbind(midx.ordered +
+      							length(doc.list$idx.final) +
+      							length(doc.list$idx.initial),
+      					final.ordered)
+      # So that the indices correspong to the 1:N big dtm.
+      
+      dtm.idx <- doc.list$idx.amendments        
       topic.idx <- dtm.idx[-orig.idx]
       topics <- topic.model$topics[-orig.idx]
       
     }
 
-  tab <- table(topics
+  tab <- table(topics 
+  
+  return (tab)
 
 
 }
-  
-
 
