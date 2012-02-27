@@ -2103,11 +2103,27 @@ model.amend.hierarchy <- function(doc.list,
   
 }
 
+
+
+
 ## Blah, this isn't working. Needs to properly subset everything
 ## so that it re-aligns the topics and subtopics with the amendments. 
 ctab.amendment.topics <- function(topic.model, doc.list, composite.mat, type){
 	
-# topic.model   =  ?   I'm not really sure. LDA(this.dtm, method=sampling.method, k=k, ...)
+  stopifnot(type %in% c("incl.amend", "rej.amend"))
+
+  if(type == "incl.amend")
+    {
+    	...
+
+  tab <- table(topics 
+  
+  return (tab)
+  
+}
+
+	
+# topic.model   =  LDA(this.dtm, method=sampling.method, k=k, ...)
 # doc.list      =  list of indices (final, initial, amends) 1:n, and the big giant dtm, all in a list.
 # composite.mat =  GetLikelyComposite output: big list of c(x, match.idx, match.origin, alt.origin, match.dist, match.txt)'s
 				  # Note that match.idx is ordered by which amendment matched to mapbills.out$bill2.idx, i.e. 1:f 
@@ -2119,75 +2135,74 @@ ctab.amendment.topics <- function(topic.model, doc.list, composite.mat, type){
 					# of "incl.amend" (default), "rej.amend", "incl.orig", "rej.orig",
 					# "all.amend", or "final".
 					
-# Goal (?) the topic.model output above ("out"), but properly indexed.
 
-  stopifnot(type %in% c("incl.amend", "rej.amend"))
+ # e.g. say you've got model.1 = output of ModelText
 
-  if(type == "incl.amend")
-    {
+# Input: a model created from ModelText.
+# Output: A list with three elements:
+#       1) a topic index (i.e. 1: # of topics)
+#       2) the proportion of amendments in each respective topic
+#       3) a matrix containing k columns, where there are k columns,
+#          each column containing a vector of length = (# of amendments),
+#          representing the index of which amendments are in the given 
+#          topic. Corresponds to the idx.amendments for the big dtm
+#          created from CreateAllVectorSpaces.
 
-     
-      # = (f+o+1):n , length = # of amendments
-      orig.idx <-
-        composite.mat$match.idx[composite.mat$match.origin=="amendment"]
-        # = a list of numbers corresponding to the amendment matching to ordered final bill paragraphs.
-        # The final bill paragraphs are increasing, but only exist here if it's match is an amendment.
-        # We would like these numbers to be ordered from (f+o+1):n, instead of scrambled, but carry 
-        # the match information with them, so we know which final bill paragraph each (f+o+1):n amendments
-        # were matched to, if any. ?
-     	 final.idx <- composite.mat$x[composite.mat$match.origin=="amendment"]
-     	 match.idx <- composite.mat$match.idx[composite.mat$match.origin=="amendment"])
-      
-     	 order.midx. <- order(match.idx)
-    		 final.ordered <- final.idx[order.midx]
-   		 midx.ordered <- match.idx[order.midx]
-      
-      	 orig.idx2 <- cbind(midx.ordered,x.ordered)
-      	 
-      # still isn't perfect? match.idx amendments are named 1:m, instead of (f+o+1):n, so perhaps:
-     amend.x.idx <- cbind(midx.ordered +
-      							length(doc.list$idx.final) +
-      							length(doc.list$idx.initial),
-      					final.ordered)
-     # Represents an ordered list of the included amendments and their corresponding final bill paragraphs.
-     # --> index related to the dtm 1:N, i.e. how the topic assigment vector assigns topics to amendments.
-     
-		orig.idx <- amend.x.idx[,1]
-		# orig.idx should == doc.list$idx.amendments[composite.mat$match.origin=="amendment"]
-		# But now we have the final bill matches to go along with them... er, if that was wanted. hehe.
+proportions<-function(model=model.1){
+	
+  number.of.amends<-length(model$dtm.idx)
+        
+  number.of.topics<-ncol(model$terms)
+        
+  topic.idx<-matrix (rep (0,number.of.topics*number.of.amends)
+                       ,ncol = number.of.topics) 
+                       
+  p<-c(rep(0,number.of.topics))
+        
+  for(i in 1:number.of.topics) {
+       	 p[i]<- ( (sum (model$topics==i) / 
+          			length(model.1$dtm.idx) )
+          			 ) 
+       	 topic.idx[,i]<-as.numeric (
+                (1:length(model$topics)) %in% 
+                        which (model$topics==i) )
+                }
+		# end for loop
 		
-	  dtm.idx <- doc.list$idx.amendments
-      topic.idx <- dtm.idx[orig.idx]
-      topics <- topic.model$topics[orig.idx]
-      
-    }else{
-    	
- orig.idx <-composite.mat$match.idx[composite.mat$match.origin=="doc.initial"]
-          final.idx <- composite.mat$x[composite.mat$match.origin=="doc.initial"]
-     	 match.idx <- composite.mat$match.idx[composite.mat$match.origin=="doc.initial"])
-      
-     	 order.midx. <- order(match.idx)
-    		 final.ordered <- final.idx[order.midx]
-   		 midx.ordered <- match.idx[order.midx]
-      
-      	 orig.idx2 <- cbind(midx.ordered,final.ordered)
-     
-      amend.x.idx <- cbind(midx.ordered +
-      							length(doc.list$idx.final) +
-      							length(doc.list$idx.initial),
-      					final.ordered)
-      # So that the indices correspong to the 1:N big dtm.
-      
-      dtm.idx <- doc.list$idx.amendments        
-      topic.idx <- dtm.idx[-orig.idx]
-      topics <- topic.model$topics[-orig.idx]
-      
-    }
+   props.out<-list((1:number.of.topics),p,topic.idx)
+   names(props.out)<-c("topics","proportions","topic.indices")
 
-  tab <- table(topics 
-  
-  return (tab)
+        return (props.out)
+        }
+        
+# It would be nice to have an index of the amendment topics relating to the amendment 
+# number, i.e. topic.indices, but  not ordered by the scattered amendments in 
+# the output of CreateAllVectorSpaces, rather the amendment #. 
+# So: let's order the matrix differently by altering a few lines in the above function:
+# So: let's take the indices created by the above function and shuffle them around a bit.
 
+fun<-function(x){which(x==1)}
+orders<- apply(props$topic.indices,2,fun)
+# remember that each column i in 1:k denotes the ith topic -> the values denote the 
+# amenments which are assigned to that topic i.
 
-}
+composite.mat<-GetLikelyComposite
+                (mapbills.out = ?
+                 doc.initial = initial.bill,
+                 doc.final = final.bill,
+                 amendments = amendments,
+                 amendment.origin = doc.mat$idx.amendments)
+        # I can't get MapBills to work for some reason, and thus this to work... Will soon.
+match.idx<-composite.mat$match.idx
+
+amends.only<- match.idx[composite.mat$match.origin=="amendment"]
+        # i.e. the big dtm (1:N) ordered amendments, shuffled by which final bill paragraph
+        # each matches to (where the final bill paragraphs are ordered 1,2,...f).
+order.midx <- order(amends.only)
+
+order1:m<- function(x) {x[order.midx]}
+
+# To make the topic.indices represent the amendments from 1:m  :
+
+ordered.i:m.topic.indices<-apply(orders,2,order1:m)
 
