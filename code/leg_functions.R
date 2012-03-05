@@ -1262,6 +1262,7 @@ ModelDocSet <- function(doc.list,
                            n.terms=n.terms,
                            addl.stopwords,
                            weighting=weighting,
+                           control=control
                            ...
                            )
 
@@ -1300,7 +1301,7 @@ ModelDocSet <- function(doc.list,
 ##' @author Mark Huberty
 ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
                         sampling.method, addl.stopwords=NULL,
-                        n.terms, weighting=weightTf, ...){
+                        n.terms, weighting=weightTf,control=control, ...){
 
   if(!is.null(addl.stopwords))
     {
@@ -1340,7 +1341,7 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
 
   topic.fun <- match.fun(topic.method)
 
-  out <- topic.fun(this.dtm, method=sampling.method, k=k, ...)
+  out <- topic.fun(this.dtm, method=sampling.method, k=k, control=control,...)
 
   terms.out <- terms(out, n.terms)
   topics.out <- topics(out)
@@ -1977,10 +1978,10 @@ run.encoder <- function(target.text=NULL,
 ##' topics is assumed to be D/10, where D is either the count of
 ##' amendments (level 1) or the count of amendments assigned to a topic
 ##' (level 2). If a vector, the first element of the vector specifies
-##how many topics should be used for modeling level 1, and the
-##remaining elements how many topics should be used for modeling the
-##amendments assigned to those topics. In this case, the vector must
-##be of length V[1] ##' 
+##' how many topics should be used for modeling level 1, and the
+##' remaining elements how many topics should be used for modeling the
+##' amendments assigned to those topics. In this case, the vector must
+##' be of length V[1] ##' 
 ##' @param topic.method One of "LDA" or "CTM"
 ##' @param sampling.method One of "VEM", or "Gibbs"
 ##' @param n.terms An integer value indicating how many terms should
@@ -2006,15 +2007,20 @@ model.amend.hierarchy <- function(doc.list,
                                   n.terms=5,
                                   addl.stopwords="NULL",
                                   weighting=weightTf,
+                                  ngram=2,
+                                  sparseness.probs=c(0.01, 0.99),
+                                  control=control,
                                   ...
                                   ){
 
   ## Fix the K values appropriately
+  ## Three cases: No K; single K, vector of K's, one per
+  ## level-1 topic
   if(is.null(k))
     {
 
-      k <- ceiling(length(idx.amendments) / 10)
-      k.all <- rep(k, k + 1)
+      k <- ceiling(length(doc.list$idx.amendments) / 50)
+      k.all <- c(k, rep(NULL, k))
       
     }else if(length(k) == 1){
       
@@ -2027,8 +2033,16 @@ model.amend.hierarchy <- function(doc.list,
 
     }
 
+  ## Filter for ngram length by getting indices of the
+  ## desired ngram (for handling multi-ngram-length dtms
+  ## used for bill matching
+  ngram.idx <- get.ngram.idx(colnames(doc.list$vs.out), ngram)
+  tf.idx <- get.tf.idx(doc.list$vs.out, sparseness.probs)
+  
+  cols.to.keep <- intersect(ngram.idx, tf.idx)
+  
   ## Run the level one model with k.all[1] topics
-  model.all <- ModelTopics(doc.list$vs.out,
+  model.all <- ModelTopics(doc.list$vs.out[,cols.to.keep],
                            doc.list$idx.amendments,
                            topic.method=topic.method,
                            sampling.method=sampling.method,
@@ -2036,74 +2050,245 @@ model.amend.hierarchy <- function(doc.list,
                            weighting=weighting,
                            k=k.all[1],
                            n.terms=n.terms,
+                           control=control,
                            ...
                            )
 
   ## Now run the models for each sub-class of amendments, determined
   ## by the topic to which model.all assigned them.
-  idx.sub <- sort(unique(model.all$topics))
-  models.sub <- lapply(idx.sub, function(x){
+  topic.labels <- sort(unique(model.all$topics))
+  ## rebase the dtm index to the 1:A amendment 
+  dtm.idx <- model.all$dtm.idx - min(doc.list$idx.amendments) + 1
+  
+  models.sub <- lapply(topic.labels, function(x){
 
-    ## Drop the top terms that determined this topic, so we don't get
-    ## back totally homogeneous topics
-    topic.words <- model.all$terms[,x]
-    idx.to.remove <- which(colnames(doc.list$vs.out) %in% topic.words)
-
-	# H.has.terms <-rowSums(doc.list$vs.out[doc.list$idx.amendments,]) == 0
-	# H.dtm <-doc.list$vs.out[doc.list$idx.amendments,
-                                             # -idx.to.remove
-                                             # ]
-    # H.dtm.sub <- H.dtm[H.has.terms,]
-
-
-    ## Model the subset of amendments    
+    ## Restrict the index to those rows that received this topic
+    this.idx <- dtm.idx[which(model.all$topics == x)]
+    ## Model the amendments portion of the dtm, for those amendments
+    ## that received this topic assignment
     model.sub <- ModelTopics(doc.list$vs.out[doc.list$idx.amendments,
-                                             -idx.to.remove
+                                             cols.to.keep
                                              ],
-                            ##Or:
-                            # dtm = H.dtm.sub,
-                                             # So now you're JUST looking at the dtm values
-                                             # for the amendments,(as opposed to everything) (x axis)
-                                             # with the idx.to.remove terms taken out (y axis)
-                             which(model.all$topics == x),
-                     # Problem?: model.allneeds to correspond to doc.list$vs.out[doc.list$idx.amendments]
-                     #  = the big dtm, but only the amendments, and without the terms already used. The 
-                     # problem is that model.all's index may have been altered by the has.terms thing, so:
-                     # --> FIX: delete the dtm no-terms-rows before putting it in the function --> 
-                     # then the index will match that, and ModelTopics will not alter the index. 
-                     # (see the code underlined above)
+
+                             this.idx,
                              topic.method=topic.method,
                              sampling.method=sampling.method,
                              addl.stopwords=addl.stopwords,
                              weighting=weighting,
                              k=k.all[x+1],
                              n.terms=n.terms,
+                             control=control,
                              ...
                              )
     
   })
 
-  ## Return the list of both models.
+  ## Return a list with the level 1 and level 2 models.
   out <- list(model.all, models.sub)
+  names(out) <- c("model.primary", "model.secondary")
 
   ## Then pull out the term sets of each topic, and structure by the
   ## topic hierarchy
-  terms.list <- lapply(1:k[1], function(x){
-
-    terms.primary <- out[[1]]$terms[,x]
-    terms.secondary <- out[[2]][[x]]$terms
-
-    this.out <- list(terms.primary, terms.secondary)
-    return(this.out)
-
-  })
+  terms.list <- get.term.list(out, k[1])
 
   out <- list(out, terms.list)
+  names(out) <- c("models", "terms")
   return(out)
   
 }
 
+## Get the terms for each model and return the primary:secondary
+## termlist pairs
+get.term.list <- function(model.list, k.primary){
 
+  out <- lapply(1:k.primary, function(x){
+    terms.primary <- model.list[[1]]$terms[,x]
+    terms.secondary <- model.list[[2]][[x]]$terms
+    this.out <- list(terms.primary, terms.secondary)
+    names(this.out) <- c("terms.primary", "terms.secondary")
+    return(this.out)
+  })
+  return(out)
+
+}
+
+## For a dtm, check the ngram length of the column
+## headers and return the indices of n-length ngrams
+get.ngram.idx <- function(str, n){
+
+  str.split <- strsplit(str, " ")
+  l <- sapply(strsplit(str, " "), length)
+  idx.out <- which(l == n)
+  
+  return(idx.out)
+}
+
+## For a dtm, check the term frequency quantiles
+## for each term and return the indices of frequencies w/in
+## a quantile range defined by probs
+get.tf.idx <- function(dtm, probs){
+
+  tf <- colSums(as.matrix(dtm))
+  q.tf <- quantile(tf, probs)
+  idx.out <- which(tf > q.tf[1] & tf < q.tf[2])
+  return(idx.out)
+  
+}
+
+##' Takes as input a topic structure from model.amend.hierarchy and
+##' returns a set of crosstabs indicating the proportion of amendments
+##' in each topic that were accepted or rejected.
+##'
+##' <details>
+##' @title ctab.amend.hierarchy
+##' @param amend.topic.hierarchy an object as returned from
+##' model.amend.hierarchy 
+##' @param composite.bill the composite bill
+##' @param committees the committee list for amendments
+##' @param doc.list the original document list containing a doc-term
+##' matrix
+##' @param tab.idx which axis proportions should be calculated on, one
+##' of 1 (rows) or 2 (columns)
+##' @return a list of crosstabs. Element 1 count of amendments by
+##' committee and primary topic that were accepted or
+##' rejected. Element 2 is the aggregate count of amendments by primary
+##' topic that were accepted or rejected. Element 3 returns the
+##' proportion of amendments accepted or rejected for each primary
+##' topic. Element 4 contains N elements, where N is the number of
+##' primary topics, each with N_i crosstabs indicating the breakdown of
+##' amendments for that primary topic by committee, secondary topic,
+##' and accept/reject.
+##' @author Mark Huberty
+ctab.amend.hierarchy <- function(amend.topic.hierarchy,
+                                 composite.bill,
+                                 committees,
+                                 doc.list,
+                                 tab.idx=1
+                                 ){
+
+  ## Baseline the primary index to 1:N
+  min.amend.idx <- length(doc.list$idx.final) + length(doc.list$idx.initial)
+  model.amend.idx <-
+    amend.topic.hierarchy[[1]][[1]]$dtm.idx - min.amend.idx
+
+  ## Determine which indices apply to the accepted amendments
+  this.idx <-
+    composite.bill$match.idx[composite.bill$match.origin ==
+                             "amendment"]
+  acc.amend.idx <- model.amend.idx %in% this.idx
+  rej.amend.idx <- !(model.amend.idx %in% this.idx)
+
+  ## Attach accepted/rejected labels for those indices
+  labels <- rep(NA, length(model.amend.idx))
+  labels[acc.amend.idx] <- "acc."
+  labels[rej.amend.idx] <- "rej."
+
+  ## Sort the committees appropriately.
+  committees.primary <- committees[model.amend.idx]
+  
+  ## Crosstab amendment counts by topic, committee, and accept/reject
+  tab.committees <-
+    ctab(factor(amend.topic.hierarchy[[1]][[1]]$topics),
+         factor(committees.primary),
+         factor(labels),
+         type="n"
+         )
+
+  ## Crosstab amendment counts by topic and accept/reject
+  tab.overall <- table(amend.topic.hierarchy[[1]][[1]]$topics,
+                       labels
+                       )
+
+  ## Generate the proportions by accept/reject and topic
+  ctab.overall <- prop.table(table(amend.topic.hierarchy[[1]][[1]]$topics,
+                                   labels
+                                   ),
+                             margin=1
+                             )
+
+  ## Generate subtopic crosstabs
+  ctab.sub <- lapply(amend.topic.hierarchy[[1]][[2]], function(x){
+
+    model.amend.idx <- x$dtm.idx
+    committees.sub <- committees[model.amend.idx]
+    acc.amend.idx <- model.amend.idx %in% this.idx
+    rej.amend.idx <- !(model.amend.idx %in% this.idx)
+
+    labels <- rep(NA, length(model.amend.idx))
+    labels[acc.amend.idx] <- "acc."
+    labels[rej.amend.idx] <- "rej."
+
+    ctab.comm <- table(committees.sub,
+                       labels
+                       )
+
+    ctab.comm.lab <- ctab(factor(x$topics),
+                          factor(committees.sub),
+                          factor(labels),
+                          dec.places=2,
+                          type="column"
+                          )
+    ctab.comm.lab.out <- my.print.ctab(ctab.comm.lab)
+    ctab.temp <- prop.table(table(x$topics,
+                                  labels
+                                  ),
+                            margin=tab.idx
+                            )
+    ctab.temp <- round(ctab.temp, 2)
+    return(list(ctab.comm, ctab.comm.lab.out, ctab.temp))
+  })
+
+  ## Return the entire list
+  return(list(tab.committees,tab.overall, ctab.overall, ctab.sub))
+
+                     
+}
+
+
+## This is a custom implementation of print.ctab() from the catspec
+## library. The original version calls all() w/o specifing the NA
+## handling. However, all()'s NA handling is inconsistent. all(TRUE,
+## NA, FALSE) returns FALSE, while all(TRUE, NA, TRUE) returns
+## NA. This provides a facility for specifyin the NA handling
+## explicitly, so that it will be consistent across cases.
+my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
+                           x$addmargins,
+                           all.NA=TRUE,
+                           ...) 
+{
+    if (length(dim(x$ctab)) == 1) {
+        tbl <- x$ctab
+        if (addmargins) 
+            tbl <- addmargins(tbl)
+        if (x$style == "long") {
+            tbl <- as.matrix(tbl)
+            colnames(tbl) <- names(dimnames(x$ctab))
+        }
+    }
+    else {
+        row.vars <- x$row.vars
+        col.vars <- x$col.vars
+        a = length(row.vars)
+        if (length(x$type) > 1) {
+            z <- length(names(dimnames(x$ctab)))
+            if (x$style == "long") 
+                row.vars <- c(row.vars, z)
+            else col.vars <- c(z, col.vars)
+        }
+        b = length(col.vars)
+        tbl <- x$ctab
+        mrgn <- c(row.vars[a], col.vars[b])
+        if (length(dim(x$table)) == 1) 
+            mrgn <- 1
+        if (addmargins) 
+            tbl <- addmargins(tbl, margin = mrgn)
+        tbl <- ftable(tbl, row.vars = row.vars, col.vars = col.vars)
+    }
+    if (!all(as.integer(tbl) == as.numeric(tbl), na.rm=all.NA)) 
+        tbl <- round(tbl, dec.places)
+    out <- print(tbl, ...)
+    return(out)
+}
 
 
 ## Blah, this isn't working. Needs to properly subset everything
@@ -2120,7 +2305,9 @@ ctab.amendment.topics <- function(topic.model, doc.list, composite.mat, type){
   
   return (tab)
   
-}
+})
+
+        
 
 	
 # topic.model   =  LDA(this.dtm, method=sampling.method, k=k, ...)
@@ -2175,34 +2362,34 @@ proportions<-function(model=model.1){
         return (props.out)
         }
         
-# It would be nice to have an index of the amendment topics relating to the amendment 
-# number, i.e. topic.indices, but  not ordered by the scattered amendments in 
-# the output of CreateAllVectorSpaces, rather the amendment #. 
-# So: let's order the matrix differently by altering a few lines in the above function:
-# So: let's take the indices created by the above function and shuffle them around a bit.
+## # It would be nice to have an index of the amendment topics relating to the amendment 
+## # number, i.e. topic.indices, but  not ordered by the scattered amendments in 
+## # the output of CreateAllVectorSpaces, rather the amendment #. 
+## # So: let's order the matrix differently by altering a few lines in the above function:
+## # So: let's take the indices created by the above function and shuffle them around a bit.
 
-fun<-function(x){which(x==1)}
-orders<- apply(props$topic.indices,2,fun)
-# remember that each column i in 1:k denotes the ith topic -> the values denote the 
-# amenments which are assigned to that topic i.
+## fun<-function(x){which(x==1)}
+## orders<- apply(props$topic.indices,2,fun)
+## # remember that each column i in 1:k denotes the ith topic -> the values denote the 
+## # amenments which are assigned to that topic i.
 
-composite.mat<-GetLikelyComposite
-                (mapbills.out = ?
-                 doc.initial = initial.bill,
-                 doc.final = final.bill,
-                 amendments = amendments,
-                 amendment.origin = doc.mat$idx.amendments)
-        # I can't get MapBills to work for some reason, and thus this to work... Will soon.
-match.idx<-composite.mat$match.idx
+## composite.mat<-GetLikelyComposite
+##                 (mapbills.out = ?
+##                  doc.initial = initial.bill,
+##                  doc.final = final.bill,
+##                  amendments = amendments,
+##                  amendment.origin = doc.mat$idx.amendments)
+##         # I can't get MapBills to work for some reason, and thus this to work... Will soon.
+## match.idx<-composite.mat$match.idx
 
-amends.only<- match.idx[composite.mat$match.origin=="amendment"]
-        # i.e. the big dtm (1:N) ordered amendments, shuffled by which final bill paragraph
-        # each matches to (where the final bill paragraphs are ordered 1,2,...f).
-order.midx <- order(amends.only)
+## amends.only<- match.idx[composite.mat$match.origin=="amendment"]
+##         # i.e. the big dtm (1:N) ordered amendments, shuffled by which final bill paragraph
+##         # each matches to (where the final bill paragraphs are ordered 1,2,...f).
+## order.midx <- order(amends.only)
 
-order1:m<- function(x) {x[order.midx]}
+## order1:m<- function(x) {x[order.midx]}
 
-# To make the topic.indices represent the amendments from 1:m  :
+## # To make the topic.indices represent the amendments from 1:m  :
 
-ordered.i:m.topic.indices<-apply(orders,2,order1:m)
+## ordered.i:m.topic.indices<-apply(orders,2,order1:m)
 
