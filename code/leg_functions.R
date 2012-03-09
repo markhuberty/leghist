@@ -2165,91 +2165,84 @@ ctab.amend.hierarchy <- function(amend.topic.hierarchy,
                                  doc.list,
                                  tab.idx=1
                                  ){
-
+  
   ## Baseline the primary index to 1:N
   min.amend.idx <- length(doc.list$idx.final) + length(doc.list$idx.initial)
   model.amend.idx <-
     amend.topic.hierarchy[[1]][[1]]$dtm.idx - min.amend.idx
 
-  ## Determine which indices apply to the accepted amendments
-  this.idx <-
-    composite.bill$match.idx[composite.bill$match.origin ==
-                             "amendment"]
-  acc.amend.idx <- model.amend.idx %in% this.idx
-  rej.amend.idx <- !(model.amend.idx %in% this.idx)
-
-  ## Attach accepted/rejected labels for those indices
-  labels <- rep(NA, length(model.amend.idx))
-  labels[acc.amend.idx] <- "acc."
-  labels[rej.amend.idx] <- "rej."
-
-  ## Sort the committees appropriately.
-  committees.primary <- committees[model.amend.idx]
-  
-  ## Crosstab amendment counts by topic, committee, and accept/reject
-  tab.committees <-
-    ctab(factor(amend.topic.hierarchy[[1]][[1]]$topics),
-         factor(committees.primary),
-         factor(labels),
-         type="n"
-         )
-
-  ## Crosstab amendment counts by topic and accept/reject
-  tab.overall <- table(amend.topic.hierarchy[[1]][[1]]$topics,
-                       labels
-                       )
-
-  ## Generate the proportions by accept/reject and topic
-  ctab.overall <- prop.table(table(amend.topic.hierarchy[[1]][[1]]$topics,
-                                   labels
-                                   ),
-                             margin=1
-                             )
-
+  tab.primary <-
+    ctab.topics(amend.topic.hierarchy[[1]][[1]]$topics,
+                committees,
+                composite.bill$match.idx[composite.bill$match.origin=="amendment"],
+                model.amend.idx
+                )
+                             
   ## Generate subtopic crosstabs
-  ctab.sub <- lapply(amend.topic.hierarchy[[1]][[2]], function(x){
+  tab.secondary <- lapply(amend.topic.hierarchy[[1]][[2]], function(x){
 
     model.amend.idx <- x$dtm.idx
-    committees.sub <- committees[model.amend.idx]
-    acc.amend.idx <- model.amend.idx %in% this.idx
-    rej.amend.idx <- !(model.amend.idx %in% this.idx)
 
-    labels <- rep(NA, length(model.amend.idx))
-    labels[acc.amend.idx] <- "acc."
-    labels[rej.amend.idx] <- "rej."
-
-    ctab.comm <- table(committees.sub,
-                       labels
-                       )
-
-    ctab.comm.lab <- ctab(factor(x$topics),
-                          factor(committees.sub),
-                          factor(labels),
-                          dec.places=2,
-                          type="column"
-                          )
-    ctab.comm.lab.out <- my.print.ctab(ctab.comm.lab)
-    ctab.temp <- prop.table(table(x$topics,
-                                  labels
-                                  ),
-                            margin=tab.idx
-                            )
-    ctab.temp <- round(ctab.temp, 2)
-    return(list(ctab.comm, ctab.comm.lab.out, ctab.temp))
+    ctab.topics(x$topics,
+                committees,
+                composite.bill$match.idx[composite.bill$match.origin=="amendment"],
+                model.amend.idx
+                )
   })
 
   ## Return the entire list
-  return(list(tab.committees,tab.overall, ctab.overall, ctab.sub))
-
+  out <- list(tab.primary, tab.secondary)
+  names(out) <- c("tab.primary", "tab.secondary")
+  return(out)
                      
 }
 
 
+ctab.topics <- function(topics, committees, master.idx, this.idx){
+
+  labels <- rep(NA, length(this.idx))
+  acc.amend.idx <- this.idx %in% master.idx
+  rej.amend.idx <- !(this.idx %in% master.idx)
+  labels[acc.amend.idx] <- "acc"
+  labels[rej.amend.idx] <- "rej"
+  committees.sub <- committees[this.idx]
+
+  count.by.topic.status <- table(topics,
+                                 labels
+                                 )
+  count.by.committee.status <- table(committees.sub,
+                                     labels
+                                     )
+  prop.by.topic.status <- prop.table(count.by.topic.status,
+                                     margin=1
+                                     )
+  prop.by.topic.committee.status <-
+    my.print.ctab(ctab(factor(topics),
+                      factor(committees.sub),
+                      factor(labels),
+                      dec.places=1,
+                      type="column"
+                      )
+                 )
+  
+  out <- list(count.by.topic.status,
+              count.by.committee.status,
+              prop.by.topic.status,
+              prop.by.topic.committee.status
+              )
+  names(out) <- c("count.by.topic.status",
+                  "count.by.committee.status",
+                  "prop.by.topic.status",
+                  "prop.by.topic.committee.status"
+                  )
+  return(out)
+  
+}
 ## This is a custom implementation of print.ctab() from the catspec
 ## library. The original version calls all() w/o specifing the NA
 ## handling. However, all()'s NA handling is inconsistent. all(TRUE,
 ## NA, FALSE) returns FALSE, while all(TRUE, NA, TRUE) returns
-## NA. This provides a facility for specifyin the NA handling
+## NA. This provides a facility for specifying the NA handling
 ## explicitly, so that it will be consistent across cases.
 my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
                            x$addmargins,
