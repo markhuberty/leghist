@@ -1263,7 +1263,7 @@ ModelDocSet <- function(doc.list,
                            addl.stopwords,
                            weighting=weighting,
                            control=control
-                           ...
+               #            ...
                            )
 
   model.out$txt.idx <- model.out$dtm.idx - min(dtm.idx) + 1
@@ -1323,7 +1323,6 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
   
     }
 
-  
   dtm.sub <- dtm[idx,]
   print(dim(dtm.sub))
   ## Check to ensure that all rows have at least one term
@@ -2283,106 +2282,105 @@ my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
     return(out)
 }
 
-
-## Blah, this isn't working. Needs to properly subset everything
-## so that it re-aligns the topics and subtopics with the amendments. 
-ctab.amendment.topics <- function(topic.model, doc.list, composite.mat, type){
+# # # # 
+# # ## Blah, this isn't working. Needs to properly subset everything
+# # ## so that it re-aligns the topics and subtopics with the amendments. 
+# # ctab.amendment.topics <- function(topic.model, doc.list, composite.mat, type){
 	
-  stopifnot(type %in% c("incl.amend", "rej.amend"))
+# # # #   stopifnot(type %in% c("incl.amend", "rej.amend"))
 
-  if(type == "incl.amend")
-    {
-    	...
+  # # # if(type == "incl.amend")
+    # # # {
+    	# # #  ...
 
-  tab <- table(topics 
+  # # # tab <- table(topics
   
-  return (tab)
+  # # # return (tab)
   
-})
+# # # })
 
         
 
 	
-# topic.model   =  LDA(this.dtm, method=sampling.method, k=k, ...)
-# doc.list      =  list of indices (final, initial, amends) 1:n, and the big giant dtm, all in a list.
-# composite.mat =  GetLikelyComposite output: big list of c(x, match.idx, match.origin, alt.origin, match.dist, match.txt)'s
-				  # Note that match.idx is ordered by which amendment matched to mapbills.out$bill2.idx, i.e. 1:f 
-				  # so: match.idx <- mapbills.out[x, c("bill1.idx",
-                    #                   "amend.idx")[dist.idx]  ] i.e. the xth final bill paragraph, the index of
-                    #					whichever type was the best match (amend or bill1).                   
+# # # topic.model   =  LDA(this.dtm, method=sampling.method, k=k, ...)
+# # # doc.list      =  list of indices (final, initial, amends) 1:n, and the big giant dtm, all in a list.
+# # # composite.mat =  GetLikelyComposite output: big list of c(x, match.idx, match.origin, alt.origin, match.dist, match.txt)'s
+				  # # # Note that match.idx is ordered by which amendment matched to mapbills.out$bill2.idx, i.e. 1:f 
+				  # # # so: match.idx <- mapbills.out[x, c("bill1.idx",
+                    # # #                   "amend.idx")[dist.idx]  ] i.e. the xth final bill paragraph, the index of
+                    # # #					whichever type was the best match (amend or bill1).                   
                                      
-# type          =   the subset of the text to be clustered by topic: one
-					# of "incl.amend" (default), "rej.amend", "incl.orig", "rej.orig",
-					# "all.amend", or "final".
+# # # type          =   the subset of the text to be clustered by topic: one
+					# # # of "incl.amend" (default), "rej.amend", "incl.orig", "rej.orig",
+					# # # "all.amend", or "final".
 					
 
- # e.g. say you've got model.1 = output of ModelText
+ # # # e.g. say you've got model.1 = output of ModelText
 
-# Input: a model created from ModelText.
-# Output: A list with three elements:
-#       1) a topic index (i.e. 1: # of topics)
-#       2) the proportion of amendments in each respective topic
-#       3) a matrix containing k columns, where there are k columns,
-#          each column containing a vector of length = (# of amendments),
-#          representing the index of which amendments are in the given 
-#          topic. Corresponds to the idx.amendments for the big dtm
-#          created from CreateAllVectorSpaces.
+# # # Input: a model created from ModelText.
+# # # Output: A list with three elements:
+# # #       1) a topic index (i.e. 1: # of topics)
+# # #       2) the proportion of amendments in each respective topic
+# # #       3) a matrix containing k columns, where there are k columns,
+# # #          each column containing a vector of length = (# of amendments),
+# # #          representing the index of which amendments are in the given 
+# # #          topic. Corresponds to the idx.amendments for the big dtm
+# # #          created from CreateAllVectorSpaces.
 
-proportions<-function(model=model.1){
+# # proportions<-function(model=model.1){
 	
-  number.of.amends<-length(model$dtm.idx)
+  # # number.of.amends<-length(model$dtm.idx)
         
-  number.of.topics<-ncol(model$terms)
+  # # number.of.topics<-ncol(model$terms)
         
-  topic.idx<-matrix (rep (0,number.of.topics*number.of.amends)
-                       ,ncol = number.of.topics) 
+  # # topic.idx<-matrix (rep (0,number.of.topics*number.of.amends)
+                       # # ,ncol = number.of.topics) 
                        
-  p<-c(rep(0,number.of.topics))
+  # # p<-c(rep(0,number.of.topics))
         
-  for(i in 1:number.of.topics) {
-       	 p[i]<- ( (sum (model$topics==i) / 
-          			length(model.1$dtm.idx) )
-          			 ) 
-       	 topic.idx[,i]<-as.numeric (
-                (1:length(model$topics)) %in% 
-                        which (model$topics==i) )
-                }
-		# end for loop
+  # # for(i in 1:number.of.topics) {
+       	 # # p[i]<- ( (sum (model$topics==i) / 
+          			# # length(model.1$dtm.idx) )
+          			 # # ) 
+       	 # # topic.idx[,i]<-as.numeric (
+                # # (1:length(model$topics)) %in% 
+                        # # which (model$topics==i) )
+                # # }
+		# # # end for loop
 		
-   props.out<-list((1:number.of.topics),p,topic.idx)
-   names(props.out)<-c("topics","proportions","topic.indices")
+   # # props.out<-list((1:number.of.topics),p,topic.idx)
+   # # names(props.out)<-c("topics","proportions","topic.indices")
 
-        return (props.out)
-        }
+        # # return (props.out)
+        # # }
         
-## # It would be nice to have an index of the amendment topics relating to the amendment 
-## # number, i.e. topic.indices, but  not ordered by the scattered amendments in 
-## # the output of CreateAllVectorSpaces, rather the amendment #. 
-## # So: let's order the matrix differently by altering a few lines in the above function:
-## # So: let's take the indices created by the above function and shuffle them around a bit.
+# # ## # It would be nice to have an index of the amendment topics relating to the amendment 
+# # ## # number, i.e. topic.indices, but  not ordered by the scattered amendments in 
+# # ## # the output of CreateAllVectorSpaces, rather the amendment #. 
+# # ## # So: let's order the matrix differently by altering a few lines in the above function:
+# # ## # So: let's take the indices created by the above function and shuffle them around a bit.
 
-## fun<-function(x){which(x==1)}
-## orders<- apply(props$topic.indices,2,fun)
-## # remember that each column i in 1:k denotes the ith topic -> the values denote the 
-## # amenments which are assigned to that topic i.
+# # ## fun<-function(x){which(x==1)}
+# # ## orders<- apply(props$topic.indices,2,fun)
+# # ## # remember that each column i in 1:k denotes the ith topic -> the values denote the 
+# # ## # amenments which are assigned to that topic i.
 
-## composite.mat<-GetLikelyComposite
-##                 (mapbills.out = ?
-##                  doc.initial = initial.bill,
-##                  doc.final = final.bill,
-##                  amendments = amendments,
-##                  amendment.origin = doc.mat$idx.amendments)
-##         # I can't get MapBills to work for some reason, and thus this to work... Will soon.
-## match.idx<-composite.mat$match.idx
+# # ## composite.mat<-GetLikelyComposite
+# # ##                 (mapbills.out = ?
+# # ##                  doc.initial = initial.bill,
+# # ##                  doc.final = final.bill,
+# # ##                  amendments = amendments,
+# # ##                  amendment.origin = doc.mat$idx.amendments)
+# # ##         # I can't get MapBills to work for some reason, and thus this to work... Will soon.
+# # ## match.idx<-composite.mat$match.idx
 
-## amends.only<- match.idx[composite.mat$match.origin=="amendment"]
-##         # i.e. the big dtm (1:N) ordered amendments, shuffled by which final bill paragraph
-##         # each matches to (where the final bill paragraphs are ordered 1,2,...f).
-## order.midx <- order(amends.only)
+# # ## amends.only<- match.idx[composite.mat$match.origin=="amendment"]
+# # ##         # i.e. the big dtm (1:N) ordered amendments, shuffled by which final bill paragraph
+# # ##         # each matches to (where the final bill paragraphs are ordered 1,2,...f).
+# # ## order.midx <- order(amends.only)
 
-## order1:m<- function(x) {x[order.midx]}
+# # ## order1:m<- function(x) {x[order.midx]}
 
-## # To make the topic.indices represent the amendments from 1:m  :
+# # ## # To make the topic.indices represent the amendments from 1:m  :
 
-## ordered.i:m.topic.indices<-apply(orders,2,order1:m)
-
+# # ## ordered.i:m.topic.indices<-apply(orders,2,order1:m)
