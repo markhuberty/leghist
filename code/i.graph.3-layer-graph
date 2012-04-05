@@ -8,10 +8,10 @@
 #         
 #         1) An a x 4 matrix A, where a is the number of amendments. Columns which denote index (1:a),
 #                 committee number (1:c), topic number (1:t), and whether or
-#                 not that amendment made it into the final bill (0 or 1). e.g.
+#                 not that amendment is junk or final bill material (0 or 1). e.g.
 #                                      [,1] [,2] [,3] [,4]
 #                                 [1,]    1    1    1    0
-#                                 [2,]    2    1    2    1
+#                                 [2,]    2    1    1    1
 #                                 [3,]    3    2    3    1
 #                                 [4,]    4    3    1    0
 #                                 [5,]    5    3    2    0
@@ -24,10 +24,28 @@
 
  # library(igraph)
 
+lay<-function(x,c,t){
+         if (x<(c+1)) { cords<- c(x/(1+c),.2)
+          } else {
+             if (x>(c+t)) { cords<- c( (x-c-t)/3,.8)
+                } else {
+                        cords<- c( (x-c)/(1+t),.5)
+                        }}
+        return (cords)
+                }
+
+how.wide<-function(x,A){
+                if (x[3]< num.arrows.to.topics+1){
+                        width<- sum((x[1]==A[,2]) & (x[2]==A[,3]))
+                } else {
+                        width<- sum((x[1]==A[,3]) & (x[2]==A[,4]))
+                } 
+                }
+
 my.graph<- function(info) {
 # Graph of committees to topics to final/junk. Line widths represent # of amendments being represented.
         
-# A will easily produce:
+# A will easily produce:info
 #         A matrix whose rows correspond to each arrow. Its beginning and destination, where
 #                 1,2,3,...,n correspond to the 1st,2nd,3rd,...nth vertex. Then graph(matrix)
 #                 will be the object to graph. ( So e.g. one row may be c(2,9) denoting and arrow 
@@ -44,93 +62,58 @@ my.graph<- function(info) {
         t<-length(unique(A[,3])) 
      
         # reindex. Note that igraph takes numbers starting at 0, not 1.
-        A[,1:4]<-c( (A[,1]-1),
-                    (A[,2]+a-1),
-                    (A[,3]+a+c-1),
-                    (A[,4]+a+c+t))
+        A[,1:4]<-c( (A[,1]),
+                    (A[,2]-1),
+                    (A[,3]+c-1),
+                    (A[,4]+c+t))
         
         
         arrows.mat<- rbind( unique( A[,2:3] ), unique(A[,3:4]) )
-        one<-nrow(unique( A[,2:3]))
-        two<-nrow(unique(A[,3:4]))
-        z<-one+two
-        # z = number of arrows
+        num.arrows.to.topics<-nrow(unique( A[,2:3]))
+        num.arrows.to.jf<-nrow(unique(A[,3:4]))
+        num.arrows<-num.arrows.to.topics+num.arrows.to.jf
+        # num.arrows = the number of arrows
 
         ### Layout
         # To create the layout, an nx2 matrix denoting the coordinates of each x vertices, you can use
         # a function or a matrix. Currently I use the following lines to create the matrix: (where there
         # are c+t+2 vertices, c of them committees, t of them topics, and 2 of them either final or junk bins.)
               
-        lay<-function(x){
-         if (x<(c+1)) { cords<- c(x/(1+c),.2)
-          } else {
-             if (x>(c+t)) { cords<- c( (x-c-t)/3,.8)
-                } else {
-                        cords<- c( (x-c)/(1+t),.5)
-                        }}
-        return (cords)
-                }
-                        ## Then if you want the matrix:
+        ##  For the layout the matrix:
         x<-(c+t+2)
         y<-1:x
-        lay.mat<-t(sapply(y,FUN=lay))
-                        ## So currently the graph is plotted on a (0,0),(1,1) screen, more or less.
+        lay.mat<-t(sapply(y,FUN=lay,c=c,t=t))
+        ## So currently the graph is plotted on a (0,0),(1,1) screen, more or less.
  
         ### Edge Parameters. (Arrows)
-        # 1) Edge width.
-        
-        how.wide<-function(x){
-                if (x[3]<one+1){
-                        width<- sum((x[1]==A[,2]) & (x[2]==A[,3]))
-                } else {
-                        width<- sum((x[1]==A[,3]) & (x[2]==A[,4]))
-                } 
-                }
-                
-        width<- apply(cbind(arrows.mat,1:z),1,how.wide)
-        
-        
-        
-           A
-        
-        for ( i in duplicated(A[,2:3])){
-            maybe<-rep(0,i)
-            A [(rowSums( A[,2:3] == A[i,2:3] ) == 2),4]
-            # see if the values in the row all all either 0 or 1. If not --> color green. for the
-            # corresponding arrow, i.e. the first duplicate with value A[i,2:3].
-                }
+        # 1) Edge width
+        width<- apply(cbind(arrows.mat,1:num.arrows),1,how.wide,A=A)
         
          # 2) Arrow colors.
         # Note: in future, let the user define the colors, default to something like this if
         # user does not supply colors.
-        
         # Problem. Multiple amendments may come from one committee going into the same topic. -->
-        #          What color should we use? Blend it?
+        # Blend it? For now, it's just blue, yellow, and green. --> gradations in future.'
+
+        colors<-c("cornflowerblue","darkgoldenrod1","chartreuse3")
         
-        #   arrow.destination<-
-                
-        
-              #  edge.color<-c("#5E4FA2","#7FC97F")[(arrow.destination)]
-                edge.color<-c("cornflowerblue","darkgoldenrod1","chartreuse3")
-        
-       edge.color<- c( (A[!duplicated(A[,2:3]),4]),
-                    (A[!duplicated(A[,3:4]),4]) ) - a-c-t+1
-      #  edge.color[c(duplicated(A[,2:3]),duplicated(A[,3:4]))] <- if()
-                
-                
-       #  arrows.mat<- rbind( unique( A[,2:3] ), unique(A[,3:4]) )
-        # one. two.
+       edge.color.idx<- c( (A[!duplicated(A[,2:3]),4]),
+                    (A[!duplicated(A[,3:4]),4]) ) -c-t+1
+            
+         # see if the values in the row are the same. If not --> color = green for the
+         # corresponding arrow, i.e. the first duplicate with value A[i,2:3].
+        for ( i in which(duplicated(A[,2:3]))){
+                # i.e. for each repeat arrow i:
+            identical<- which (((A[i,2]==A[,2]) * (A[i,3]==A[,3]))==1)
+            destinations<- A [ identical,4]
+            if(length(unique(destinations))!=1) {
+                    edge.color.idx[i]<- 3
+                  }
+                }
  
+        edge.color<- colors[edge.color.idx]
         
-        
-        
-        
-        
-        
-        
-        
-        
-                # Note: Vertex label colors?        
+        # Note: Vertex label colors?        
         
         ### Vertex Parameters
         # 1) Vertex label size.
@@ -138,13 +121,13 @@ my.graph<- function(info) {
                 vertex.size<-rep(0,(c+t+2))
         
                 for (i in 1:c){
-                        vertex.size[i]<- sum(A[,2]==(i+a-1))
+                        vertex.size[i]<- sum(A[,2]==(i-1))
                         }
                 for (i in (c+1):(c+t)) {
-                        vertex.size[i]<- sum(A[,3]==(i+a-1))
+                        vertex.size[i]<- sum(A[,3]==(i-1))
                         }
                 for (i in (c+t+1):(c+t+2)) {
-                        vertex.size[i]<- sum(A[,4]==(i+a-1))
+                        vertex.size[i]<- sum(A[,4]==(i-1))
                         }
         v.size<- as.integer(floor(15*sqrt(vertex.size)))
         v.size2<-ceiling(10*sqrt(vertex.size))
@@ -171,10 +154,10 @@ my.graph<- function(info) {
         # arrow heads (or variable ones) for some reason. To come.
                 
         plot(g,
-             layout= lay.mat,
-             edge.arrow.width= 1.5,
+             layout=lay.mat,
+             edge.arrow.width= .5,
              edge.width= 3*width,
-             edge.color= "red",
+             edge.color= edge.color,
              vertex.label= labels,
              vertex.shape= "rectangle",
              vertex.size= v.size,
