@@ -40,7 +40,7 @@ lay<-function(x,c,t){
         return (cords)
                 }
 
-how.wide<-function(x,A){
+how.wide<-function(x,A,num.arrows.to.topics=num.arrows.to.topics){
                 if (x[3]< num.arrows.to.topics+1){
                         width<- sum((x[1]==A[,2]) & (x[2]==A[,3]))
                 } else {
@@ -54,7 +54,8 @@ graph.1<- function(info,
                    scale.t=1,
                    scale.fin=1,
                    main=NULL,
-                   arrowhead.size=.5
+                   arrowhead.size=0,
+                   layout=NULL
                    ) {
 # Graph of committees to topics to final/junk. Line widths represent # of amendments being represented.
         
@@ -85,7 +86,8 @@ graph.1<- function(info,
 
         ### Edge Parameters. (Arrows)
         # 1) Edge width
-        width<- apply(cbind(arrows.mat,1:num.arrows),1,how.wide,A=A)
+        width<- apply(cbind(arrows.mat,1:num.arrows),1,how.wide,
+                      A=A,num.arrows.to.topics=num.arrows.to.topics)
         # Scale it:
         width<-ceiling(3*(arrow.width.scale*width/max(width,arrow.width.scale)))
         # So if the greatest width is more than width.scales, then 
@@ -99,18 +101,26 @@ graph.1<- function(info,
         colors<-c("cornflowerblue","darkgoldenrod1","chartreuse3")
         
         # The final destination (1 or 2: junk or final) of each unique arrow:
+        # Unique = non repeating. So if there are 3 of the same arrow, here the first one 
+        # is represented. # length = num.arrows = total number of arrows to be drawn.
        edge.color.idx<- c( (A[!duplicated(A[,2:3]),4]),
                     (A[!duplicated(A[,3:4]),4]) ) -c-t+1
             
-         # see if the values in the row are the same. If not --> color = green for the
-         # corresponding arrow, i.e. the first duplicate with value A[i,2:3].
-        for ( i in which(duplicated(A[,2:3]))){
-                # i.e. for each repeat arrow i, which does it match to?:
+         # The following lines look at each comittee-to-topics arrow to be drawn. The question is: 
+         # are the (perhaps multiple) amendment(s) that this arrow is representing heading to both 
+         # the final bill AND junk, or just one of those two? If both, then the arrow color should 
+         # be green - a combination of yellow and blue. (Those colors = default colors)
+        for ( i in which(!duplicated(A[,2:3]))){
+                # i.e. for each non-duplicated arrow i (each row i in matrix A which corresponds to 
+                # a "new" or "unique" arrow going from comittees to topics), which ones does it match to 
+                # (if it matches to any)? in the set of all amendments:
             identical<- c( which ( ( (A[i,2]==A[,2]) * (A[i,3]==A[,3])) ==1) )
                 # Where are these identical arrows going to? (i.e. junk or final)
             destinations<- A [ identical,4]
+               # If their final destinations are not all the same, then make their drawn arrow be green.
             if(length(unique(destinations))!=1) {
-                    edge.color.idx[identical[1]]<- 3
+                    # should not be identical[1] # fix
+                    edge.color.idx[ order((i==which(!duplicated(A[,2:3])))==0)[1]]<- 3
                   }
                 }
  
@@ -132,20 +142,19 @@ graph.1<- function(info,
                 for (i in (c+t+1):(c+t+2)) {
                         vertex.size[i]<- sum(A[,4]==(i-1))
                         }
-        v.size<- as.integer(floor(15*sqrt(vertex.size)))
-        v.size2<-ceiling(10*sqrt(vertex.size))
-        # Rescale the vertex sizes so they don't get too big. Scale by input scales.
-        c.size<- max(v.size[1:c],50)
-        t.size<-max(v.size[(c+1):(c+t)],50)
-        fin.size<-max(v.size[(c+t+1):(c+t+2)],100)
+        # Here, both dimensions of the default rectangle vertex shape are created, and scaled
+        # by how large the biggest vertex is on the graph. 
+        biggest<-max(vertex.size)
+        v.size<- ((sqrt(vertex.size))/(sqrt(biggest))*(60))
+        v.size2<-((sqrt(vertex.size)/(sqrt(biggest))*(45)))
         
-        v.size[1:c]<-c.size*v.size[1:c]/50        * scale.c
-        v.size[(c+1):(c+t)]<-t.size*v.size[(c+1):(c+t)]/50    * scale.t
-        v.size[(c+t+1):(c+t+2)]<-fin.size*v.size[(c+t+1):(c+t+2)]/100    * scale.fin
-        
-        v.size2[1:c]<-c.size*v.size2[1:c]/50    * scale.c
-        v.size2[(c+1):(c+t)]<-t.size*v.size2[(c+1):(c+t)]/50    * scale.t
-        v.size2[(c+t+1):(c+t+2)]<-fin.size*v.size2[(c+t+1):(c+t+2)]/100         * scale.fin 
+        # Vertex sizes can also be rescaled by the user by scale.c, scale.t, and
+        # scale.fin inputs. Defaults = 1.
+
+        v.size[1:c]<-v.size[1:c]*scale.c
+        v.size[(c+1):(c+t)]<- v.size[(c+1):(c+t)]*scale.t
+        v.size[(c+t+1):(c+t+2)]<-v.size[(c+t+1):(c+t+2)]*scale.fin
+       
         
         # 3) The vertex labels
         if (length(info)==2) { labels<-info[[2]][1:(c+t+2)]
@@ -308,3 +317,5 @@ graph.2<-function(amends,
 # amends<- c(0,8,0,1,0,0,10,18,0,7,2,15,0,20,3,0,9)
 # f<-20
 # graph.2(amends,f)
+
+
