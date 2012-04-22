@@ -58,42 +58,55 @@ How.Wide <- function(x,A,num.arrows.to.topics){
                 }
    
 
-##' The main graphing function for the legislative bill mapping package. This function creates a 
-##' three layer directed acyclic graph. The first layer is a set of nodes representing committees 
-##' which have each submitted a number of amendments. Arrows connect these committee nodes to the
-##' middle layer topic nodes to which each committee's amendemnt(s) pertain. Arrows also connect 
-##' these topic nodes to the third layer - two nodes: "Junk" and "Final", again according to the 
-##' amendments that the arrows represent. Arrow width, as well as node size, by default represent 
+##' The main graphing function for the legislative bill mapping package. This function
+##' creates a three layer directed acyclic graph. The first, bottom layer is a set of 
+##' nodes representing committees which have each submitted a number of amendments. 
+##' Arrows (edges) connect these committee nodes to the middle layer topic nodes to 
+##' which each committee's amendemnt(s) pertain. Arrows then connect these topic nodes 
+##' to the third layer - two nodes: "Junk" and "Final", again according to the amendments
+##' that the arrows represent. Arrow width, as well as node size, by default represent 
 ##' the number of amendments they are representing.
 ##' @title graph.1
-##' @param amend.committees A vector of length a, where a = the number of amendments introduced.
-##' The ith element in amend.committees is an integer - one of 1:c, where c is the number of 
-##' committees - representing which comittee introduced the ith amendment.
+##' @param amend.committees A vector of length a, where a = the number of amendments
+##' introduced. The ith element in amend.committees is an integer - one of 1:c, where c
+##' is the number of committees - representing which comittee introduced the ith amendment.
 ##' @param amend.topics A vector of length a, where a = the number of amendments introduced.
 ##' The ith element in amend.topics is an integer - one of 1:t, where t is the number of 
 ##' topics - representing which topic pertains to the ith amendment. 
 ##' @param amend.final A vector of length a, where a = the number of amendments introduced.
-##' The ith element in amend.committees is either 0 or 1 - representing whether
-##' the ith amendment was rejected (0) or if it was accepted into the final bill (1). 
-##' @param node.names A character vector representing the node names for each node 
-##' @param
-##' @param
-##' @param
-##' @param
-##' @param
-##' @return 
+##' The ith element in amend.committees is either 0 or 1 - representing whether the ith
+##' amendment was rejected (0) or if it was accepted into the final bill (1). 
+##' @param labels A character vector representing the node names for each node (vertex). If
+##' NULL, labels will default to 1:c,1:t integers for committees and topics, and "Junk" and
+##' "Final" for the two final bins (top level).
+##' @param edge.width.scale Scales the width of the arrows. Defaults to 4.
+##' @param scale.c Scales the size of the bottom layer committee nodes (vertices). By default,
+##' scale.c, scale.t, and scale.fin = 1, and their area are equally proportional to the number
+##' of amendments they represent.
+##' @param scale.t Scales the size of the middle layer topic nodes.
+##' @param scale.fin Scales the size of the top layer final nodes (Junk and Final).
+##' @param edge.transparency A number in 00:99, representing the wanted transparency in edges
+##' (lower number = more transparent). If left NULL (the default), edges will be kept opaque.
+##' @param edge.col Three edge colors to signify edges which contain 1) junk destined
+##' amendments, 2) final destined amendments, or 3) both. If NULL (the default) graph.1() will
+##' use "cornflowerblue", "darkgoldenrod1", and "chartreuse3".
+##' @param layout The layout of the graph. If NULL (the default), graph.1() will create the 
+##' three layers decribed above. But users can also pass graphing algorithms (e.g 
+##' layout.fruchterman.reingold) for a different layout.
+##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
 graph.1 <- function(amend.committees, amend.topics, amend.final,
-                   node.names,
-                   arrow.width.scale=4, scale.c=1, scale.t=1, scale.fin=1,
-                   main=NULL, arrowhead.size=0, layout=NULL
+                    labels=NULL,
+                    edge.width.scale=4, scale.c=1, scale.t=1, scale.fin=1,
+                    edge.transparency=NULL, edge.col=NULL,
+                    main=NULL, arrowhead.size=0, layout=NULL
                    ) {
   
   a <- length(amend.committees)
   # add an error message for if amend.committees, .topics, or .final are not of the
   # same length.
   
-  A <- cbind(c(1:a,amend.committees,amend.topics,amend.final),ncol=4)
+  A <- matrix(c(1:a,amend.committees,amend.topics,amend.final),ncol=4)
   # a for # of amendments, c for # of committees, t for number of topics.
   a <- nrow(A)
   c <- length(unique(A[,2]))
@@ -117,14 +130,31 @@ graph.1 <- function(amend.committees, amend.topics, amend.final,
   width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide,
                 A=A,num.arrows.to.topics=num.arrows.to.topics)
   # Scale it:
-  width <- ceiling(3*(arrow.width.scale*width/max(width,arrow.width.scale)))
+  width <- ceiling(3*(edge.width.scale*width/max(width,edge.width.scale)))
   # So if the greatest width is more than width.scales, then 
         
   # 2) Arrow colors.
-  if (is.null(col) {
-    colors <- c("cornflowerblue","darkgoldenrod1","chartreuse3") 
+  
+  if (is.null(edge.col))  colors <- c("#6495ED","#FFB90F","#66CD00") 
+  # "cornflowerblue", "darkgoldenrod1","chartreuse3" 
+   
+     
+  if(!is.null(edge.transparency)){ 
+          for (i in 1:3){
+ # Extract the rgb code if color is passed as a character vector, as opposed to an rgb code.
+                  if( strsplit(colors[i],"")[[1]][1] != "#") {
+                          colors[i] <- rgb(col2rgb(colors[i])[1],
+                                           col2rgb(colors[i])[2],
+                                           col2rgb(colors[i])[3], maxColorValue=255)
+                  }
+          }
+          for (i in 1:3){
+# Add a transparency number (in 00:99)
+                  colors[i] <- paste( colors[i], as.character(edge.transparency), sep="")
+          }
   }
-    
+  
+      
   # The final destination (1 or 2: junk or final) of each unique edge (arrow):
   # (So if there are 3 of the same arrow, the first one is represented.) 
   edge.color.idx <- c( (A[!duplicated(A[,2:3]),4]),
@@ -179,11 +209,9 @@ graph.1 <- function(amend.committees, amend.topics, amend.final,
        
         
   # 3) The vertex labels
-  if (length(info)==2) { 
-    labels <- info[[2]][1:(c+t+2)]
-                         } else { 
-                           labels <- as.character(c(1:c,1:t,"Junk","Final"))}
-
+  if (is.null(labels)) { 
+    labels <- as.character(c(1:c,1:t,"Junk","Final"))
+                           }
         
   # The actual object to be graphed:
   g. <- arrows.mat-min(arrows.mat)
@@ -198,12 +226,11 @@ graph.1 <- function(amend.committees, amend.topics, amend.final,
               
   #  For the layout the matrix:
   if(is.null(layout)){
-    y <- (c+t+2)
-    x <- 1:y
+    x <- 1:(c+t+2)
     lay.mat <- t(sapply(x,FUN=Lay.Graph.1,c=c,t=t))
     # So currently the graph is plotted on a (0,0),(1,1) screen, more or less.
     } else {
-      lay.mat <- layout(g)
+      lay.mat <- layout
       }
         
   if(is.null(main)) main <- ""
@@ -231,8 +258,7 @@ graph.1 <- function(amend.committees, amend.topics, amend.final,
 ##' @param words.list A list (of length t or less, where t is the number of topics
 ##' in your graph.1() graph.
 ##' @param layout A
-##' @param
-##' @return 
+##' @return Text on top of a graph.1() graph.
 ##' @author Hillary Sanders
   Plot.Topic.Words <- function(words.list, layout,
                              cex=.75, col="darkgrey", pos=2, offset=.2,
