@@ -196,7 +196,6 @@ graph.1 <- function(amend.committees, amend.topics, amend.final,
                   colors[i] <- paste( colors[i], as.character(edge.transparency), sep="")
           }
   }
-  
       
   # The final destination (1 or 2: junk or final) of each unique edge (arrow):
   # (So if there are 3 of the same arrow, the first one is represented.) 
@@ -222,12 +221,13 @@ graph.1 <- function(amend.committees, amend.topics, amend.final,
                 }
  
     edge.color <- colors[edge.color.idx]
-        
+  
   # Note: Vertex label colors?        
         
   ### Vertex Parameters
   # 1) Vertex label size.
-  vertex.size <- rep(0,(c+t+2))
+  vertex.size <- rep(0,sum(c+t+2))
+      
       for (i in 1:c){
         vertex.size[i] <- sum(A[,2]==(i-1))
         }
@@ -304,8 +304,8 @@ graph.1 <- function(amend.committees, amend.topics, amend.final,
 ##' @return Text on top of a graph.1() graph.
 ##' @author Hillary Sanders
   Plot.Topic.Words <- function(words.list, layout,
-                             cex=.75, col="darkgrey", pos=2, offset=.2,
-                             adjust=3.5, text.close=.75) {
+                               cex=.75, col="darkgrey", pos=2, offset=.2,
+                               adjust=3.5, text.close=.75) {
         
   t <- length(words.list)
   
@@ -332,14 +332,14 @@ graph.1 <- function(amend.committees, amend.topics, amend.final,
 ##' @param f the number of text chunks (e.g. paragraphs) in the final bill.
 ##' @return the xth layout coordinates for graph.2().
 ##' @author Hillary Sanders
-Lay.Graph.2<-function(x,a,f){
-         if (x<(a+1)) { cords<- c(x/(1+a),.2)
-          } else {
-             if (x>(a+f)) { cords<- c(.5,.5)
-             } else {
-                     cords<- c( ((x-a)/(1+f)),.8) }}
-        return (cords)
-                }
+Lay.Graph.2 <- function(x,a,f){
+  if (x<(a+1)) { cords<- c(x/(1+a),.2)
+                 } else {
+                   if (x>(a+f)) { cords <- c(.5,.5)
+                                  } else {
+                                    cords <- c( ((x-a)/(1+f)),.8) }}
+  return (cords)
+  }
   # End Lay.Graph.2
 
 
@@ -353,43 +353,43 @@ Lay.Graph.2<-function(x,a,f){
 ##' amendment was not accepted into the final bill, or if it was, to its place in 
 ##' the final bill.
 ##' @title graph.2
-##' @param amends a vector of all 1:a amendments' final destinations: either 0 for
+##' @param amends A vector of all 1:a amendments' final destinations: either 0 for
 ##' junk (rejected amendments) or an integer i for the ith paragraph in the final bill
 ##' which the amendment replaced.
-##' @param f
+##' @param f Integer: the number of paragraphs (text chunks) in the final bill.
 ##' @param edge.width
 ##' @return 
 ##' @author Hillary Sanders
-graph.2<-function(amends,
-                  f=NULL, 
-                  edge.width=3, edge.arrow.width=.25,
-                  af.shape="circle", junk.shape="rectangle",
-                  label.font=3,label.cex=.75,
-                  main="Amendments' Destinations"
-                  ){
-  if (is.null(f)){ f<-max(a)}
-  a<- length(amends)
-  amends.idx<- 1:a
-  final.idx<- 1:f
+graph.2 <- function(amends,
+                    f=NULL, 
+                    edge.width.scale=3, edge.arrow.width=.25,
+                    af.shape="circle", junk.shape="rectangle",
+                    label.font=3,label.cex=.75,
+                    main="Amendments' Destinations"
+                    ){
+  if (is.null(f)){f <- max(a)}
+  a <- length(amends)
+  amends.idx <- 1:a
+  final.idx <- 1:f
         
-  colors<- c("cornflowerblue","lightblue")
-  edge.color<-colors[(amends == 0)+1]
+  colors <- c("cornflowerblue","lightblue")
+  edge.color <- colors[(amends == 0)+1]
         
-  amends[amends==0]<- f+1
+  amends[amends==0] <- f+1
   
-  g<-as.numeric(t(matrix(c(amends.idx-1,0,amends+a-1,(f+a-1)),ncol=2)))           
-  graph<-graph(g)
+  g <- as.numeric(t(matrix(c(amends.idx-1,0,amends+a-1,(f+a-1)),ncol=2)))           
+  graph <- graph(g)
   # the 0 -> f+a-1 is to ensure that all final paragraphs are shown in the graph.
   # It has no color, so is invisible.
          
-  x<-(a+f+1)
-  y<-1:x
-  lay.mat<-t(sapply(y,FUN=Lay.Graph.2,a=a,f=f))
+  x <- (a+f+1)
+  y <- 1:x
+  lay.mat <- t(sapply(y,FUN=Lay.Graph.2,a=a,f=f))
         
-  labels<-c(1:a,1:f,"junk")
+  labels <- c(1:a,1:f,"junk")
         
-  v.shape<-c(rep(af.shape,a+f),junk.shape)
-  v.size<-c(rep(15,a+f),30)
+  v.shape <- c(rep(af.shape,a+f),junk.shape)
+  v.size <- c(rep(15,a+f),30)
         
   plot(graph, layout= lay.mat, edge.arrow.width = edge.arrow.width,
        edge.width= edge.width, edge.color= edge.color, vertex.shape=v.shape,
