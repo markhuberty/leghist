@@ -38,7 +38,8 @@ Lay.Graph.1 <- function(x,c,t){
 ## end Lay.Graph.1
 
 
-##' A small function called within graph.1() to calculate edge widths (arrow widths).
+##' A small function called within graph.1() to calculate edge widths (arrow widths)
+##' for a default graph.1().
 ##' @title How.Wide
 ##' @param x the index of the arrow whose width will be returned by this function.
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
@@ -56,7 +57,33 @@ How.Wide <- function(x,A,num.arrows.to.topics){
                         width<- sum((x[1]==A[,3]) & (x[2]==A[,4]))
                 } 
                 }
-   
+# End How.Wide
+
+# Similar to How.Wide, makes arrow widths relative to their origin.
+How.Wide.Relative <- function(x,A,num.arrows.to.topics){
+        if (x[3]< num.arrows.to.topics+1){
+                width<- sum((x[1]==A[ ,2]) & (x[2]==A[ ,3])) / sum(x[1]==A[ ,2]) *15
+                } else {
+                        width<- sum((x[1]==A[ ,3]) & (x[2]==A[ ,4])) / sum(x[1]==A[ ,3]) *15
+                        } 
+        }
+#End How.Wide.Relative
+
+
+# Similar to How.Wide, How.Wide.Relative makes arrow widths relative to the % of
+# successful amendments they carry.
+How.Wide.Success <- function(x,A,num.arrows.to.topics){
+  if (x[3]< num.arrows.to.topics+1){
+    width <- sum((x[1]==A[, 2]) & (x[2]==A[, 3]) & (A[, 4] == (c+t+1))) / 
+      sum((x[1]==A[, 2]) & (x[2]==A[, 3])) *15
+    } else {
+      width <- sum((x[1]==A[, 3]) & (x[2]==A[, 4]) & (A[, 4]==(c+t+1))) /
+        sum((x[1]==A[, 3]) & (x[2]==A[, 4])) *15
+      }
+  }
+#End How.Wide.Sucess
+
+
 
 ##' The main graphing function for the legislative bill mapping package. This function
 ##' creates a three layer directed acyclic graph. The first, bottom layer is a set of 
@@ -79,7 +106,12 @@ How.Wide <- function(x,A,num.arrows.to.topics){
 ##' @param labels A character vector representing the node names for each node (vertex). If
 ##' NULL, labels will default to 1:c,1:t integers for committees and topics, and "Junk" and
 ##' "Final" for the two final bins (top level).
-##' @param edge.width.scale Scales the width of the arrows. Defaults to 4.
+##' @param edge.width.scale Scales the width of the arrows. Defaults to 1.
+##' @param edge.width The method used to calculate edge widths. The default, "absolute", means
+##' that edge widths will correspond to the absolute number of amendments they represent. 
+##' "relative": edge widths will correspond to the % of amendments each edge holds with respect
+##' to the vertex they are coming from. "success": edge widths will correspond to the % of
+##' amendments in each edge which are destined for the final bill.
 ##' @param scale.c Scales the size of the bottom layer committee nodes (vertices). By default,
 ##' scale.c, scale.t, and scale.fin = 1, and their area are equally proportional to the number
 ##' of amendments they represent.
@@ -97,7 +129,8 @@ How.Wide <- function(x,A,num.arrows.to.topics){
 ##' @author Hillary Sanders
 graph.1 <- function(amend.committees, amend.topics, amend.final,
                     labels=NULL,
-                    edge.width.scale=4, scale.c=1, scale.t=1, scale.fin=1,
+                    edge.width.scale=1, edge.width = "absolute",
+                    scale.c=1, scale.t=1, scale.fin=1,
                     edge.transparency=NULL, edge.col=NULL,
                     main=NULL, arrowhead.size=0, layout=NULL
                    ) {
@@ -127,12 +160,22 @@ graph.1 <- function(amend.committees, amend.topics, amend.final,
 
   ### Edge Parameters. (Arrows)
   # 1) Edge width
-  width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide,
-                A=A,num.arrows.to.topics=num.arrows.to.topics)
+  if(edge.width == "absolute"){
+          width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide,
+                         A=A,num.arrows.to.topics=num.arrows.to.topics)
+          }
+  if(edge.width == "relative"){
+                  width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide.Relative,
+                         A=A,num.arrows.to.topics=num.arrows.to.topics)
+          }
+  if(edge.width == "success"){ 
+                width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide.Success,
+                               A=A,num.arrows.to.topics=num.arrows.to.topics)
+  }
   # Scale it:
-  width <- ceiling(3*(edge.width.scale*width/max(width,edge.width.scale)))
-  # So if the greatest width is more than width.scales, then 
-        
+  width <- ceiling(edge.width.scale*width)
+
+  
   # 2) Arrow colors.
   
   if (is.null(edge.col))  colors <- c("#6495ED","#FFB90F","#66CD00") 
@@ -351,9 +394,14 @@ graph.2<-function(amends,
   plot(graph, layout= lay.mat, edge.arrow.width = edge.arrow.width,
        edge.width= edge.width, edge.color= edge.color, vertex.shape=v.shape,
        vertex.size=v.size, vertex.label= labels, vertex.label.font=label.font,
-       vertex.label.cex=label.cex, main=main
-       )
-  }
+       vertex.label.cex=label.cex, main=main)
+  } 
+  
+  
+  
+  
+  
+  
 
 
 
@@ -361,4 +409,4 @@ graph.2<-function(amends,
 
 
 
-
+ 
