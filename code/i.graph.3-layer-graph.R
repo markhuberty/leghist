@@ -13,8 +13,8 @@
 ## require(igraph)
 
 
-##' Creates the "x"th layout coordinates for graph.1(). This function is called
-##' inside of graph.1() to create the layout: three layers consisting of
+##' Creates the "x"th layout coordinates for See.Committee.Topics(). This function is called
+##' inside of See.Committee.Topics() to create the layout: three layers consisting of
 ##' 1) committees (c of them), 2) topics (t of them), and the final destinations
 ##' of the amendments (junk and final). 
 ##' @title Lay.Graph.1
@@ -23,7 +23,7 @@
 ##' of the graph).
 ##' @param t the number of topics (number of nodes wanted in the middle layer of 
 ##' the graph).
-##' @return the xth pair of coordinates for the layout of graph.1().
+##' @return the xth pair of coordinates for the layout of See.Committee.Topics().
 ##' @author Hillary Sanders
 Lay.Graph.1 <- function(x,c,t){
   if (x<(c+1)) { cords <- c(x/(1+c),.2)
@@ -38,16 +38,16 @@ Lay.Graph.1 <- function(x,c,t){
 ## end Lay.Graph.1
 
 
-##' A small function called within graph.1() to calculate edge widths (arrow widths)
-##' for a default graph.1().
+##' A small function called within See.Committee.Topics() to calculate edge widths (arrow widths)
+##' for a default See.Committee.Topics().
 ##' @title How.Wide
 ##' @param x the index of the arrow whose width will be returned by this function.
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: it's index (on of 1:a), it's committe (one of 1:c), it's topic (one
-##' of 1:t), and its final destination (junk or final bill: 0 or 1). See graph.1()
+##' of 1:t), and its final destination (junk or final bill: 0 or 1). See See.Committee.Topics()
 ##' for more details.
 ##' @param num.arrows.to.topics The number of distinct edges (arrows) that are going
-##' to topics (the middle layer) in the graph.1() plot.
+##' to topics (the middle layer) in the See.Committee.Topics() plot.
 ##' @return the width of the x[3]th edge (arrow).
 ##' @author Hillary Sanders
 How.Wide <- function(x,A,num.arrows.to.topics){
@@ -93,7 +93,7 @@ How.Wide.Success <- function(x,A,num.arrows.to.topics){
 ##' to the third layer - two nodes: "Junk" and "Final", again according to the amendments
 ##' that the arrows represent. Arrow width, as well as node size, by default represent 
 ##' the number of amendments they are representing.
-##' @title graph.1
+##' @title See.Committee.Topics
 ##' @param amend.committees A vector of length a, where a = the number of amendments
 ##' introduced. The ith element in amend.committees is an integer - one of 1:c, where c
 ##' is the number of committees - representing which comittee introduced the ith amendment.
@@ -120,14 +120,14 @@ How.Wide.Success <- function(x,A,num.arrows.to.topics){
 ##' @param edge.transparency A number in 00:99, representing the wanted transparency in edges
 ##' (lower number = more transparent). If left NULL (the default), edges will be kept opaque.
 ##' @param edge.col Three edge colors to signify edges which contain 1) junk destined
-##' amendments, 2) final destined amendments, or 3) both. If NULL (the default) graph.1() will
+##' amendments, 2) final destined amendments, or 3) both. If NULL (the default) See.Committee.Topics() will
 ##' use "cornflowerblue", "darkgoldenrod1", and "chartreuse3".
-##' @param layout The layout of the graph. If NULL (the default), graph.1() will create the 
+##' @param layout The layout of the graph. If NULL (the default), See.Committee.Topics() will create the 
 ##' three layers decribed above. But users can also pass graphing algorithms (e.g 
 ##' layout.fruchterman.reingold) for a different layout.
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
-graph.1 <- function(amend.committees, amend.topics, amend.final,
+See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
                     labels=NULL,
                     edge.width.scale=1, edge.width = "absolute",
                     scale.c=1, scale.t=1, scale.fin=1,
@@ -296,12 +296,12 @@ graph.1 <- function(amend.committees, amend.topics, amend.final,
       }
  
 ##' Plots a list of words next to each topic node in the graph created by this
-##' package's graph.1() function. To be used after graph.1().
+##' package's See.Committee.Topics() function. To be used after See.Committee.Topics().
 ##' @title Plot.Topic.Words
 ##' @param words.list A list (of length t or less, where t is the number of topics
-##' in your graph.1() graph.
+##' in your See.Committee.Topics() graph.
 ##' @param layout A
-##' @return Text on top of a graph.1() graph.
+##' @return Text on top of a See.Committee.Topics() graph.
 ##' @author Hillary Sanders
   Plot.Topic.Words <- function(words.list, layout,
                                cex=.75, col="darkgrey", pos=2, offset=.2,
@@ -321,8 +321,8 @@ graph.1 <- function(amend.committees, amend.topics, amend.final,
 # end Plot.Topic.Words
 
 
-##' Creates the "x"th layout coordinates for graph.2(). This function is called
-##' inside of graph.2() to create the layout: coordinates for two layers consisting
+##' Creates the "x"th layout coordinates for See.Amends.Success(). This function is called
+##' inside of See.Amends.Success() to create the layout: coordinates for two layers consisting
 ##' of 1) amendments (a of them), 2) the final bill (all of the paragraphs (or other
 ##' text chunks) in the final bill, as well as a junk bin placed in the middle of 
 ##' the graph.
@@ -330,7 +330,7 @@ graph.1 <- function(amend.committees, amend.topics, amend.final,
 ##' @param x the index of the coordinates to be created. 
 ##' @param a the number of amendments 
 ##' @param f the number of text chunks (e.g. paragraphs) in the final bill.
-##' @return the xth layout coordinates for graph.2().
+##' @return the xth layout coordinates for See.Amends.Success().
 ##' @author Hillary Sanders
 Lay.Graph.2 <- function(x,a,f){
   if (x<(a+1)) { cords<- c(x/(1+a),.2)
@@ -352,7 +352,7 @@ Lay.Graph.2 <- function(x,a,f){
 ##' Individual amendments are either connected (with an arrow) to a junk bin if the
 ##' amendment was not accepted into the final bill, or if it was, to its place in 
 ##' the final bill.
-##' @title graph.2
+##' @title See.Amends.Success
 ##' @param amends A vector of all 1:a amendments' final destinations: either 0 for
 ##' junk (rejected amendments) or an integer i for the ith paragraph in the final bill
 ##' which the amendment replaced.
@@ -360,7 +360,7 @@ Lay.Graph.2 <- function(x,a,f){
 ##' @param edge.width
 ##' @return 
 ##' @author Hillary Sanders
-graph.2 <- function(amends,
+See.Amends.Success  <- function(amends,
                     f=NULL, 
                     edge.width.scale=3, edge.arrow.width=.25,
                     af.shape="circle", junk.shape="rectangle",
