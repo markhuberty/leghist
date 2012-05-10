@@ -142,8 +142,8 @@ See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
   A <- matrix(c(1:a,amend.committees,amend.topics,amend.final),ncol=4)
   # num.amd for # of amendments, num.com for # of committees, num.top for number of topics.
   num.amd <- nrow(A)
-  num.com <- length(unique(A[,2]))
-  num.top <- length(unique(A[,3])) 
+  num.com <- max((A[,2]))
+  num.top <- max((A[,3])) 
      
   # reindex. Note that igraph takes numbers starting at 0, not 1.
   # Now the last 3 columns of A represent the nodes each amendment will touch.
