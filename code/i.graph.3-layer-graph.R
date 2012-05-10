@@ -17,7 +17,7 @@
 ##' inside of See.Committee.Topics() to create the layout: three layers consisting of
 ##' 1) committees (c of them), 2) topics (t of them), and the final destinations
 ##' of the amendments (junk and final). 
-##' @title Lay.Graph.1
+##' @title Lay.See.Committee.Topics
 ##' @param x the index of the coordinates to be created.
 ##' @param c the number of committees (number of nodes wanted in the bottom layer
 ##' of the graph).
@@ -25,17 +25,17 @@
 ##' the graph).
 ##' @return the xth pair of coordinates for the layout of See.Committee.Topics().
 ##' @author Hillary Sanders
-Lay.Graph.1 <- function(x,c,t){
-  if (x<(c+1)) { cords <- c(x/(1+c),.2)
+Lay.See.Committee.Topics <- function(x,num.com,num.top){
+  if (x<(num.com+1)) { cords <- c(x/(1+num.com),.2)
                  } else {
-                   if (x>(c+t)) { cords<- c( (x-c-t)/3,.8)
+                   if (x>(num.com+num.top)) { cords<- c( (x-num.com-num.top)/3,.8)
                                   } else {
-                                    cords<- c( (x-c)/(1+t),.5)
+                                    cords<- c( (x-num.com)/(1+num.top),.5)
                         }
                    }
         return (cords)
                 }
-## end Lay.Graph.1
+## end Lay.See.Committee.Topics
 
 
 ##' A small function called within See.Committee.Topics() to calculate edge widths (arrow widths)
@@ -43,7 +43,7 @@ Lay.Graph.1 <- function(x,c,t){
 ##' @title How.Wide
 ##' @param x the index of the arrow whose width will be returned by this function.
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
-##' amendment: it's index (on of 1:a), it's committe (one of 1:c), it's topic (one
+##' amendment: it's index (on of 1:a), it's committee (one of 1:c), it's topic (one
 ##' of 1:t), and its final destination (junk or final bill: 0 or 1). See See.Committee.Topics()
 ##' for more details.
 ##' @param num.arrows.to.topics The number of distinct edges (arrows) that are going
@@ -74,10 +74,10 @@ How.Wide.Relative <- function(x,A,num.arrows.to.topics){
 # successful amendments they carry.
 How.Wide.Success <- function(x,A,num.arrows.to.topics){
   if (x[3]< num.arrows.to.topics+1){
-    width <- sum((x[1]==A[, 2]) & (x[2]==A[, 3]) & (A[, 4] == (c+t+1))) / 
+    width <- sum((x[1]==A[, 2]) & (x[2]==A[, 3]) & (A[, 4] == (num.com+num.top+1))) / 
       sum((x[1]==A[, 2]) & (x[2]==A[, 3])) *15
     } else {
-      width <- sum((x[1]==A[, 3]) & (x[2]==A[, 4]) & (A[, 4]==(c+t+1))) /
+      width <- sum((x[1]==A[, 3]) & (x[2]==A[, 4]) & (A[, 4]==(num.com+num.top+1))) /
         sum((x[1]==A[, 3]) & (x[2]==A[, 4])) *15
       }
   }
@@ -140,17 +140,17 @@ See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
   # same length.
   
   A <- matrix(c(1:a,amend.committees,amend.topics,amend.final),ncol=4)
-  # a for # of amendments, c for # of committees, t for number of topics.
-  a <- nrow(A)
-  c <- length(unique(A[,2]))
-  t <- length(unique(A[,3])) 
+  # num.amd for # of amendments, num.com for # of committees, num.top for number of topics.
+  num.amd <- nrow(A)
+  num.com <- length(unique(A[,2]))
+  num.top <- length(unique(A[,3])) 
      
   # reindex. Note that igraph takes numbers starting at 0, not 1.
   # Now the last 3 columns of A represent the nodes each amendment will touch.
   A[,1:4] <- c( (A[,1]),
                 (A[,2]-1),
-                (A[,3]+c-1),
-                (A[,4]+c+t))
+                (A[,3]+num.com-1),
+                (A[,4]+num.com+num.top))
         
   # A matrix of all of the unique arrows that need to be drawn:
   arrows.mat <- rbind( unique( A[,2:3] ), unique(A[,3:4]) )
@@ -200,7 +200,7 @@ See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
   # The final destination (1 or 2: junk or final) of each unique edge (arrow):
   # (So if there are 3 of the same arrow, the first one is represented.) 
   edge.color.idx <- c( (A[!duplicated(A[,2:3]),4]),
-                       (A[!duplicated(A[,3:4]),4]) ) -c-t+1
+                       (A[!duplicated(A[,3:4]),4]) ) -num.com-num.top+1
             
   # The following lines look at each comittee-to-topics arrow to be drawn. The question is: 
   # are the (perhaps multiple) amendment(s) that this arrow is representing heading to both 
@@ -226,15 +226,15 @@ See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
         
   ### Vertex Parameters
   # 1) Vertex label size.
-  vertex.size <- rep(0,sum(c+t+2))
+  vertex.size <- rep(0,sum(num.com+num.top+2))
       
-      for (i in 1:c){
+      for (i in 1:num.com){
         vertex.size[i] <- sum(A[,2]==(i-1))
         }
-      for (i in (c+1):(c+t)) {
+      for (i in (num.com+1):(num.com+num.top)) {
         vertex.size[i] <- sum(A[,3]==(i-1))
         }
-      for (i in (c+t+1):(c+t+2)) {
+      for (i in (num.com+num.top+1):(num.com+num.top+2)) {
         vertex.size[i] <- sum(A[,4]==(i-1))
         }
   # Here, both dimensions of the default rectangle vertex shape are created, and scaled
@@ -246,14 +246,14 @@ See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
   # Vertex sizes can also be rescaled by the user by scale.c, scale.t, and
   # scale.fin inputs. Defaults = 1.
 
-  v.size[1:c] <- v.size[1:c]*scale.c
-  v.size[(c+1):(c+t)] <- v.size[(c+1):(c+t)]*scale.t
-  v.size[(c+t+1):(c+t+2)] <- v.size[(c+t+1):(c+t+2)]*scale.fin
+  v.size[1:num.com] <- v.size[1:num.com]*scale.c
+  v.size[(num.com+1):(num.com+num.top)] <- v.size[(num.com+1):(num.com+num.top)]*scale.t
+  v.size[(num.com+num.top+1):(num.com+num.top+2)] <- v.size[(num.com+num.top+1):(num.com+num.top+2)]*scale.fin
        
         
   # 3) The vertex labels
   if (is.null(labels)) { 
-    labels <- as.character(c(1:c,1:t,"Junk","Final"))
+    labels <- as.character(c(1:num.com,1:num.top,"Junk","Final"))
                            }
         
   # The actual object to be graphed:
@@ -264,13 +264,13 @@ See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
   ### Layout
   # To create the layout, an nx2 matrix denoting the coordinates of each x vertices, you can use
   # a function or a matrix. The default is to use the following lines to create the matrix: 
-  # (where there are c+t+2 vertices, c of them committees, t of them topics, and 2 of them 
+  # (where there are num.com+num.top+2 vertices, num.com of them committees, num.top of them topics, and 2 of them 
   # either the final or junk bin.)
               
   #  For the layout the matrix:
   if(is.null(layout)){
-    x <- 1:(c+t+2)
-    lay.mat <- t(sapply(x,FUN=Lay.Graph.1,c=c,t=t))
+    x <- 1:(num.com+num.top+2)
+    lay.mat <- t(sapply(x,FUN=Lay.See.Committee.Topics,num.com=num.com,num.top=num.top))
     # So currently the graph is plotted on a (0,0),(1,1) screen, more or less.
     } else {
       lay.mat <- layout
@@ -298,7 +298,7 @@ See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
 ##' Plots a list of words next to each topic node in the graph created by this
 ##' package's See.Committee.Topics() function. To be used after See.Committee.Topics().
 ##' @title Plot.Topic.Words
-##' @param words.list A list (of length t or less, where t is the number of topics
+##' @param words.list A list (of length num.top or less, where num.top is the number of topics
 ##' in your See.Committee.Topics() graph.
 ##' @param layout A
 ##' @return Text on top of a See.Committee.Topics() graph.
@@ -307,9 +307,9 @@ See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
                                cex=.75, col="darkgrey", pos=2, offset=.2,
                                adjust=3.5, text.close=.75) {
         
-  t <- length(words.list)
+  num.topics <- length(words.list)
   
-  for (i in 1:t){
+  for (i in 1:num.top){
     y <- seq(.1,by=(-4/30)*cex/text.close,length=10) [ 1:length(words.list[[i]]) ]
     x <- (( (lay.mat
             [ ( lay.mat[,2] == unique (lay.mat[,2])[2]),1] # the 2nd level
@@ -326,13 +326,13 @@ See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
 ##' of 1) amendments (a of them), 2) the final bill (all of the paragraphs (or other
 ##' text chunks) in the final bill, as well as a junk bin placed in the middle of 
 ##' the graph.
-##' @title Lay.Graph.2
+##' @title Lay.See.Amends.Success
 ##' @param x the index of the coordinates to be created. 
 ##' @param a the number of amendments 
 ##' @param f the number of text chunks (e.g. paragraphs) in the final bill.
 ##' @return the xth layout coordinates for See.Amends.Success().
 ##' @author Hillary Sanders
-Lay.Graph.2 <- function(x,a,f){
+Lay.See.Amends.Success <- function(x,a,f){
   if (x<(a+1)) { cords<- c(x/(1+a),.2)
                  } else {
                    if (x>(a+f)) { cords <- c(.5,.5)
@@ -340,7 +340,7 @@ Lay.Graph.2 <- function(x,a,f){
                                     cords <- c( ((x-a)/(1+f)),.8) }}
   return (cords)
   }
-  # End Lay.Graph.2
+  # End Lay.See.Amends.Success
 
 
   # NOTE: Question: Amendments either: 1) replace some paragraph(s) in the inital
@@ -368,8 +368,8 @@ See.Amends.Success  <- function(amends,
                     main="Amendments' Destinations"
                     ){
   if (is.null(f)){f <- max(a)}
-  a <- length(amends)
-  amends.idx <- 1:a
+  num.amd <- length(amends)
+  amends.idx <- 1:num.amd
   final.idx <- 1:f
         
   colors <- c("cornflowerblue","lightblue")
@@ -377,31 +377,25 @@ See.Amends.Success  <- function(amends,
         
   amends[amends==0] <- f+1
   
-  g <- as.numeric(t(matrix(c(amends.idx-1,0,amends+a-1,(f+a-1)),ncol=2)))           
+  g <- as.numeric(t(matrix(c(amends.idx-1,0,amends+num.amd-1,(f+num.amd-1)),ncol=2)))           
   graph <- graph(g)
   # the 0 -> f+a-1 is to ensure that all final paragraphs are shown in the graph.
   # It has no color, so is invisible.
          
-  x <- (a+f+1)
+  x <- (num.amd+f+1)
   y <- 1:x
-  lay.mat <- t(sapply(y,FUN=Lay.Graph.2,a=a,f=f))
+  lay.mat <- t(sapply(y,FUN=Lay.See.Amends.Success,a=num.amd,f=f))
         
-  labels <- c(1:a,1:f,"junk")
+  labels <- c(1:num.amd,1:f,"junk")
         
-  v.shape <- c(rep(af.shape,a+f),junk.shape)
-  v.size <- c(rep(15,a+f),30)
+  v.shape <- c(rep(af.shape,num.amd+f),junk.shape)
+  v.size <- c(rep(15,num.amd+f),30)
         
   plot(graph, layout= lay.mat, edge.arrow.width = edge.arrow.width,
        edge.width= edge.width, edge.color= edge.color, vertex.shape=v.shape,
        vertex.size=v.size, vertex.label= labels, vertex.label.font=label.font,
        vertex.label.cex=label.cex, main=main)
-  } 
-  
-  
-  
-  
-  
-  
+  }
 
 
 
@@ -409,4 +403,6 @@ See.Amends.Success  <- function(amends,
 
 
 
- 
+
+
+
