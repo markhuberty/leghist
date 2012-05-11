@@ -136,14 +136,22 @@ See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
                    ) {
   
   a <- length(amend.committees)
+  
+  stopifnot(length(amend.committees)==length(amend.topics),length(amend.topics)==length(amend.final))
   # add an error message for if amend.committees, .topics, or .final are not of the
   # same length.
+  
+  # Make sure that if there are any skipped indices, everything gets re-ordered properly
+  amend.committees<-as.numeric(factor(amend.committees))
+  amend.topics<-as.numeric(factor(amend.topics))
+  amend.final<-as.numeric(factor(amend.final))-1
+
   
   A <- matrix(c(1:a,amend.committees,amend.topics,amend.final),ncol=4)
   # num.amd for # of amendments, num.com for # of committees, num.top for number of topics.
   num.amd <- nrow(A)
-  num.com <- max((A[,2]))
-  num.top <- max((A[,3])) 
+  num.com <- length(unique(A[,2]))
+  num.top <- length(unique(A[,3])) 
      
   # reindex. Note that igraph takes numbers starting at 0, not 1.
   # Now the last 3 columns of A represent the nodes each amendment will touch.
