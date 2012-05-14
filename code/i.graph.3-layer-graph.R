@@ -128,13 +128,14 @@ How.Wide.Success <- function(x,A,num.arrows.to.topics){
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
 See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
-                    labels=NULL,
-                    edge.width.scale=1, edge.width = "absolute",
-                    scale.c=1, scale.t=1, scale.fin=1,
-                    edge.transparency=NULL, edge.col=NULL,
-                    main=NULL, arrowhead.size=0, layout=NULL
-                   ) {
-  
+                                 labels=NULL,
+                                 edge.width.scale=1, edge.width = "absolute",
+                                 scale.c=1, scale.t=1, scale.fin=1,
+                                 edge.transparency=NULL, edge.col=NULL,
+                                 main=NULL, arrowhead.size=0, layout=NULL,
+                                 labels=NULL,words.list=NULL
+                                 ) {
+    
   a <- length(amend.committees)
   
   stopifnot(length(amend.committees)==length(amend.topics),length(amend.topics)==length(amend.final))
@@ -301,10 +302,13 @@ See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
        vertex.label.cex=.75,
        main=main
        )
+  
+  if( labels == "terms" & terms != NULL){
+    Plot.Topic.Words(words.list=terms, layout=lay.mat)
       }
  
 ##' Plots a list of words next to each topic node in the graph created by this
-##' package's See.Committee.Topics() function. To be used after See.Committee.Topics().
+##' package's See.Committee.Topics() function. To be used within See.Committee.Topics().
 ##' @title Plot.Topic.Words
 ##' @param words.list A list (of length num.top or less, where num.top is the number of topics
 ##' in your See.Committee.Topics() graph.
@@ -312,8 +316,9 @@ See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
 ##' @return Text on top of a See.Committee.Topics() graph.
 ##' @author Hillary Sanders
   Plot.Topic.Words <- function(words.list, layout,
-                               cex=.75, col="darkgrey", pos=2, offset=.2,
-                               adjust=3.5, text.close=.75) {
+                               cex=.75, col="grey50", pos=2, offset=.2,
+                               adjust=3.5, text.close=.75
+                               ) {
         
   num.topics <- length(words.list)
   
@@ -368,46 +373,47 @@ Lay.See.Amends.Success <- function(x,a,f){
 ##' @param edge.width
 ##' @return 
 ##' @author Hillary Sanders
-See.Amends.Success  <- function(amends,
-                    f=NULL, 
-                    edge.width.scale=3, edge.arrow.width=.25,
-                    af.shape="circle", junk.shape="rectangle",
-                    label.font=3,label.cex=.75,
-                    main="Amendments' Destinations"
-                    ){
-  if (is.null(f)){f <- max(a)}
-  num.amd <- length(amends)
-  amends.idx <- 1:num.amd
+
+See.Amends.Success <- function(amends,
+                               f=NULL,
+                               edge.width.scale=3, edge.arrow.width=.25,
+                               af.shape="circle", junk.shape="rectangle",
+                               label.font=3,label.cex=.75,
+                               main="Amendments' Destinations"
+                               ){
+  if (is.null(f)){f <- max(amends)}
+  a <- length(amends)
+  amends.idx <- 1:a
   final.idx <- 1:f
         
   colors <- c("cornflowerblue","lightblue")
   edge.color <- colors[(amends == 0)+1]
         
   amends[amends==0] <- f+1
+  # So that each amendment destined for the junk bin will go to that last, (a+f+1)th, vertex,
+  # with index a+f, since igraph indices start at 0:
   
-  g <- as.numeric(t(matrix(c(amends.idx-1,0,amends+num.amd-1,(f+num.amd-1)),ncol=2)))           
+  mat<-matrix(c(amends.idx-1,0,0,amends+a-1,(f+a-1),a),ncol=2)
+  g<-as.numeric(t(mat))          
   graph <- graph(g)
-  # the 0 -> f+a-1 is to ensure that all final paragraphs are shown in the graph.
-  # It has no color, so is invisible.
+  # the 0 -> f+a-1 and 0 -> a are to ensure that all 1:f final paragraphs are shown in the graph.
+  # They will have no color, so will be invisible. The (f+a+1)th vertex will be the junk bin,
+  # with graph index (f+a), since igraph indices start at 0.
          
-  x <- (num.amd+f+1)
+  x <- (a+f+1)
   y <- 1:x
-  lay.mat <- t(sapply(y,FUN=Lay.See.Amends.Success,a=num.amd,f=f))
+  lay.mat <- t(sapply(y,FUN=Lay.See.Amends.Success,a=a,f=f))
         
-  labels <- c(1:num.amd,1:f,"junk")
+  labels <- c(1:a,1:f,"junk")
         
-  v.shape <- c(rep(af.shape,num.amd+f),junk.shape)
-  v.size <- c(rep(15,num.amd+f),30)
+  v.shape <- c(rep(af.shape,a+f),junk.shape)
+  v.size <- c(rep(15,a+f),30)
         
   plot(graph, layout= lay.mat, edge.arrow.width = edge.arrow.width,
-       edge.width= edge.width, edge.color= edge.color, vertex.shape=v.shape,
+       edge.width= edge.width.scale, edge.color= edge.color, vertex.shape=v.shape,
        vertex.size=v.size, vertex.label= labels, vertex.label.font=label.font,
        vertex.label.cex=label.cex, main=main)
   }
-
-
-
-
 
 
 
