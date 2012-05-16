@@ -127,15 +127,52 @@ How.Wide.Success <- function(x,A,num.arrows.to.topics){
 ##' layout.fruchterman.reingold) for a different layout.
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
-See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
+See.Committee.Topics <- function(rese.topics.2007,rese.composite.2007,committees.2007,
                                  labels=NULL,
                                  edge.width.scale=1, edge.width = "absolute",
                                  scale.c=1, scale.t=1, scale.fin=1,
                                  edge.transparency=NULL, edge.col=NULL,
                                  main=NULL, arrowhead.size=0, layout=NULL,
-                                 labels=NULL,words.list=NULL
+                                 text.labels=NULL,words.list=NULL
                                  ) {
-    
+  
+  # Which amendments where submitted by which committees?
+  amend.top.index <- cbind( rese.topics.2007[[1]][[1]][[4]]-min(rese.topics.2007[[1]][[1]][[4]])+1
+                          , as.numeric(rese.topics.2007[[1]][[1]][[3]]))
+  colnames(amend.top.index) <- c("idx","topic #")
+
+  # Which amendments were successful?
+  successful<- rese.composite.2007[ rese.composite.2007[,3]=="amendment",2:4]
+
+  us<- unique(successful) 
+  success.com<- us[order(us[,1]),] 
+
+  y<- success.com[order(success.com[,1]),]
+  x<- data.frame(1:length(committees.2007),committees.2007)
+  names(x)<-c("match.idx","committees.2007")
+
+  # install.packages("plyr")
+  # library(plyr)
+  joined <- join( x, y, type="left")
+  # the last column is now not neccessary.
+  joined.clean <- joined[,1:3]
+  joined.clean[,3][is.na(joined.clean[,3])]<- 0
+  joined.clean[,3][joined.clean[,3]=="amendment"]<- 1
+
+  com.idx<-joined.clean
+
+  top.idx # all amendments and their topic #rs. 1115x2 . rese.topics.2007.
+  com.idx  # all amendment indices and their commissions. 217x3 . rese.composite.2007 
+  # AHHH. TOP.IDX ONLY GOES TO 1289 BECAUSE IT DOESN'T INCLUDE THE TINY GUYS THAT WERE
+  # DISCARDED EVEN BEFORE STUFF WAS ACCEPTED / REJECTED.
+
+  both<- merge(top.idx,com.idx,by.x=1,by.y=1)
+
+  # need to make committees numeric?
+  amend.committees <- both[,3]
+  amend.topics <- both[,2]
+  amend.final <- both[,4]
+  
   a <- length(amend.committees)
   
   stopifnot(length(amend.committees)==length(amend.topics),length(amend.topics)==length(amend.final))
@@ -303,9 +340,10 @@ See.Committee.Topics <- function(amend.committees, amend.topics, amend.final,
        main=main
        )
   
-  if( labels == "terms" & terms != NULL){
+  if( text.labels == "terms" & terms != NULL){
     Plot.Topic.Words(words.list=terms, layout=lay.mat)
       }
+}
  
 ##' Plots a list of words next to each topic node in the graph created by this
 ##' package's See.Committee.Topics() function. To be used within See.Committee.Topics().
