@@ -1,3 +1,13 @@
+# TO DO:
+# 1) Automate committee node names, topic node names. (Make optional, default = TRUE)
+# 2) Automate (make optional, default = FALSE) topic words plotting. 
+#     2.5) Use text node area to calulate exactly where topics should be placed.
+#         In fact, if you wanted to be really fancy, you could look at the maximum length
+#         of each topic's words and recreate the layout of the middle layer of the graph, and 
+#         then plot the words.
+
+# Consider 
+
 #################################################################
 ## Hillary Sanders
 ## Automated analysis of legislative history - Graphing 
@@ -127,7 +137,7 @@ How.Wide.Success <- function(x,A,num.arrows.to.topics){
 ##' layout.fruchterman.reingold) for a different layout.
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
-See.Committee.Topics <- function(rese.topics.2007,rese.composite.2007,committees.2007,
+See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.out,committees,
                                  labels=NULL,
                                  edge.width.scale=1, edge.width = "absolute",
                                  scale.c=1, scale.t=1, scale.fin=1,
@@ -136,37 +146,44 @@ See.Committee.Topics <- function(rese.topics.2007,rese.composite.2007,committees
                                  text.labels=NULL,words.list=NULL
                                  ) {
   
-  # Which amendments where submitted by which committees?
-  amend.top.index <- cbind( rese.topics.2007[[1]][[1]][[4]]-min(rese.topics.2007[[1]][[1]][[4]])+1
-                          , as.numeric(rese.topics.2007[[1]][[1]][[3]]))
+  # Which amendments were submitted by which committees?
+  amend.top.index <- cbind( model.amend.hierarchy.out[[1]][[1]][[4]]
+                            -min(model.amend.hierarchy.out[[1]][[1]][[4]])+1
+                            , as.numeric(model.amend.hierarchy.out[[1]][[1]][[3]]))
+  
   colnames(amend.top.index) <- c("idx","topic #")
 
   # Which amendments were successful?
-  successful<- rese.composite.2007[ rese.composite.2007[,3]=="amendment",2:4]
+  successful<- get.likely.composite.out[ get.likely.composite.out[,3]=="amendment",2:4]
 
   us<- unique(successful) 
   success.com<- us[order(us[,1]),] 
 
   y<- success.com[order(success.com[,1]),]
-  x<- data.frame(1:length(committees.2007),committees.2007)
-  names(x)<-c("match.idx","committees.2007")
+  x<- data.frame(1:length(committees),committees)
+  names(x)<-c("match.idx","committees")
 
   # install.packages("plyr")
   # library(plyr)
   joined <- join( x, y, type="left")
-  # the last column is now not neccessary.
+  # the last columns is now not neccessary.
+  # ERROR: NEED TO DELETE THOSE GUYS LIKE 1290 WHICH WERE NOT INCLUDED BY THE COMPUTER.
   joined.clean <- joined[,1:3]
   joined.clean[,3][is.na(joined.clean[,3])]<- 0
   joined.clean[,3][joined.clean[,3]=="amendment"]<- 1
+  # So joined.clean is a dataframe with three columns: amendment index, committee, and 
+  # a logical column indicating wether or not the amendment was accepted into the final bill.
+  # But those amendments which were automatically discarded by the computer (e.g. ":") 
+  # need to be removed.
 
-  com.idx<-joined.clean
-
-  top.idx # all amendments and their topic #rs. 1115x2 . rese.topics.2007.
-  com.idx  # all amendment indices and their commissions. 217x3 . rese.composite.2007 
-  # AHHH. TOP.IDX ONLY GOES TO 1289 BECAUSE IT DOESN'T INCLUDE THE TINY GUYS THAT WERE
-  # DISCARDED EVEN BEFORE STUFF WAS ACCEPTED / REJECTED.
-
-  both<- merge(top.idx,com.idx,by.x=1,by.y=1)
+  # com.idx = ALL (even computer-discarded) amendment indices and their commissions.
+  # top.idx = all amendments and their topic #rs. 1115x2. Remember that top.idx will be
+  # smaller that com.idx because it does not include tiny amendments that were discarded 
+  # by the computer. e.g. ":". So the height, and sometimes the max of the indices, will
+  # be less than those of com.idx.
+ 
+  # Now, make sure they're match! Now everything will be according to the same amendment index.
+  both<- merge(top.idx,joined.clean,by=1)
 
   # need to make committees numeric?
   amend.committees <- both[,3]
