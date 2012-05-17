@@ -1,7 +1,7 @@
 # TO DO:
 # 1) Automate committee node names, topic node names. (Make optional, default = TRUE)
 # 2) Automate (make optional, default = FALSE) topic words plotting. 
-#     2.5) Use text node area to calulate exactly where topics should be placed.
+#     2.5) Use text node area to calculate exactly where topics should be placed.
 #         In fact, if you wanted to be really fancy, you could look at the maximum length
 #         of each topic's words and recreate the layout of the middle layer of the graph, and 
 #         then plot the words.
@@ -137,13 +137,14 @@ How.Wide.Success <- function(x,A,num.arrows.to.topics){
 ##' layout.fruchterman.reingold) for a different layout.
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
-See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.out,committees,
+See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.out,
+                                 committees,
                                  labels=NULL,
                                  edge.width.scale=1, edge.width = "absolute",
                                  scale.c=1, scale.t=1, scale.fin=1,
                                  edge.transparency=NULL, edge.col=NULL,
                                  main=NULL, arrowhead.size=0, layout=NULL,
-                                 text.labels=NULL,words.list=NULL
+                                 text.labels="terms",words.list=NULL
                                  ) {
   
   # Which amendments were submitted by which committees?
@@ -167,7 +168,6 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
   # library(plyr)
   joined <- join( x, y, type="left")
   # the last columns is now not neccessary.
-  # ERROR: NEED TO DELETE THOSE GUYS LIKE 1290 WHICH WERE NOT INCLUDED BY THE COMPUTER.
   joined.clean <- joined[,1:3]
   joined.clean[,3][is.na(joined.clean[,3])]<- 0
   joined.clean[,3][joined.clean[,3]=="amendment"]<- 1
@@ -183,12 +183,12 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
   # be less than those of com.idx.
  
   # Now, make sure they're match! Now everything will be according to the same amendment index.
-  both<- merge(top.idx,joined.clean,by=1)
+  merged<- merge(top.idx,joined.clean,by=1)
 
   # need to make committees numeric?
-  amend.committees <- both[,3]
-  amend.topics <- both[,2]
-  amend.final <- both[,4]
+  amend.committees <- as.numeric(merged[,3])
+  amend.topics <- merged[,2]
+  amend.final <- merged[,4]
   
   a <- length(amend.committees)
   
@@ -224,17 +224,19 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
   ### Edge Parameters. (Arrows)
   # 1) Edge width
   if(edge.width == "absolute"){
-          width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide,
-                         A=A,num.arrows.to.topics=num.arrows.to.topics)
-          }
+    width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide,
+                   A=A,num.arrows.to.topics=num.arrows.to.topics)
+    }
+  
   if(edge.width == "relative"){
-                  width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide.Relative,
-                         A=A,num.arrows.to.topics=num.arrows.to.topics)
-          }
+    width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide.Relative,
+                   A=A,num.arrows.to.topics=num.arrows.to.topics)
+    }
+  
   if(edge.width == "success"){ 
-                width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide.Success,
-                               A=A,num.arrows.to.topics=num.arrows.to.topics)
-  }
+    width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide.Success,
+                   A=A,num.arrows.to.topics=num.arrows.to.topics)
+    }
   # Scale it:
   width <- ceiling(edge.width.scale*width)
 
@@ -315,9 +317,19 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
        
         
   # 3) The vertex labels
-  if (is.null(labels)) { 
-    labels <- as.character(c(1:num.com,1:num.top,"Junk","Final"))
-                           }
+  if (is.null(labels)) {
+    if (is.null(committees)){
+      com <- 1:numcom
+    } else {
+      com <- levels(merged[,3])
+    }
+    
+    topics.matrix <- model.amend.hierarchy.out[[1]][[1]][[2]]
+    top <- paste( "Topic", 1:ncol(topics.matrix))
+    final <- c("Junk","Final")  
+    
+    labels <- c(com,top,final)
+        }
         
   # The actual object to be graphed:
   g. <- arrows.mat-min(arrows.mat)
@@ -357,8 +369,13 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
        main=main
        )
   
-  if( text.labels == "terms" & terms != NULL){
-    Plot.Topic.Words(words.list=terms, layout=lay.mat)
+  if( text.labels == "terms"){
+    
+    terms.list <- list()
+    for (i in 1:ncol(topics.matrix)){
+      terms.list[[i]] <- topics.matrix[,i]
+    }
+    Plot.Topic.Words(terms.list, layout=lay.mat)
       }
 }
  
@@ -371,18 +388,22 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
 ##' @return Text on top of a See.Committee.Topics() graph.
 ##' @author Hillary Sanders
   Plot.Topic.Words <- function(words.list, layout,
-                               cex=.75, col="grey50", pos=2, offset=.2,
-                               adjust=3.5, text.close=.75
+                               cex=.5, col="grey30", pos=3,
+                               x.offset=0, y.offset=-.25,
+                               adjust=2.8, text.close=.8
                                ) {
         
-  num.topics <- length(words.list)
-  
+  num.top <- length(words.list)
+  x.axis <- ( (layout
+            [ ( layout[,2] == unique (layout[,2])[2]),1] # the 2nd level
+            - unique(layout[,2])[2])*adjust)
+  y.axis <- seq(.1,
+                by=(-4/30)*cex/text.close,length=length(words.list[[i]])) +
+                  y.offset
+
   for (i in 1:num.top){
-    y <- seq(.1,by=(-4/30)*cex/text.close,length=10) [ 1:length(words.list[[i]]) ]
-    x <- (( (lay.mat
-            [ ( lay.mat[,2] == unique (lay.mat[,2])[2]),1] # the 2nd level
-            - unique(lay.mat[,2])[2])*adjust)[i]-offset )  # scale
- text(x=x, y=y, pos=pos, offset=offset,
+    x <- (x.axis[i]-x.offset )  # scale
+ text(x=x, y=y.axis, pos=pos, offset=x.offset,
       labels=c(words.list[[i]]), col=col,cex=cex)
     }
   }
