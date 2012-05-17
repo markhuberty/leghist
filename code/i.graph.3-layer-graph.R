@@ -1,13 +1,3 @@
-# TO DO:
-# 1) Automate committee node names, topic node names. (Make optional, default = TRUE)
-# 2) Automate (make optional, default = FALSE) topic words plotting. 
-#     2.5) Use text node area to calculate exactly where topics should be placed.
-#         In fact, if you wanted to be really fancy, you could look at the maximum length
-#         of each topic's words and recreate the layout of the middle layer of the graph, and 
-#         then plot the words.
-
-# Consider 
-
 #################################################################
 ## Hillary Sanders
 ## Automated analysis of legislative history - Graphing 
