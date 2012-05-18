@@ -11,41 +11,46 @@
 ## END
 #################################################################
 ## require(igraph)
+## require(plyr)
 
 
-##' Creates the "x"th layout coordinates for See.Committee.Topics(). This function is called
-##' inside of See.Committee.Topics() to create the layout: three layers consisting of
-##' 1) committees (c of them), 2) topics (t of them), and the final destinations
-##' of the amendments (junk and final). 
+##' Creates the "x"th layout coordinates for See.Committee.Topics(). This function
+##' is called inside of See.Committee.Topics() to create the layout: three layers 
+##' consisting of 1) committees (c of them), 2) topics (t of them), and the final
+##' destinations of the amendments (junk and final). 
 ##' @title Lay.See.Committee.Topics
 ##' @param x the index of the coordinates to be created.
-##' @param c the number of committees (number of nodes wanted in the bottom layer
+##' @param num.com the number of committees (number of nodes wanted in the bottom layer
 ##' of the graph).
-##' @param t the number of topics (number of nodes wanted in the middle layer of 
+##' @param num.top the number of topics (number of nodes wanted in the middle layer of 
 ##' the graph).
+##' @param mid.layer The y-axis placement of the middle layer on the graph. Defaults
+##' to .6. Note that the bottom and top layers are at 0 and 1, respectively. 
 ##' @return the xth pair of coordinates for the layout of See.Committee.Topics().
 ##' @author Hillary Sanders
-Lay.See.Committee.Topics <- function(x,num.com,num.top){
-  if (x<(num.com+1)) { cords <- c(x/(1+num.com),.2)
-                 } else {
-                   if (x>(num.com+num.top)) { cords<- c( (x-num.com-num.top)/3,.8)
-                                  } else {
-                                    cords<- c( (x-num.com)/(1+num.top),.5)
-                        }
-                   }
+Lay.See.Committee.Topics <- function(x,num.com,num.top,mid.layer=.6,mid.layer.spread=0){
+  if (x<(num.com+1)) { cords <- c(x/(1+num.com),0)
+        } else {
+          if (x>(num.com+num.top)) { cords<- c( (x-num.com-num.top)/3,1)
+                } else {
+                  cords <- c( ((x-num.com)/(1+num.top)*mid.layer.spread) -
+                                (.5*(mid.layer.spread-1)),
+                                          mid.layer)
+                  }
+          }
         return (cords)
-                }
+  }
 ## end Lay.See.Committee.Topics
 
 
-##' A small function called within See.Committee.Topics() to calculate edge widths (arrow widths)
-##' for a default See.Committee.Topics().
+##' A small function called within See.Committee.Topics() to calculate edge widths
+##' (arrow widths) for a default See.Committee.Topics().
 ##' @title How.Wide
 ##' @param x the index of the arrow whose width will be returned by this function.
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: it's index (on of 1:a), it's committee (one of 1:c), it's topic (one
-##' of 1:t), and its final destination (junk or final bill: 0 or 1). See See.Committee.Topics()
-##' for more details.
+##' of 1:t), and its final destination (junk or final bill: 0 or 1). See
+##' See.Committee.Topics() for more details.
 ##' @param num.arrows.to.topics The number of distinct edges (arrows) that are going
 ##' to topics (the middle layer) in the See.Committee.Topics() plot.
 ##' @return the width of the x[3]th edge (arrow).
@@ -94,37 +99,45 @@ How.Wide.Success <- function(x,A,num.arrows.to.topics){
 ##' that the arrows represent. Arrow width, as well as node size, by default represent 
 ##' the number of amendments they are representing.
 ##' @title See.Committee.Topics
-##' @param amend.committees A vector of length a, where a = the number of amendments
-##' introduced. The ith element in amend.committees is an integer - one of 1:c, where c
-##' is the number of committees - representing which comittee introduced the ith amendment.
-##' @param amend.topics A vector of length a, where a = the number of amendments introduced.
-##' The ith element in amend.topics is an integer - one of 1:t, where t is the number of 
-##' topics - representing which topic pertains to the ith amendment. 
-##' @param amend.final A vector of length a, where a = the number of amendments introduced.
-##' The ith element in amend.committees is either 0 or 1 - representing whether the ith
-##' amendment was rejected (0) or if it was accepted into the final bill (1). 
-##' @param labels A character vector representing the node names for each node (vertex). If
-##' NULL, labels will default to 1:c,1:t integers for committees and topics, and "Junk" and
-##' "Final" for the two final bins (top level).
-##' @param edge.width.scale Scales the width of the arrows. Defaults to 1.
-##' @param edge.width The method used to calculate edge widths. The default, "absolute", means
-##' that edge widths will correspond to the absolute number of amendments they represent. 
-##' "relative": edge widths will correspond to the % of amendments each edge holds with respect
-##' to the vertex they are coming from. "success": edge widths will correspond to the % of
-##' amendments in each edge which are destined for the final bill.
-##' @param scale.c Scales the size of the bottom layer committee nodes (vertices). By default,
-##' scale.c, scale.t, and scale.fin = 1, and their area are equally proportional to the number
-##' of amendments they represent.
-##' @param scale.t Scales the size of the middle layer topic nodes.
+##' @param model.amend.hierarchy.out The object created by model.amend.hierarchy(). This
+##' is used to help determine the width, color, and direction of the edges (lines) on 
+##' the graph to the created.
+##' @param get.likely.composite.out The object created by GetLikelyComposite(). This
+##' is used to help determine the width, color, and direction of the graph's edges.
+##' @param committees The object created by model.amend.hierarchy. This
+##' is used to help determine the width, color, and direction of the graph's edges.
+##' @param labels An optional character vector representing the node names for each 
+##' node (vertex). If NULL, the committee nodes (bottom layer) will be named with 
+##' their full names, topic nodes will be named Topic i (for the ith topic), and 
+##' the two final bins will be labeled "Final", and "Junk" (for accepted and 
+##' rejected amendments).
+##' @param edge.width.scale Scales the width of the arrows. Default = 1.
+##' @param edge.width The method used to calculate edge widths. The default, "absolute",
+##' means that edge widths will correspond to the absolute number of amendments they
+##' represent. "relative" means that edge widths will correspond to the % of
+##' amendments each edge holds with respect to the vertex they are coming from. 
+##' "success" means edge widths will correspond to the % of amendments in each edge
+##' which are destined for the final bill.
+##' @param scale.c Scales the size of the bottom layer committee nodes (vertices). 
+##' By default, scale.c, scale.t, and scale.fin = 1, and their area are equally 
+##' proportional to the number of amendments they represent.
+##' @param scale.t Scales the size of the middle layer topic nodes. Default = 1.
 ##' @param scale.fin Scales the size of the top layer final nodes (Junk and Final).
-##' @param edge.transparency A number in 00:99, representing the wanted transparency in edges
-##' (lower number = more transparent). If left NULL (the default), edges will be kept opaque.
+##' Default = 1.
+##' @param edge.transparency A number in 00:99, representing the wanted transparency
+##' in edges (lower number = more transparent). If left NULL (the default), edges 
+##' will be kept opaque.
 ##' @param edge.col Three edge colors to signify edges which contain 1) junk destined
-##' amendments, 2) final destined amendments, or 3) both. If NULL (the default) See.Committee.Topics() will
-##' use "cornflowerblue", "darkgoldenrod1", and "chartreuse3".
-##' @param layout The layout of the graph. If NULL (the default), See.Committee.Topics() will create the 
-##' three layers decribed above. But users can also pass graphing algorithms (e.g 
-##' layout.fruchterman.reingold) for a different layout.
+##' amendments, 2) final destined amendments, or 3) both. If NULL (the default) 
+##' See.Committee.Topics() will use "cornflowerblue", "darkgoldenrod1", and varying
+##' shades of green to respectively signify if each edge's amendments were all
+##' successfull (in making it to thefinal bill), were all rejected, or had some 
+##' combination of successes and failures.
+##' @param layout The layout of the graph. If NULL (the default), 
+##' See.Committee.Topics() will create the three layers decribed above. But users 
+##' can also pass graphing algorithms (e.g 
+##' layout.fruchterman.reingold) for a different layout. Note that if this is done, the
+##' text.labels option will not function correctly, nor will plot.topic.words().
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
 See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.out,
@@ -133,29 +146,31 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
                                  edge.width.scale=1, edge.width = "absolute",
                                  scale.c=1, scale.t=1, scale.fin=1,
                                  edge.transparency=NULL, edge.col=NULL,
-                                 main=NULL, arrowhead.size=0, layout=NULL,
+                                 main=NULL, arrowhead.size=0, 
+                                 layout=NULL, mid.layer=.6,mid.layer.spread=1,
                                  text.labels="terms",words.list=NULL
                                  ) {
   
-  # Which amendments were submitted by which committees?
+  # Which amendments were assigned to which topics?
   amend.top.index <- cbind( model.amend.hierarchy.out[[1]][[1]][[4]]
                             -min(model.amend.hierarchy.out[[1]][[1]][[4]])+1
                             , as.numeric(model.amend.hierarchy.out[[1]][[1]][[3]]))
   
   colnames(amend.top.index) <- c("idx","topic #")
 
-  # Which amendments were successful?
+  # Which amendments were successful? Look at those amendments which made it to the 
+  # composite final bill, and find thier indices. Which committees submitted them?
   successful<- get.likely.composite.out[ get.likely.composite.out[,3]=="amendment",2:4]
-
+  # (the third column in successful is not important, but for clarity's sake... 
+  # Might delete later.)
+  
   us<- unique(successful) 
-  success.com<- us[order(us[,1]),] 
+  success.com<- us[order(us[,1]),]
 
   y<- success.com[order(success.com[,1]),]
   x<- data.frame(1:length(committees),committees)
   names(x)<-c("match.idx","committees")
 
-  # install.packages("plyr")
-  # library(plyr)
   joined <- join( x, y, type="left")
   # the last columns is now not neccessary.
   joined.clean <- joined[,1:3]
@@ -178,7 +193,7 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
   # need to make committees numeric?
   amend.committees <- as.numeric(merged[,3])
   amend.topics <- merged[,2]
-  amend.final <- merged[,4]
+  amend.final <- as.numeric(merged[,4])
   
   a <- length(amend.committees)
   
@@ -233,51 +248,62 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
   
   # 2) Arrow colors.
   
-  if (is.null(edge.col))  colors <- c("#6495ED","#FFB90F","#66CD00") 
-  # "cornflowerblue", "darkgoldenrod1","chartreuse3" 
-   
-     
-  if(!is.null(edge.transparency)){ 
-          for (i in 1:3){
- # Extract the rgb code if color is passed as a character vector, as opposed to an rgb code.
-                  if( strsplit(colors[i],"")[[1]][1] != "#") {
-                          colors[i] <- rgb(col2rgb(colors[i])[1],
-                                           col2rgb(colors[i])[2],
-                                           col2rgb(colors[i])[3], maxColorValue=255)
-                  }
-          }
-          for (i in 1:3){
-# Add a transparency number (in 00:99)
-                  colors[i] <- paste( colors[i], as.character(edge.transparency), sep="")
-          }
+  if (is.null(edge.col)){
+    colors <- c("#FFB90F","#6495ED")
+  # "darkgoldenrod1", "cornflowerblue" 
+  # (Failure, Success)
+  } else { colors <- rep(edge.col,2) [1:2]
   }
+  
+  if(!is.null(edge.transparency)){ 
+    for (i in 1:2){
+ # Extract the rgb code if color is passed as a character vector, as opposed to an rgb code.
+      if( strsplit(colors[i],"")[[1]][1] != "#") {
+        colors[i] <- rgb(col2rgb(colors[i])[1],
+                         col2rgb(colors[i])[2],
+                         col2rgb(colors[i])[3], maxColorValue=255)
+        }
+      }
+    }
       
   # The final destination (1 or 2: junk or final) of each unique edge (arrow):
   # (So if there are 3 of the same arrow, the first one is represented.) 
   edge.color.idx <- c( (A[!duplicated(A[,2:3]),4]),
                        (A[!duplicated(A[,3:4]),4]) ) -num.com-num.top+1
+  
+  edge.color <- colors[edge.color.idx]
             
   # The following lines look at each comittee-to-topics arrow to be drawn. The question is: 
   # are the (perhaps multiple) amendment(s) that this arrow is representing heading to both 
   # the final bill AND junk, or just one of those two? If both, then the arrow color should 
-  # be green - a combination of yellow and blue. (Those colors = default colors)
+  # be some shade of green - a combination of yellow and blue. (Those colors = default colors)
   for ( i in which(!duplicated(A[,2:3]))){
   # i.e. for each non-duplicated arrow i (each row i in matrix A which corresponds to 
   # a "new" or "unique" arrow going from comittees to topics), which ones does it match to 
-  # (if it matches to any)? in the set of all amendments:
+  # (if it matches to any) in the set of all amendments? --> :
     identical <- c( which ( ( (A[i,2]==A[,2]) * (A[i,3]==A[,3])) ==1) )
     # Where are these identical arrows going to? (i.e. junk or final)
     destinations <- A [ identical,4]
-               # If their final destinations are not all the same, then make their drawn arrow be green.
+    # If their final destinations are not all the same, then make their drawn arrow be green.
     if(length(unique(destinations))!=1) {
-                    # should not be identical[1] # fix
-      edge.color.idx[ order((i==which(!duplicated(A[,2:3])))==0)[1]] <- 3
+      
+      success.rate <- mean(destinations-max(destinations)+1)
+      
+      lum <- 20 + (1-success.rate)*80
+      shade <- hcl(110,c=100,l=lum)
+      # So if success rate is high, edges will be dark green, if low, light yellow/green.         
+      
+      edge.color[ order((i==which(!duplicated(A[,2:3])))==0)[1]] <- shade
                   }
                 }
  
-    edge.color <- colors[edge.color.idx]
-  
-  # Note: Vertex label colors?        
+    if(!is.null(edge.transparency)){ 
+      for (i in 1:length(edge.color)){
+        # Add a transparency number (in 00:99)
+        edge.color[i] <- paste( edge.color[i], as.character(edge.transparency), sep="")
+        }
+      }
+ 
         
   ### Vertex Parameters
   # 1) Vertex label size.
@@ -335,7 +361,8 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
   #  For the layout the matrix:
   if(is.null(layout)){
     x <- 1:(num.com+num.top+2)
-    lay.mat <- t(sapply(x,FUN=Lay.See.Committee.Topics,num.com=num.com,num.top=num.top))
+    lay.mat <- t(sapply(x,FUN=Lay.See.Committee.Topics,num.com=num.com,num.top=num.top,
+                        mid.layer=mid.layer,mid.layer.spread=mid.layer.spread))
     # So currently the graph is plotted on a (0,0),(1,1) screen, more or less.
     } else {
       lay.mat <- layout
@@ -347,7 +374,7 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
   plot(g,
        layout=lay.mat,
        edge.arrow.width= arrowhead.size,
-       edge.width= width,
+       edge.width= width/10,
        edge.color= edge.color,
        vertex.label= labels,
        vertex.shape= "rectangle",
@@ -374,19 +401,18 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
 ##' @title Plot.Topic.Words
 ##' @param words.list A list (of length num.top or less, where num.top is the number of topics
 ##' in your See.Committee.Topics() graph.
-##' @param layout A
-##' @return Text on top of a See.Committee.Topics() graph.
+##' @param layout 
+##' @return Text on plotted onto a See.Committee.Topics() graph (with default layout style).
 ##' @author Hillary Sanders
   Plot.Topic.Words <- function(words.list, layout,
-                               cex=.5, col="grey30", pos=3,
-                               x.offset=0, y.offset=-.25,
+                               cex=.5, col="grey30", pos=1,
+                               x.offset=0, y.offset=-.05,
                                adjust=2.8, text.close=.8
                                ) {
         
   num.top <- length(words.list)
-  x.axis <- ( (layout
-            [ ( layout[,2] == unique (layout[,2])[2]),1] # the 2nd level
-            - unique(layout[,2])[2])*adjust)
+  x.axis <- ( (layout[ ( layout[,2] == unique (layout[,2])[2]),1] # the 2nd level
+               )*adjust) - adjust*.5
   y.axis <- seq(.1,
                 by=(-4/30)*cex/text.close,length=length(words.list[[i]])) +
                   y.offset
