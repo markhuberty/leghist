@@ -770,6 +770,157 @@ model.rej.amend <- ModelDocSet(doc.list,
                                )
 \end{lstlisting}
 
+We also provide a hierarchical interface, first clusters document
+sections into semantically-related groups, and then clusters the
+documents inside each cluster into semantic sub-groups. This
+functionality implements the following intution: consider a group of
+amendments and bill sections classified as "procedural" and identified
+because of the predominance of terms like "audit", "budget",
+"monitor", and "oversight". We would expect that, within that cluster,
+we would observe that different amendments focus on different aspects
+of these procedural elements of legislation. Hence sub-clustering
+provides a means of breaking down bills and amendments into a sensible
+2-level semantic hierarchy. Analysts could, of course, iterate this
+process for any desired level of hierarchy. 
+
+We also provide a means of tabulating the committee contributions by
+both primary and secondary topic areas. The
+\texttt{ctab.amend.hierarchy} function takes the output from
+\texttt{model.amend.hierarchy} and returns the nested cross-tabulation
+of committee contributions to each semantic cluster and subcluster. 
+
+\begin{lstlisting}[language=R, numbers=none]
+## Define the number of primary topics
+k.main <- 8
+rese.topics.2007 <- 
+   model.amend.hierarchy(doc.list.2007,
+                         rese.composite.2007,
+                         k=c(k.main, rep(5, k.main)),
+                         addl.stopwords=c("article",
+                           "paragraph", "follow", "replace",
+                           "insert",
+                           "ensure", "regulation",
+                           as.character(0:9),
+                           "commission",
+                           "directive", "annex",
+                           "parliament",
+                           "council",
+                           "alia", "whereas",
+                           "january", "december", "july",
+                           "deleted", "added", "amend",
+                           "draft", "http", "mso",
+                           "allowincell", "textbox",
+                           "endiftextbox", "div"),
+                         n.terms=10,
+                         ngram=1,
+                         sampling.method="VEM",
+                         topic.method="CTM",
+                         control=list(
+                           var=list(tol=10^-4),
+                           em=list(tol=10^-3),
+                           seed=2342),
+                         sparseness.probs=c(0.01, 0.999)
+                         )
+
+
+rese.topic.proportions.2007 <-
+  ctab.amend.hierarchy(rese.topics.2007,
+                       rese.composite.2007,
+                       committees.2007,
+                       doc.list.2007,
+                       tab.idx=2
+                       )
+
+\end{lstlisting}
+
+Example output is shown below. We can quickly observe that the
+Commission had, for instance, far more influence on amendments related
+to topic 5, on specification and definition of renewable liquid fuels,
+than the Parliament. Likewise, the Parliament exercised greater
+influence over amendments in topic 6, governing the transfer of
+renewable energy production credits among EU countries and between EU
+countries and third parties. Likewise, we can see that within the
+general set of regulations governing grid operators (topic 7),
+different groups of amendments governed connection requirements,
+administrative licensing and planning, emissions reduction and
+renewable energy accommodation, and energy efficiency. These
+inferences proceed in straightforward fashion from the
+\texttt{leghist} workflow combining
+an automated approach to legislative history tracking, and readily
+available tools for semantic clustering of text. 
+
+\begin{verbatim}
+## Top ten words by influence for the 8-topic model
+      [,1]             [,2]            [,3]            [,4]            
+ [1,] "bioliquids"     "training"      "consumption"   "raw"           
+ [2,] "countries"      "solar"         "share"         "support"       
+ [3,] "significant"    "accordance"    "heat"          "materials"     
+ [4,] "third"          "benefits"      "final"         "sustainability"
+ [5,] "provided"       "adopted"       "target"        "schemes"       
+ [6,] "sustainability" "share"         "overall"       "development"   
+ [7,] "environmental"  "procedure"     "means"         "bioliquids"    
+ [8,] "food"           "regulatory"    "mandatory"     "material"      
+ [9,] "protection"     "certification" "set"           "environmental" 
+[10,] "sustainable"    "appropriate"   "installations" "report"        
+      [,5]        [,6]           [,7]           [,8]          
+ [1,] "oil"       "origin"       "operators"    "fuels"       
+ [2,] "values"    "transfer"     "table"        "emission"    
+ [3,] "ethanol"   "guarantees"   "grid"         "resources"   
+ [4,] "waste"     "competent"    "carbon"       "specific"    
+ [5,] "process"   "accounting"   "require"      "savings"     
+ [6,] "wood"      "body"         "distribution" "based"       
+ [7,] "default"   "guarantee"    "procedures"   "efficiency"  
+ [8,] "vegetable" "certificates" "transmission" "cogeneration"
+ [9,] "biogas"    "issued"       "producers"    "information" 
+[10,] "biofuel"   "compliance"   "rules"        "changes"
+\end{verbatim}
+
+\newpage
+\begin{verbatim}
+## Distribution of amendment acceptance and rejection
+## by legislative actor and topic number
+                            acc   rej
+                                     
+1 Commission               50.0   5.5
+  Parliament 1st reading   50.0  94.5
+2 Commission               61.8   8.0
+  Parliament 1st reading   38.2  92.0
+3 Commission               56.5   6.2
+  Parliament 1st reading   43.5  93.8
+4 Commission               54.5   4.5
+  Parliament 1st reading   45.5  95.5
+5 Commission               77.8  18.4
+  Parliament 1st reading   22.2  81.6
+6 Commission               36.1  21.2
+  Parliament 1st reading   63.9  78.8
+7 Commission               54.5   6.3
+  Parliament 1st reading   45.5  93.7
+8 Commission              100.0   6.7
+  Parliament 1st reading    0.0  93.3
+\end{verbatim}
+
+\begin{verbatim}
+## Primary and secondary topic features for topic 7 
+[[7]]
+[[7]]$terms.primary
+ [1] "operators"    "table"        "grid"         "carbon"       "require"     
+ [6] "distribution" "procedures"   "transmission" "producers"    "rules"       
+
+[[7]]$terms.secondary
+      Topic 1        Topic 2     Topic 3      Topic 4       Topic 5         
+ [1,] "operators"    "table"     "procedures" "carbon"      "administrative"
+ [2,] "grid"         "filled"    "equipment"  "wind"        "certification" 
+ [3,] "costs"        "stroked"   "systems"    "economic"    "authorisation" 
+ [4,] "transmission" "rectrect"  "conversion" "operators"   "licensing"     
+ [5,] "distribution" "carbon"    "promote"    "information" "local"         
+ [6,] "producers"    "unit"      "achieve"    "roads"       "planning"      
+ [7,] "require"      "measured"  "efficiency" "offshore"    "applications"  
+ [8,] "connection"   "stock"     "stock"      "development" "regional"      
+ [9,] "regions"      "mass"      "carbon"     "impact"      "body"          
+[10,] "rules"        "molecular" "annualised" "priority"    "established" 
+\end{verbatim}
+
+
 \section{Conclusions}
 \label{sec:conclusions}
 
@@ -792,7 +943,11 @@ gets lost in the parsing stage. While the process of drafting
 legislation destroys the value of a specific index, it does not
 necessarily mean that a paragraph once at the center of a bill now
 appears at the very end. Exploiting that information to restrict the
-set of potential matches may improve overall match quality. 
+set of potential matches may improve overall match quality. Finally,
+we are interested in, and hope to implement in future versions,
+measures of semantic, rather than textual, similarity to quantify
+differences in the degree of change implied by competing amendments to
+the same section of a bill. 
 
 
 
