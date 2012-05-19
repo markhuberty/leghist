@@ -14,6 +14,247 @@
 ## require(plyr)
 
 
+##' A function called within See.Committee.Topics() to take the output of
+##' various bill mapping functions and create an easily usable matrix 
+##' carrying the information See.Committee.Topics() needs.
+##' @title Out.To.In
+##' @param model.amend.hierarchy.out the output of model.amend.hierarchy()
+##' @param get.likely.composite.out the output of get.likely.composite()
+##' @param committees the object "committees", used in other parts of this
+##' package, consisting of a vector of committee names for each ith 
+##' amendment (accepted, rejected, and discarded amendments).
+##' @return A dataframe of dimension ax4, where a equals the number of non-
+##' discarded amendments (so accepted or rejected amendments). The first
+##' column is the amendment indices, the second is the topic assignments, 
+##' the third is the committees, and the fourth is a logical vector for 
+##' amendment success (made it into the final bill) or failure.
+Out.To.In <- function(model.amend.hierarchy.out,
+                        get.likely.composite.out,
+                        committees){
+  
+  # Which amendments were assigned to which topics? Create a matrix of each 
+  # amendment index and their topic assignments. Note that here, the amendment
+  # index corresponds to all of the amendments including those amendments 
+  # (like ":") thrown out due to length. But only those not thrown out are 
+  # represented.
+  amend.top.index <- cbind( model.amend.hierarchy.out[[1]][[1]][[4]]
+                            -min(model.amend.hierarchy.out[[1]][[1]][[4]])+1
+                            , as.numeric(model.amend.hierarchy.out[[1]][[1]][[3]]))
+  
+  colnames(amend.top.index) <- c("idx","topic #")
+
+  # Which amendments were successful? Look at those amendments which made it to the 
+  # composite final bill, and find thier indices.
+  successful<- get.likely.composite.out[ get.likely.composite.out[,3]=="amendment",2:3]
+  
+  unique.successful<- unique(successful) 
+  # Create a nice clean matrix of the successful amendment indices. The second row
+  # will become helpful in a moment!
+  y <- unique.successful[order(unique.successful[,1]),]
+  x<- data.frame(1:length(committees),committees)
+  names(x)<-c("match.idx","committees")
+
+  joined <- join( x, y, type="left")
+  # Now, all of the elements in the third row that are <NA> (not "amendment") 
+  # must be rejected amendments or amendments discarded by the computer (due to
+  # their very short length), since the object successful only showed 
+  # successful amendments.
+  joined[,3][is.na(joined[,3])]<- 0
+  joined[,3][joined[,3]=="amendment"]<- 1
+  # So joined is a dataframe with three columns: amendment index, committee,
+  # and a logical column indicating wether or not the amendment was accepted
+  # into the final bill. But those amendments which were automatically 
+  # discarded by the computer (e.g. ":") still should to be removed.
+
+  # Since amend.top.index only shows non-discarded amendments, we can use that
+  # to make sure only the non-discarded amendments are being plotted, and to 
+  # add the topic assigments and committee assignments to the same object:
+  merged<- merge(amend.top.index,joined,by=1)
+
+  return(merged)
+}
+# end Out.To.In()
+
+
+##' A function called within See.Committee.Topics() to calculate edge width.
+##' @title Edge.Widths()
+##' @param method The method used to calculate edge widths. The default, "absolute",
+##' means that edge widths will correspond to the absolute number of amendments they
+##' represent. "relative" means that edge widths will correspond to the % of
+##' amendments each edge holds with respect to the node (vertex) they are coming from. 
+##' "success" means edge widths will correspond to the % of amendments in each edge
+##' which are destined for the final bill (with respect to the total number of
+##' amendments each edge is carrying).
+##' @param A A matrix (created inside See.Committee.Topics) of dimensions a by 4,
+##' where a = the number o amendments. The columns 1:4 respectively indicate 
+##' amendment index, committee, topic, and logical success or failure. Each row
+##' corresponds to one non-discarded (so rejected and accepted) amendment.
+##' @return A vector of edge widths for each arrow to be drawn 
+Edge.Widths <- function(edge.width="absolute", edge.width.scale=1, A){
+  
+  arrows.mat <- rbind( unique( A[,2:3] ), unique(A[,3:4]) )
+  num.arrows.to.topics <- nrow(unique( A[,2:3]))
+  num.arrows.to.jf <- nrow(unique(A[,3:4]))
+  num.arrows <- nrow(arrows.mat) # the total number of arrows to be drawn
+                       
+  if(edge.width == "absolute"){
+    width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide,
+                   A=A,num.arrows.to.topics=num.arrows.to.topics)
+    }
+  
+  if(edge.width == "relative"){
+    width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide.Relative,
+                   A=A,num.arrows.to.topics=num.arrows.to.topics)
+    }
+  
+  if(edge.width == "success"){ 
+    width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide.Success,
+                   A=A,num.arrows.to.topics=num.arrows.to.topics)
+    }
+  # Scale it:
+  width <- ceiling(edge.width.scale*width)
+  if (edge.width == "absolute") width <- width/10
+  
+  return(width)
+}
+# end Edge.Width()
+
+##' A function called within See.Committee.Topics() to calculate edge colors.
+##' @title Edge.Colors()
+##' @param A
+##' @param num.com number of committees
+##' @param num.top number of topics
+##' @param edge.col optional vector of colors (length 2).
+##' @param edge.transparency Optional integer in 00:99 designating level of 
+##' transparency
+##' @return A vector of edge widths for each arrow to be drawn
+Edge.Colors <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=NULL){ 
+  if (is.null(edge.col)){
+    colors <- c("#FFB90F","#6495ED")
+  # "darkgoldenrod1", "cornflowerblue" 
+  # (Failure, Success)
+  } else { colors <- rep(edge.col,2) [1:2]
+  }
+  
+  if(!is.null(edge.transparency)){ 
+    for (i in 1:2){
+      # Extract the rgb code if color is passed as a character vector, as opposed 
+      # to an rgb code. Needed in order to tack on the transparency bit.
+      if( strsplit(colors[i],"")[[1]][1] != "#") {
+        colors[i] <- rgb(col2rgb(colors[i])[1],
+                         col2rgb(colors[i])[2],
+                         col2rgb(colors[i])[3], maxColorValue=255)
+        }
+      }
+    }
+      
+  # The final destination (1 or 2: junk or final) of each unique edge (arrow):
+  # (So if there are 3 of the same arrow, the first one is represented.) 
+  edge.color.idx <- c( (A[!duplicated(A[,2:3]),4]),
+                       (A[!duplicated(A[,3:4]),4]) ) -num.com-num.top+1
+  
+  edge.color <- colors[edge.color.idx]
+            
+  # The following lines look at each comittee-to-topics arrow to be drawn. The question is: 
+  # are the (perhaps multiple) amendment(s) that this arrow is representing heading to both 
+  # the final bill AND junk, or just one of those two? If both, then the arrow color should 
+  # be some shade of green - a combination of yellow and blue. (Those colors = default colors)
+  for ( i in which(!duplicated(A[,2:3]))){
+  # i.e. for each non-duplicated arrow i (each row i in matrix A which corresponds to 
+  # a "new" or "unique" arrow going from comittees to topics), which ones does it match to 
+  # (if it matches to any) in the set of all amendments? --> :
+    identical <- c( which ( ( (A[i,2]==A[,2]) * (A[i,3]==A[,3])) ==1) )
+    # Where are these identical arrows going to? (i.e. junk or final)
+    destinations <- A [ identical,4]
+    # If their final destinations are not all the same, then make their drawn arrow be green.
+    if(length(unique(destinations))!=1) {
+      
+      success.rate <- mean(destinations-max(destinations)+1)
+      
+      lum <- 20 + (1-success.rate)*80
+      shade <- hcl(110,c=100,l=lum)
+      # So if success rate is high, edges will be dark green, if low, light yellow/green.         
+      
+      edge.color[ order((i==which(!duplicated(A[,2:3])))==0)[1]] <- shade
+                  }
+                }
+ 
+    if(!is.null(edge.transparency)){ 
+      for (i in 1:length(edge.color)){
+        # Add a transparency number (in 00:99)
+        edge.color[i] <- paste( edge.color[i], as.character(edge.transparency), sep="")
+        }
+      }
+  return (edge.color)
+}
+# end Edge.Color()
+
+
+
+##' A function called within See.Committee.Topics() to calculate vertex (node) 
+##' sizes.
+##' @title Vertex.Sizes
+##' @param A ax4 information matrix
+##' @param num.com number of committees
+##' @param num.top number of topics
+##' @param scale.c
+##' @param scale.t
+##' @param scale.fin
+##' @return v.size, a vector of node sizes for each vertex in the graph.
+Vertex.Sizes <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
+  
+  vertex.size <- rep(0,(num.com+num.top+2))
+      
+      for (i in 1:num.com){
+        vertex.size[i] <- sum(A[,2]==(i-1))
+        }
+      for (i in (num.com+1):(num.com+num.top)) {
+        vertex.size[i] <- sum(A[,3]==(i-1))
+        }
+      for (i in (num.com+num.top+1):(num.com+num.top+2)) {
+        vertex.size[i] <- sum(A[,4]==(i-1))
+        }
+  # Here, both dimensions of the default rectangle vertex shape are created, and scaled
+  # by how large the biggest vertex is on the graph. 
+  biggest <- max(vertex.size)
+  v.size <- ((sqrt(vertex.size))/(sqrt(biggest))*(60))
+  v.size2 <- ((sqrt(vertex.size)/(sqrt(biggest))*(45)))
+        
+  # Vertex sizes can also be rescaled by the user by scale.c, scale.t, and
+  # scale.fin inputs. Defaults = 1.
+
+  v.size[1:num.com] <- v.size[1:num.com]*scale.c
+  v.size[(num.com+1):(num.com+num.top)] <- v.size[(num.com+1):(num.com+num.top)]*scale.t
+  v.size[(num.com+num.top+1):(num.com+num.top+2)] <- v.size[(num.com+num.top+1):(num.com+num.top+2)]*scale.fin
+ 
+  return(cbind(v.size,v.size2))
+}
+# end Vertex.Sizes()
+
+
+##' A function called within See.Committee.Topics() to creates vertex 
+##' (node) labels.
+##' @title Vertex.Labels
+##' @param merged
+##' @param topics.matrix
+##' @return a vector of labels for each node in the See.Committee.Topics
+##' graph.
+Vertex.Labels <- function(labels,merged,topics.matrix) {
+  
+  if (is.null(labels)) {
+      com <- levels(merged[,3])
+    }
+    
+  top <- paste( "Topic", 1:ncol(topics.matrix))
+  final <- c("Junk","Final")  
+    
+  labels <- c(com,top,final)
+  
+  return(labels)
+}
+# end Vertex.Labels()
+
+
 ##' Creates the "x"th layout coordinates for See.Committee.Topics(). This function
 ##' is called inside of See.Committee.Topics() to create the layout: three layers 
 ##' consisting of 1) committees (c of them), 2) topics (t of them), and the final
@@ -123,7 +364,7 @@ How.Wide.Success <- function(x,A,num.arrows.to.topics){
       width <- sum((x[1]==A[, 3]) & (x[2]==A[, 4]) & (A[, 4]==(num.com+num.top+1))) /
         sum((x[1]==A[, 3]) & (x[2]==A[, 4])) *15
       }
-  }
+  } 
 #End How.Wide.Sucess
 
 
@@ -203,46 +444,11 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
                                  plot.terms=TRUE
                                  ) {
   
-  # Which amendments were assigned to which topics? Create a matrix of each 
-  # amendment index and their topic assignments. Note that here, the amendment
-  # index corresponds to all of the amendments including those amendments 
-  # (like ":") thrown out due to length. But only those not thrown out are 
-  # represented.
-  amend.top.index <- cbind( model.amend.hierarchy.out[[1]][[1]][[4]]
-                            -min(model.amend.hierarchy.out[[1]][[1]][[4]])+1
-                            , as.numeric(model.amend.hierarchy.out[[1]][[1]][[3]]))
   
-  colnames(amend.top.index) <- c("idx","topic #")
-
-  # Which amendments were successful? Look at those amendments which made it to the 
-  # composite final bill, and find thier indices.
-  successful<- get.likely.composite.out[ get.likely.composite.out[,3]=="amendment",2:3]
+  merged <- Out.To.In(model.amend.hierarchy.out,get.likely.composite.out,committees)
   
-  unique.successful<- unique(successful) 
-  # Create a nice clean matrix of the successful amendment indices. The second row
-  # will become helpful in a moment!
-  y <- unique.successful[order(unique.successful[,1]),]
-  x<- data.frame(1:length(committees),committees)
-  names(x)<-c("match.idx","committees")
-
-  joined <- join( x, y, type="left")
-  # Now, all of the elements in the third row that are <NA> (not "amendment") 
-  # must be rejected amendments or amendments discarded by the computer (due to
-  # their very short length), since the object successful only showed 
-  # successful amendments.
-  joined[,3][is.na(joined[,3])]<- 0
-  joined[,3][joined[,3]=="amendment"]<- 1
-  # So joined is a dataframe with three columns: amendment index, committee,
-  # and a logical column indicating wether or not the amendment was accepted
-  # into the final bill. But those amendments which were automatically 
-  # discarded by the computer (e.g. ":") still should to be removed.
-
-  # Since amend.top.index only shows non-discarded amendments, we can use that
-  # to make sure only the non-discarded amendments are being plotted, and to 
-  # add the topic assigments and committee assignments to the same object:
-  merged<- merge(amend.top.index,joined,by=1)
-
-  # need to make committees numeric.
+  committees <- merged[,3]
+  # Need to make committees column numeric.
   # Also need to make sure that if there are any skipped indices, everything 
   # gets re-ordered properly.
   amend.committees <- as.numeric(factor(merged[,3]))
@@ -270,131 +476,22 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
         
   # A matrix of all of the unique arrows that need to be drawn:
   arrows.mat <- rbind( unique( A[,2:3] ), unique(A[,3:4]) )
-  num.arrows.to.topics <- nrow(unique( A[,2:3]))
-  num.arrows.to.jf <- nrow(unique(A[,3:4]))
-  num.arrows <- nrow(arrows.mat) # the total number of arrows to be drawn
+  
+  # Calculate edge widths
+  width <- Edge.Widths(edge.width, edge.width.scale, A)
+  
+  # Calculate edge colors
+  edge.color <- Edge.Colors(A, num.com, num.top, edge.col, edge.transparency)  
 
-  ### Edge Parameters. (Arrows)
-  # 1) Edge width
-  if(edge.width == "absolute"){
-    width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide,
-                   A=A,num.arrows.to.topics=num.arrows.to.topics)
-    }
+  # Calculate vertex sizes
+  size <- Vertex.Sizes(A, num.com, num.top, scale.c, scale.t, scale.fin)
+  v.size <- size[,1]
+  v.size2 <- size[,2]
   
-  if(edge.width == "relative"){
-    width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide.Relative,
-                   A=A,num.arrows.to.topics=num.arrows.to.topics)
-    }
-  
-  if(edge.width == "success"){ 
-    width <- apply(cbind(arrows.mat,1:num.arrows),1,How.Wide.Success,
-                   A=A,num.arrows.to.topics=num.arrows.to.topics)
-    }
-  # Scale it:
-  width <- ceiling(edge.width.scale*width)
-  if (edge.width == "absolute") width <- width/10
-  
-  # 2) Arrow colors.
-  
-  if (is.null(edge.col)){
-    colors <- c("#FFB90F","#6495ED")
-  # "darkgoldenrod1", "cornflowerblue" 
-  # (Failure, Success)
-  } else { colors <- rep(edge.col,2) [1:2]
-  }
-  
-  if(!is.null(edge.transparency)){ 
-    for (i in 1:2){
-      # Extract the rgb code if color is passed as a character vector, as opposed 
-      # to an rgb code. Needed in order to tack on the transparency bit.
-      if( strsplit(colors[i],"")[[1]][1] != "#") {
-        colors[i] <- rgb(col2rgb(colors[i])[1],
-                         col2rgb(colors[i])[2],
-                         col2rgb(colors[i])[3], maxColorValue=255)
-        }
-      }
-    }
-      
-  # The final destination (1 or 2: junk or final) of each unique edge (arrow):
-  # (So if there are 3 of the same arrow, the first one is represented.) 
-  edge.color.idx <- c( (A[!duplicated(A[,2:3]),4]),
-                       (A[!duplicated(A[,3:4]),4]) ) -num.com-num.top+1
-  
-  edge.color <- colors[edge.color.idx]
-            
-  # The following lines look at each comittee-to-topics arrow to be drawn. The question is: 
-  # are the (perhaps multiple) amendment(s) that this arrow is representing heading to both 
-  # the final bill AND junk, or just one of those two? If both, then the arrow color should 
-  # be some shade of green - a combination of yellow and blue. (Those colors = default colors)
-  for ( i in which(!duplicated(A[,2:3]))){
-  # i.e. for each non-duplicated arrow i (each row i in matrix A which corresponds to 
-  # a "new" or "unique" arrow going from comittees to topics), which ones does it match to 
-  # (if it matches to any) in the set of all amendments? --> :
-    identical <- c( which ( ( (A[i,2]==A[,2]) * (A[i,3]==A[,3])) ==1) )
-    # Where are these identical arrows going to? (i.e. junk or final)
-    destinations <- A [ identical,4]
-    # If their final destinations are not all the same, then make their drawn arrow be green.
-    if(length(unique(destinations))!=1) {
-      
-      success.rate <- mean(destinations-max(destinations)+1)
-      
-      lum <- 20 + (1-success.rate)*80
-      shade <- hcl(110,c=100,l=lum)
-      # So if success rate is high, edges will be dark green, if low, light yellow/green.         
-      
-      edge.color[ order((i==which(!duplicated(A[,2:3])))==0)[1]] <- shade
-                  }
-                }
- 
-    if(!is.null(edge.transparency)){ 
-      for (i in 1:length(edge.color)){
-        # Add a transparency number (in 00:99)
-        edge.color[i] <- paste( edge.color[i], as.character(edge.transparency), sep="")
-        }
-      }
- 
-        
-  ### Vertex Parameters
-  # 1) Vertex label size.
-  vertex.size <- rep(0,sum(num.com+num.top+2))
-      
-      for (i in 1:num.com){
-        vertex.size[i] <- sum(A[,2]==(i-1))
-        }
-      for (i in (num.com+1):(num.com+num.top)) {
-        vertex.size[i] <- sum(A[,3]==(i-1))
-        }
-      for (i in (num.com+num.top+1):(num.com+num.top+2)) {
-        vertex.size[i] <- sum(A[,4]==(i-1))
-        }
-  # Here, both dimensions of the default rectangle vertex shape are created, and scaled
-  # by how large the biggest vertex is on the graph. 
-  biggest <- max(vertex.size)
-  v.size <- ((sqrt(vertex.size))/(sqrt(biggest))*(60))
-  v.size2 <- ((sqrt(vertex.size)/(sqrt(biggest))*(45)))
-        
-  # Vertex sizes can also be rescaled by the user by scale.c, scale.t, and
-  # scale.fin inputs. Defaults = 1.
+  topics.matrix <- model.amend.hierarchy.out[[1]][[1]][[2]]
 
-  v.size[1:num.com] <- v.size[1:num.com]*scale.c
-  v.size[(num.com+1):(num.com+num.top)] <- v.size[(num.com+1):(num.com+num.top)]*scale.t
-  v.size[(num.com+num.top+1):(num.com+num.top+2)] <- v.size[(num.com+num.top+1):(num.com+num.top+2)]*scale.fin
-       
-        
-  # 3) The vertex labels
-  if (is.null(labels)) {
-    if (is.null(committees)){
-      com <- 1:numcom
-    } else {
-      com <- levels(merged[,3])
-    }
-    
-    topics.matrix <- model.amend.hierarchy.out[[1]][[1]][[2]]
-    top <- paste( "Topic", 1:ncol(topics.matrix))
-    final <- c("Junk","Final")  
-    
-    labels <- c(com,top,final)
-        }
+  # Calculate vertex labels
+  labels <- Vertex.Labels(labels,merged,topics.matrix)
         
   # The actual object to be graphed:
   g. <- arrows.mat-min(arrows.mat)
