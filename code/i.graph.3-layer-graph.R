@@ -35,7 +35,7 @@ Lay.See.Committee.Topics <- function(x,num.com,num.top,mid.layer=.6){
         } else {
           if (x>(num.com+num.top)) { cords<- c( (x-num.com-num.top)/3,1)
                 } else {
-                  cords <- c( (x-num.com)/(1+num.top) )
+                  cords <- c( (x-num.com)/(1+num.top),mid.layer)
                   }
           }
         return (cords)
@@ -240,7 +240,7 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
   # Since amend.top.index only shows non-discarded amendments, we can use that
   # to make sure only the non-discarded amendments are being plotted, and to 
   # add the topic assigments and committee assignments to the same object:
-  merged<- merge(amend.top.idx,joined,by=1)
+  merged<- merge(amend.top.index,joined,by=1)
 
   # need to make committees numeric.
   # Also need to make sure that if there are any skipped indices, everything 
@@ -292,7 +292,7 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
     }
   # Scale it:
   width <- ceiling(edge.width.scale*width)
-
+  if (edge.width == "absolute") width <- width/10
   
   # 2) Arrow colors.
   
@@ -411,7 +411,7 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
   if(is.null(layout)){
     x <- 1:(num.com+num.top+2)
     lay.mat <- t(sapply(x,FUN=Lay.See.Committee.Topics,num.com=num.com,num.top=num.top,
-                        mid.layer=mid.layer,mid.layer.spread=mid.layer.spread))
+                        mid.layer=mid.layer))
     # So currently the graph is plotted on a (0,0),(1,1) screen, more or less.
     } else {
       lay.mat <- layout
@@ -423,7 +423,7 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
   plot(g,
        layout=lay.mat,
        edge.arrow.width= arrowhead.size,
-       edge.width= width/10,
+       edge.width= width,
        edge.color= edge.color,
        vertex.label= labels,
        vertex.shape= "rectangle",
@@ -478,7 +478,7 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
   x.axis <- ( (layout[ ( layout[,2] == unique (layout[,2])[2]),1] # the 2nd level
                )*adjust) - adjust*.5
   y.axis <- seq(.1,
-                by=(-4/30)*cex/text.close,length=length(words.list[[i]])) +
+                by=(-4/30)*cex/text.close,length=length(words.list[[1]])) +
                   y.offset
 
   for (i in 1:num.top){
@@ -586,9 +586,9 @@ See.Amends.Success <- function(amends,
   v.shape <- c(rep(af.shape,a+f),junk.shape)
   v.size <- c(rep(15,a+f),30)
         
-  plot(graph, layout= lay.mat, edge.arrow.width = 3*edge.arrow.width,
-       edge.width= edge.width.scale, edge.color= edge.color, vertex.shape=v.shape,
-       vertex.size=v.size, vertex.label= labels, vertex.label.font=label.font,
+  plot(graph, layout=lay.mat, edge.arrow.width=3*edge.arrow.width,
+       edge.width=edge.width.scale, edge.color=edge.color, vertex.shape=v.shape,
+       vertex.size=v.size, vertex.label=labels, vertex.label.font=label.font,
        vertex.label.cex=label.cex, main=main)
   }
 # End See.Amends.Success
