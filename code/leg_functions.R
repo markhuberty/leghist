@@ -2079,7 +2079,6 @@ model.amend.hierarchy <- function(doc.list,
                              control=control,
                              ...
                              )
-    
   })
 
   ## Return a list with the level 1 and level 2 models.
