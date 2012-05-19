@@ -1194,11 +1194,13 @@ ModelDocSet <- function(doc.list,
                         n.terms=5,
                         addl.stopwords="NULL",
                         weighting=weightTf,
+                        control,
                         ...){
 
   stopifnot(type %in% c("incl.amend", "rej.amend",
                         "incl.orig", "rej.orig",
-                        "final", "all.amend"
+                        "final", "all.amend",
+                        "composite.bill", "actual.bill"
                         )
             )
   
@@ -1240,15 +1242,30 @@ ModelDocSet <- function(doc.list,
 
       dtm.idx <- topic.idx <- doc.list$idx.amendments
       
-    }else{
+    }else if(type=="final"){
 
       dtm.idx <- doc.list$idx.final
       orig.idx <-
         composite.mat$match.idx[composite.mat$match.origin=="doc.final"]
-
+      
       topic.idx <- dtm.idx[orig.idx]
-
-
+      
+    }else if(type=="composite.bill"){
+      topic.idx <- sapply(1:nrow(composite.mat), function(x){
+        origin <- composite.mat$match.origin[x]
+        match.idx <- composite.mat$match.idx[x]
+        if(origin == "doc.initial")
+          {
+            out <- doc.list$idx.initial[match.idx]
+          }else if(origin == "amendment"){
+            out <- doc.list$idx.amendment[match.idx]
+          }else{
+            doc.list$idx.final[match.idx]
+          }
+      })
+      
+    }else{
+      topic.idx <- doc.list$idx.final
     }
 
   #print(type)
@@ -1263,7 +1280,6 @@ ModelDocSet <- function(doc.list,
                            addl.stopwords,
                            weighting=weighting,
                            control=control
-               #            ...
                            )
 
   model.out$txt.idx <- model.out$dtm.idx - min(dtm.idx) + 1
@@ -1301,7 +1317,7 @@ ModelDocSet <- function(doc.list,
 ##' @author Mark Huberty
 ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
                         sampling.method, addl.stopwords=NULL,
-                        n.terms, weighting=weightTf,control=control, ...){
+                        n.terms, weighting=weightTf,control=control){
 
   if(!is.null(addl.stopwords))
     {
@@ -1340,7 +1356,7 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
 
   topic.fun <- match.fun(topic.method)
 
-  out <- topic.fun(this.dtm, method=sampling.method, k=k, control=control,...)
+  out <- topic.fun(this.dtm, method=sampling.method, k=k, control=control)
 
   terms.out <- terms(out, n.terms)
   topics.out <- topics(out)
