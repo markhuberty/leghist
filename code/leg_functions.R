@@ -1,25 +1,28 @@
 #################################################################
-## Mark Huberty
-## Automated analysis of legislative history
+## Mark Huberty and Hillary Sanders
+## leghist: Automated analysis of legislative history
 ## Begun: 4 November 2011
 
-## This file contains functions that will become an R package to
-## automate the textual evolution of legislation from its introduction as
+## leghist provides functionality within the R programming language
+## to automate the textual evolution of legislation from its introduction as
 ## a bill, through the amendment process, until finalization.
 
-## Four core pieces of functionality are envisioned:
+## leghist provides five core pieces of functionality:
 ## 1. Mapping of sections between editions of bills
 ## 2. Mapping of amendments to their location in bills
 ## 3. Identification of discarded material
 ## 4. Modeling of the content of added and discarded material
+## 5. Visualization of the flow of bill content, by subject matter
+##    area, from the initial to final bill.
 
-## Additionally, the project may ultimately provide:
-## 1. Classification of changes as either "substantive" or
-## "administrative" (that is, the content of the law, or how the law is
-##                   executed / administered)
-##
-## Coding conventions should follow the Google R style guide, at
+## Coding conventions follow the Google R style guide, at
 ## http://google-styleguide.googlecode.com/svn/trunk/google-r-style.html
+
+## LICENSE:
+## Created by Mark Huberty and Hillary Sanders on 2012-05-19
+## Copyright (c) 2012, under the Simplified BSD License.
+## For more information on FreeBSD see:
+## http://www.opensource.org/licenses/bsd-license.php All rights reserved.
 ## END
 #################################################################
 ## require(gdata)
@@ -32,7 +35,6 @@
 
 ##' @import tm topicmodels stringr lsa Matrix RWeka
 ##' @importFrom gdata trim
-NULL
 
 ##' Maps the final bill to both the original bill and any proposed
 ##' amendments. Returns a matrix that maps from the final bill to the
@@ -76,7 +78,7 @@ MapBills <- function(doc.list,
 
   
 
-  if(!is.na(doc.list[["idx.amendments"]]))
+  if (!is.na(doc.list[["idx.amendments"]]))
     {
       print("mapping final to amendments")
       map.amend.final <- MapFun(doc.list[["vs.out"]],
@@ -92,7 +94,7 @@ MapBills <- function(doc.list,
                        )
       
   
-    }else{
+    } else {
 
       map.all <- cbind(map.initial.final,
                        NA,
@@ -144,31 +146,26 @@ MapFun <- function(dtm,
                    idx.collection,
                    filter.fun){
 
-  if("DocumentTermMatrix" %in% class(dtm))
-    dtm <- DtmToMatrix(dtm)
-  else
-    stopifnot(class(dtm) %in% c("data.frame", "matrix") |
-              "dgCMatrix" %in% class(dtm)
-              )
-
-  if(filter.fun=="max")
-    d <- TRUE
-  else
-    d <- FALSE
-    
+  if ("DocumentTermMatrix" %in% class(dtm))
+    {
+      dtm <- DtmToMatrix(dtm)
+    } else {
+      stopifnot(class(dtm) %in% c("data.frame", "matrix") |
+                "dgCMatrix" %in% class(dtm)
+                )
+    }
+  
+  ## Set the sort order flag based on the filter function
+  d <- ifelse(filter.fun == "max", TRUE, FALSE)
   dist.fun <- match.fun(distance.fun)
 
+  ## Generate the distance matrix
   dist.mat <- dist.fun(dtm, idx.final, idx.compare, idx.collection)
 
-  print("Getting match indices")
+  ## Retrieve the match indices and the distance 
   match.idx <- sapply(1:ncol(dist.mat), function(x){
 
     dist.vec = dist.mat[,x]
-
-    ## TODO: add threshold value here
-    ## as in if dist > thresh, idx, else NA
-    ## TODO: this is too inflexible for use with min/max
-    ## Should pass T/F to decreasing based on min/max
     idx.vec <- order(dist.vec, decreasing=d)
 
     return(c(idx.vec[1], dist.vec[idx.vec[1]]))
@@ -245,13 +242,13 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
             )
 
   
-  if(!is.null(amendments))
+  if (!is.null(amendments))
     {
       
       stopifnot(is.character(amendments))
       text.vec <- c(doc.final, doc.initial, amendments)
       
-    }else{
+    } else {
       
       text.vec <- c(doc.final, doc.initial)
 
@@ -281,25 +278,26 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
   idx.initial <-
     (length(doc.final) + 1):(length(doc.final) + length(doc.initial))
   
-  if(is.null(amendments))
+  if (is.null(amendments))
     {
 
       idx.amendments <- NA
      
-    }else{
+    } else {
 
        idx.amendments <-
         (length(doc.final) + length(doc.initial) + 1):vs.all$nrow
       
     }
 
+  ## Convert the dtm to a sparse matrix so I can do math on it later.
+  ## Note that this is much faster than the SparseToDtm code
   vs.out <- sparseMatrix(i=vs.all$i,
                          j=vs.all$j,
                          x=vs.all$v,
                          dimnames=vs.all$dimnames
                          )
 
-  #DtmToMatrix(vs.all)  
   list.out <- list(idx.final,
                    idx.initial,
                    idx.amendments,
@@ -312,7 +310,7 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
   
 
 }
-  ## End CreateAllVectorSpaces
+## End CreateAllVectorSpaces
 
 
 ##' Creates the vector space model of a document. 
@@ -361,12 +359,12 @@ CreateVectorSpace <- function(docs,
                      load=TRUE
                      )
 
-  ## Ensure everything is utf-8 compliant
+  ## Ensure everything is utf-8 compliant and lowercase
   corpus.in <- tm_map(corpus.in, function(x) iconv(enc2utf8(x), sub = "byte"))
   corpus.in <- tm_map(corpus.in, tolower)
 
   
-  if(rm.stopwords)
+  if (rm.stopwords)
     {
       corpus.in <- tm_map(corpus.in,
                           removeWords,
@@ -374,29 +372,21 @@ CreateVectorSpace <- function(docs,
                           )
     }
 
-  if(rm.whitespace)
+  if (rm.whitespace)
     {
       corpus.in <- tm_map(corpus.in, stripWhitespace)
     }
 
-  if(rm.punctuation)
+  if (rm.punctuation)
     {
       corpus.in <- tm_map(corpus.in, removePunctuation)
     }
 
-  if(stem)
+  if (stem)
     {
       corpus.in <- tm_map(corpus.in, stemDocument)
     }
 
-  ## if(ngram > 1)
-  ##   {
-
-  ##   }else{
-
-  ##     tokenize=scan(..., what="character")
-      
-  ##   }
   dtm.corpus <- DocumentTermMatrix(corpus.in,
                                    control=list(dictionary=dictionary,
                                      weighting=weighting,
@@ -408,24 +398,6 @@ CreateVectorSpace <- function(docs,
   
 }
 ## End CreateVectorSpace
-
-##' Classifies changes as substantive or administrative. Not yet available.
-##' @title ModelImpact
-##' @return TBD
-##' @author Mark Huberty
-ModelImpact <- function(){
-  ## Classifies changes as substantive or administrative
-  ## <Question here is _how_: what could you exploit to differentiate
-  ## between substance and administrative procedure; preambles and
-  ## stated purposes there might provide a good means of doing this
-  ## later. Could, for instance, topic model the preamble, assign
-  ## paragraphs from the preamble to topics, and then use that model
-  ## to classify the rest of the text / changes to the text.>
-
-  ## Should return a class vector (S, A, ?)  w/ probabilities 
-  
-}
-## End ModelImpact
 
 
 ##' Returns a LaTeX document that presents the side-by-side comparison of the final
@@ -504,25 +476,22 @@ WriteSideBySide <- function(composite.match,
       origin.idx <- composite.match[i, "match.idx"]
       dist <- composite.match[i, "match.dist"]
       
-      if(origin == "doc.initial")
+      if (origin == "doc.initial")
         {
           idx.subset <- cavs.out$idx.initial
-        }else if(origin == "amendment"){  
+        } else if (origin == "amendment"){  
           idx.subset <- cavs.out$idx.amendments
-        }else{
+        } else {
           idx.subset <- cavs.out$idx.final
         }
-      
-      ## This stuff is now wrong b/c of changes to the structure of
-      ## the cavs output
-      word.diff <- ( cavs.out[["vs.out"]][cavs.out$idx.final,][i,] > 0 ) -
-        ( cavs.out[["vs.out"]][idx.subset,][origin.idx,] > 0 )
-      
-      highlight.words <-
-        colnames(cavs.out[["vs.out"]])[word.diff > 0]
 
-      highlight.words <- highlight.words[highlight.words != " "]
-      
+      ## Return word diffs to highlight
+      highlight.words <-
+        GetWordsToHighlight(cavs.out[["vs.out"]][cavs.out$idx.final,][i,],
+                            cavs.out[["vs.out"]][idx.subset,][origin.idx,],
+                            colnames(cavs.out[["vs.out"]])
+                            )
+                             
       string.in <- SanitizeTex(doc.final[composite.match$doc.final.idx[i]])
       this.section <-  WriteTexSection(string.in,
                                        highlight.words=highlight.words,
@@ -542,13 +511,11 @@ WriteSideBySide <- function(composite.match,
       cat("\n")
       cat("\\end{minipage}")
 
-      word.diff <- ( cavs.out[["vs.out"]][idx.subset,][origin.idx,] > 0 ) -
-        ( cavs.out[["vs.out"]][cavs.out$idx.final,][i,] > 0 ) 
-             
       highlight.words <-
-        colnames(cavs.out[["vs.out"]])[word.diff > 0]
-
-      highlight.words <- highlight.words[highlight.words != " "]
+        GetWordsToHighlight(cavs.out[["vs.out"]][idx.subset,][origin.idx,],
+                            cavs.out[["vs.out"]][cavs.out$idx.final,][i,],
+                            colnames(cavs.out[["vs.out"]])
+                            )
       
       string.in <- SanitizeTex(composite.match$match.txt[i])
       this.section <-  WriteTexSection(string.in,
@@ -567,7 +534,6 @@ WriteSideBySide <- function(composite.match,
       cat("\n\n")
       cat("\\vspace{12pt}")
       cat("\n\n")
-      ##cat("\\rule{\\linewidth}{0.5mm}\n")
 
     }
 
@@ -575,7 +541,7 @@ WriteSideBySide <- function(composite.match,
   sink()
 
   
-  if(pdflatex)
+  if (pdflatex)
     {
       call <- paste("pdflatex -output-directory=",
                     dir.out, " ",
@@ -590,6 +556,27 @@ WriteSideBySide <- function(composite.match,
   print("Done")
   
 }
+
+##' Returns the set difference terms from two term-frequency vectors
+##' @title GetWordsToHighlight
+##' @param vector1 a term-frequency vector of integers representing
+##' one document
+##' @param vector2 a term-frequency vector of integers representing a
+##' second document with the same dictionary and term ordering
+##' @param terms the terms represented by the vectors
+##' @return A list of terms found in vector 1 but not vector 2
+##' @author Mark Huberty
+GetWordsToHightlight <- function(vector1, vector2, terms){
+
+  highlight.words <- setdiff(terms[vector1 > 0],
+                             terms[vector2 > 0]
+                             )
+  highlight.words <- highlight.words[highlight.words != " "]
+  return(highlight.words)
+
+}
+
+
 ##' Takes the initial and final versions of your documents (bills 1 ans 2),
 ##' along with (possibly) the amendments, and outputs a matrix mapping
 ##' from the index of each section in doc.final to its most likely match
@@ -632,85 +619,84 @@ GetLikelyComposite <- function(mapbills.out,
             ## is.null(amendment.origin)
             )
   
-  ## Check distance function and then grab it
+  ## Validate the distance function and then grab it
   stopifnot(filter %in% c("min", "max"))
   filter.fun <- match.fun(filter)
-
-  
  
-  ## Placeholder for amendments--should never be necessary
-  if(is.null(amendments))
+  ## Placeholder for amendments
+  if (is.null(amendments))
     amendments <- rep(NA, nrow(mapbills.out))
   
-  
+  ## Loop across the mapbills object and generate the
+  ## correct "best match" object.
   mat.out <- sapply(mapbills.out$bill2.idx, function(x){
 
+    ## Get the index (1 or 2) of the best match out of the original and
+    ## amendment matches 
     dist.idx <-
       which(mapbills.out[x, c("bill1.dist", "amend.dist")] == 
             filter.fun(mapbills.out[x, c("bill1.dist", "amend.dist")],
                 na.rm=TRUE)
-            )[1] ## This is a hack, see if it works
+            )[1] 
 
-    #print(dist.idx)
-    
-    match.dist <- mapbills.out[x,
-                               c("bill1.dist","amend.dist")[dist.idx]]
+    ## Get the corresponding distance and check whether NA
+    match.dist <-
+      mapbills.out[x, c("bill1.dist","amend.dist")[dist.idx]]
     match.dist <- ifelse(is.null(match.dist), NA, match.dist)
-    #print(match.dist)
-    
+
+    ## Check if this distance passes the threshold
     pass.threshold <- ifelse(filter == "min",
                              match.dist < dist.threshold,
                              match.dist > dist.threshold
                              )
-    
-    if(is.na(dist.idx) | is.na(pass.threshold) |
-       !pass.threshold | length(dist.idx) == 0){
 
-        vec.out <- c(x, x, "doc.final", "Final", match.dist, doc.final[x])
+    ## If it doesn't, then assign "final" as the origin; else assign
+    ## the correct origin
+    if (is.na(dist.idx) | is.na(pass.threshold) |
+        !pass.threshold | length(dist.idx) == 0){
+      
+      vec.out <- c(x, x, "doc.final", "Final", match.dist, doc.final[x])
+      
+    }else{
 
-      }else{
-
-        match.idx <- mapbills.out[x, c("bill1.idx",
-                                       "amend.idx")[dist.idx]
-                                  ]
-        #print(match.idx)
-        match.origin <- c("doc.initial", "amendment")[dist.idx]
-        #print(match.origin)
-        match.txt <- ifelse(match.origin=="doc.initial",
-                            doc.initial[match.idx],
-                            amendments[match.idx]
-                            )
-
-        
-        if(dist.idx == 1)
-          {
-            
-            alt.origin <- "Original"
-            
-          }else{
-
-            if(!is.null(amendment.origin))
-              {
-
-                alt.origin <- amendment.origin[match.idx]
-
-              }else{
-
-                alt.origin <- "Amendment"
-                
-              }
-            
-          }
-        
+      match.idx <- mapbills.out[x, c("bill1.idx",
+                                     "amend.idx")[dist.idx]
+                                ]
+      match.origin <- c("doc.initial", "amendment")[dist.idx]
+      match.txt <- ifelse(match.origin=="doc.initial",
+                          doc.initial[match.idx],
+                          amendments[match.idx]
+                          )
+      if (dist.idx == 1)
+        {
+          
+          alt.origin <- "Original"
+          
+        }else{
+          
+          if (!is.null(amendment.origin))
+            {
+              
+              alt.origin <- amendment.origin[match.idx]
+              
+            }else{
+              
+              alt.origin <- "Amendment"
+              
+            }
+          
+        }
+      
        
-        vec.out <- c(x, match.idx, match.origin, alt.origin,
-                     match.dist,
-                     match.txt)
-
-        
+      vec.out <- c(x,
+                   match.idx,
+                   match.origin,
+                   alt.origin,
+                   match.dist,
+                   match.txt
+                   )
       }
-                  
-
+      
     return(vec.out)
     
   }) ## End sapply
@@ -793,7 +779,7 @@ WriteCompositeFinal <- function(composite.match,
       origin <- composite.match[idx, "match.origin"]
       alt.origin <- composite.match[idx, "alt.origin"]
       
-      if(origin == "doc.final")
+      if (origin == "doc.final")
         {
           string.in <- SanitizeTex(composite.match$match.txt[idx])
           this.out <- WriteTexSection(string.in,
@@ -805,7 +791,7 @@ WriteCompositeFinal <- function(composite.match,
           cat(this.out)
           cat("\n\n")
 
-        }else{
+        } else {
           
           match.idx <- composite.match[idx,"match.idx"]
 
@@ -813,11 +799,11 @@ WriteCompositeFinal <- function(composite.match,
           ## records to detect new words. Does not detect word order.
           ## TODO: insert a better function here to handle this.
           ##       this is really crude.
-          word.diff <- ( cavs.out[["doc.final"]][idx,] > 0 ) -
-            ( cavs.out[[origin]][match.idx,] > 0 )
-          
           highlight.words <-
-            cavs.out[["doc.final"]]$colnames[word.diff > 0]
+            GetWordsToHightlight(cavs.out[["doc.final"]][idx,],
+                                 cavs.out[[origin]][match.idx,],
+                                 colnames(cavs.out)
+                                 )
           
           this.out <- WriteTexSection(composite.match$match.txt[idx],
                                       highlight.words=highlight.words,
@@ -826,14 +812,14 @@ WriteCompositeFinal <- function(composite.match,
                                       )
 
           
-          if(origin == "doc.initial"){
+          if (origin == "doc.initial"){
 
             cat(this.out)
             cat("\n\n")
 
-          }else{ ## Then it's an amendment
+          } else { ## Then it's an amendment
 
-            if(box.amendments)
+            if (box.amendments)
               {
                 
                 cat("\\begin{framed}",
@@ -843,7 +829,7 @@ WriteCompositeFinal <- function(composite.match,
                     )
                 cat("\n\n")
                 
-              }else{
+              } else {
 
                 cat(this.out)
                 cat("\n\n")
@@ -859,19 +845,15 @@ WriteCompositeFinal <- function(composite.match,
   cat("\\end{document}")
   sink()
 
-
-  if(pdflatex)
+  ## If desired, call pdflatex to generate the PDF version of the output.
+  if (pdflatex)
     {
       call <- paste("pdflatex", file.out, sep=" ")
       system(call)
       system(call)
     }
-
+  
   print("Done")
-  ## finally write the \end{document}
-
-  ## Then if pdflatex=TRUE, issue a system call to pdflatex <filename>
-
 
 }
 
@@ -904,7 +886,7 @@ WriteTexSection <- function(section,
 
   string.out <- SanitizeTex(section)
 
-  if(!is.null(highlight.words) & length(highlight.words) > 0)
+  if (!is.null(highlight.words) & length(highlight.words) > 0)
     {
 
       for(i in 1:length(highlight.words))
@@ -922,7 +904,7 @@ WriteTexSection <- function(section,
 
     }
   
-  if(!is.null(origin) & marginnote)
+  if (!is.null(origin) & marginnote)
     {
 
       string.out <- paste("\\marginnote{",
@@ -957,7 +939,7 @@ DtmToMatrix <- function(dtm){
               dimnames=dtm$dimnames
               )
   
-  for (index in 1:length(dtm$i))
+  for(index in 1:length(dtm$i))
     {
       m[dtm$i[index], dtm$j[index]] <- dtm$v[index]
     }
@@ -996,7 +978,6 @@ SanitizeTex <- function(string){
 ##' @export
 ##' @author Mark Huberty
 cosine.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
-
 
   out = cosine(dtm[idx.dtm1,], dtm[idx.dtm2,])
 
@@ -1113,16 +1094,6 @@ vector.diff <- function(x, y){
 
 }
 
-
-## Could do the matrix/vector diffs with outer(x, y, fun)
-
-## This isn't tested. Trying for a vectorized version of the
-## cosine similarity to cut out the loop function. Notice that this
-## returns the entire distance matrix, so it doesn't slot in correctly
-## just yet. Would have to rewrite everything else to take as inputs
-## the dtm, and idx.final / idx.initial, idx.collection. Then
-## could return the sets of distance matrices, etc. Trying to make
-## this much faster, to cut out the 130k loops that result.
 
 
 ##' Vectorized version (to cut out the loop function) of the cosine similarity
@@ -1267,9 +1238,6 @@ ModelDocSet <- function(doc.list,
     }else{
       topic.idx <- doc.list$idx.final
     }
-
-  #print(type)
-  #print(topic.idx)
   
   model.out <- ModelTopics(doc.list$vs.out,
                            topic.idx,
@@ -1281,7 +1249,7 @@ ModelDocSet <- function(doc.list,
                            weighting=weighting,
                            control=control
                            )
-
+  ## Provide an index to the text (1:N) rather than the dtm
   model.out$txt.idx <- model.out$dtm.idx - min(dtm.idx) + 1
   
   return(model.out)
@@ -1346,16 +1314,15 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
   dtm.sub <- dtm.sub[has.terms,]
   idx <- idx[has.terms]
 
-  
   this.dtm <- sparseToDtm(dtm.sub, weighting=weighting)
-  print(dim(this.dtm))
+  #print(dim(this.dtm))
   
-
+  ## If no K provided, ensure that each topic has on average 10 documents
   if(is.null(k))
     k <- ceiling(nrow(this.dtm) / 10)
 
+  ## Match and execute the topic modeling function
   topic.fun <- match.fun(topic.method)
-
   out <- topic.fun(this.dtm, method=sampling.method, k=k, control=control)
 
   terms.out <- terms(out, n.terms)
@@ -1397,7 +1364,7 @@ sparseToDtm <- function(sparseM, weighting=weightTf){
 ##' function used in MapBills.
 ##' @param threshold.values a numeric vector of potential threshold
 ##' values. See GetLikelyComposite for the definition of the threshold
-##' value. A suitable granular vector is recommended, as in seq(0,0.5, 0.005)
+##' value. A suitably granular vector is recommended, as in seq(0,0.5, 0.005)
 ##' @param encoder.out the output of run.encoder for the human-coded
 ##' matches of these documents.
 ##' @param type one of "overall" (overall accuracy) or "tradeoff"
@@ -1417,7 +1384,7 @@ learn.threshold <- function(map.bills.out,
                             type="overall"){
 
   
-  if(type == "overall")
+  if (type == "overall")
     {
       accuracy.measures <- get.accuracy.measures(map.bills.out,
                                                  initial.bill,
@@ -1432,7 +1399,7 @@ learn.threshold <- function(map.bills.out,
       best.idx <- which(accuracy.measures$overall ==
                         max(accuracy.measures$overall)
                         )
-    }else if(type == "tradeoff"){
+    } else if (type == "tradeoff"){
 
       accuracy.measures <- get.type.errors(map.bills.out,
                                            initial.bill,
@@ -1455,6 +1422,7 @@ learn.threshold <- function(map.bills.out,
   return(list(optimum.threshold, accuracy.measures))
 
 }
+
 ##' Calculates the overall accuracy rate by threshold value for a set
 ##' of documents based on a human-coded set of matches. See
 ##' learn.threshold() for more details.
@@ -1495,12 +1463,14 @@ get.accuracy.measures <- function(map.bills.out,
                              )
     ## Subset in case only some of the bill was hand-coded
     cb <- cb[encoder.out$target.index,]
-    
+
+    ## Tabulate the source accuracy data
     tab.source.acc <- table(cb$match.origin,
                             encoder.out$match.source
                             )
     pct.source.acc <- sum(diag(tab.source.acc)) / sum(tab.source.acc)
 
+    ## Tabulate the source + index accuracy data
     overall.acc <- (cb$match.origin == encoder.out$match.source &
                     cb$match.idx == encoder.out$match.index
                     )
@@ -1595,7 +1565,9 @@ get.type.errors <- function(map.bills.out,
 ##' @param amend.distance.mat the pairwise distance matrix between
 ##' amend.match.text and target text.
 ##' @param n.matches.to.show the number of potential matches to show
-##' @param target.idx the index of the target text. 
+##' @param target.idx the index of the target text.
+##' @param similarity boolean for whether the distance metric used for
+##' the distance.mat objects was a similarity measure or a distance measure 
 ##' @return A matrix mapping from each entry in the target text to a
 ##' user-supplied index of the best match in either the initial text or
 ##' the amendment text.
@@ -1607,17 +1579,18 @@ encoder <- function(target.text,
                     initial.distance.mat,
                     amend.distance.mat=NULL,
                     n.matches.to.show=5,
-                    target.idx
+                    target.idx,
+                    similarity=TRUE
                     ){
 
-  if(!is.null(amend.distance.mat) & !is.null(amend.match.text))
+  if (!is.null(amend.distance.mat) & !is.null(amend.match.text))
     {
     
       has.amend <- TRUE
       n.matches.to.show <- ceiling(n.matches.to.show / 2)
       print(n.matches.to.show)
       
-    }else{
+    } else {
 
       has.amend <- FALSE
 
@@ -1625,15 +1598,15 @@ encoder <- function(target.text,
 
   idx.initial.mat <- sapply(1:ncol(initial.distance.mat), function(x){
 
-    order(initial.distance.mat[,x], decreasing=TRUE)[1:n.matches.to.show]
+    order(initial.distance.mat[,x], decreasing=similarity)[1:n.matches.to.show]
 
   })
 
-  if(has.amend)
+  if (has.amend)
      {
        idx.amend.mat <- sapply(1:ncol(amend.distance.mat), function(x){
          
-         order(amend.distance.mat[,x], decreasing=TRUE)[1:n.matches.to.show]
+         order(amend.distance.mat[,x], decreasing=similarity)[1:n.matches.to.show]
          
        })
      }
@@ -1648,8 +1621,6 @@ encoder <- function(target.text,
     {
 
       ## Get the potential targets
-
-      ## Issue here: need to handle the 'no amendments' case
       target <- target.text[r]
 
       potential.initial.match.idx <-
@@ -1658,16 +1629,8 @@ encoder <- function(target.text,
         initial.match.text[potential.initial.match.idx]
       potential.initial.match.distances <-
         initial.distance.mat[potential.initial.match.idx, r]
-      
-      ## potential.initial.matches <-
-      ##   potential.initial.matches[shuffle.vec]
-      ## potential.initial.match.distances <-
-      ##   dist.vec[shuffle.vec]
-      ## potential.initial.match.idx <-
-      ##   match.idx[shuffle.vec]
 
-
-      if(has.amend)
+      if (has.amend)
         {
 
           potential.amend.match.idx <-
@@ -1679,9 +1642,8 @@ encoder <- function(target.text,
 
         }
 
-      ## Generate the list of matches
-
-      if(has.amend)
+      ## Generate the list of matches and shuffle order
+      if (has.amend)
         {
           match.len <- 2 * n.matches.to.show
           shuffle.master <- sample(1:match.len, replace=FALSE)
@@ -1705,7 +1667,7 @@ encoder <- function(target.text,
               potential.initial.match.idx
               )[shuffle.master]
           
-        }else{
+        } else {
           match.len <- n.matches.to.show
           shuffle.master <- sample(1:match.len, replace=FALSE)
 
@@ -1743,50 +1705,35 @@ encoder <- function(target.text,
               "or NA): ",
               sep=" "
               )
-              
+      selection <- ValidateSelection(prompt=prompt.text,
+                                     valid.matches=valid.matches
+                                     )
       while(!valid.selection)
         {
           
           selection <- readline(prompt=prompt.text)
+          valid.selection <- ValidateSelection(selection,
+                                               valid.matches
+                                               )
 
-          if(selection == "")
-            {
-
-              print("Empty entries not valid, please try again")
-              valid.selection <- FALSE
-
-            }else{
-
-              if(selection %in% valid.matches)
-                {
-                  valid.selection <- TRUE
-                  selection <- as.integer(selection)
-                }else{
-                  print("Invalid choice. Please try again")
-                }
-            }
         }
 
-      if(!is.na(selection))
-         {
-           match.selections <- append(match.selections,
-                                      potential.match.idx[selection])
-           dist.selections <- append(dist.selections,
-                                     potential.match.distances[selection]
-                                     )
-           source.selections <- append(source.selections,
-                                       match.source[selection]
-                                       )
-         }else{ ## No match, append as final
+      if (!is.na(selection))
+        {
+          match.selections <- append(match.selections,
+                                     potential.match.idx[selection])
+          dist.selections <- append(dist.selections,
+                                    potential.match.distances[selection]
+                                    )
+          source.selections <- append(source.selections,
+                                      match.source[selection]
+                                      )
+        } else { ## No match, append as final
 
-           match.selections <- append(match.selections, r)
-           dist.selections <- append(dist.selections, selection)
-           source.selections <- append(source.selections, "doc.final")
-           ## print(match.selections)
-           ## print(dist.selections)
-           ## print(source.selections)
-           
-         }
+          match.selections <- append(match.selections, r)
+          dist.selections <- append(dist.selections, selection)
+          source.selections <- append(source.selections, "doc.final")
+        }
 
       print(paste("Matched",
                   r,
@@ -1811,6 +1758,33 @@ encoder <- function(target.text,
 
 }
 
+##' Validates the user input for the encoder routine and returns a
+##' boolean 
+##' @title ValidateSelection
+##' @param selection the user input from the command line 
+##' @param valid.matches a set of valid user inputs
+##' @return TRUE if the input is valid, else FALSE
+##' @author Mark Huberty
+ValidateSelection <- function(selection, valid.matches){
+
+  if(selection == "")
+    {
+
+      print("Empty entries not valid, please try again")
+      valid.selection <- FALSE
+
+    }else{
+
+      if(selection %in% valid.matches)
+        {
+          valid.selection <- TRUE
+          selection <- as.integer(selection)
+        }else{
+          print("Invalid choice. Please try again")
+        }
+    }
+  return(valid.selection)
+}
 
 ##' Takes the text to be matched, the initial text and amendment
 ##' candidate matches, and settings for
@@ -1918,10 +1892,10 @@ run.encoder <- function(target.text=NULL,
                                 doc.list$idx.final,
                                 doc.list$idx.initial
                                 )
-  if(is.null(amendments))
+  if (is.null(amendments))
     {
       distance.mat.amend <- NULL
-    }else{
+    } else {
       
       distance.mat.amend <- dist.fun(doc.list$vs.out,
                                      doc.list$idx.final,
@@ -1945,42 +1919,6 @@ run.encoder <- function(target.text=NULL,
 }
 
 
-## test.accuracy <- function(automated.match,
-##                           human.match,
-##                           doc.initial,
-##                           doc.final,
-##                           amendments,
-##                           amendment.origin=NULL,
-##                           filter="max",
-##                           dist.threshold=0
-##                           ){
-
-  
-##   best.automated.match <- GetLikelyComposite(automated.match,
-##                                              doc.initial,
-##                                              doc.final,
-##                                              amendments,
-##                                              filter=filter,
-##                                              dist.threshold=dist.threshold
-##                                              )
-
-##   best.human.match <- GetLikelyComposite(human.match,
-##                                          doc.initial,
-##                                          doc.final,
-##                                          amendments,
-##                                          filter=filter,
-##                                          dist.threshold=dist.threshold
-##                                          )
-
-##   ## Not right, needs to compare both idx and origin...
-##   match.pct <- sum(best.automated.match$match.idx ==
-##                    best.human.match$match.idx) /
-##                      length(best.automated.match$match.idx)
-
-  
-
-
-## }
 
 ##' Provides a 2-level hierarchical topic modeling interface for
 ##' modeling the amendment content
@@ -2004,6 +1942,8 @@ run.encoder <- function(target.text=NULL,
 ##' @param addl.stopwords Any additional stopwords that should be
 ##' removed prior to modeling
 ##' @param weighting One of weightTf, weightTfIdf, or weightBin
+##' @param control A vector of control parameters for the topic model
+##' function; see the topicmodels documentation for more detail.
 ##' @param ... 
 ##' @return A list of of length 2. The first element in the list is a
 ##' list of all models (both the top-level model and each of the
@@ -2014,6 +1954,7 @@ run.encoder <- function(target.text=NULL,
 ##' contains the sets of terms that characterize the sub-categories
 ##' within that level-one category.
 ##' @author Mark Huberty
+##' @export
 model.amend.hierarchy <- function(doc.list,
                                   composite.mat,
                                   k=NULL,
@@ -2031,17 +1972,17 @@ model.amend.hierarchy <- function(doc.list,
   ## Fix the K values appropriately
   ## Three cases: No K; single K, vector of K's, one per
   ## level-1 topic
-  if(is.null(k))
+  if (is.null(k))
     {
 
       k <- ceiling(length(doc.list$idx.amendments) / 50)
       k.all <- c(k, rep(NULL, k))
       
-    }else if(length(k) == 1){
+    } else if (length(k) == 1){
       
       k.all <- rep(k, k + 1)
       
-    }else{
+    } else {
 
       stopifnot(length(k) == k[1] + 1)
       k.all <- k
@@ -2173,6 +2114,7 @@ get.tf.idx <- function(dtm, probs){
 ##' amendments for that primary topic by committee, secondary topic,
 ##' and accept/reject.
 ##' @author Mark Huberty
+##' @export
 ctab.amend.hierarchy <- function(amend.topic.hierarchy,
                                  composite.bill,
                                  committees,
@@ -2211,7 +2153,22 @@ ctab.amend.hierarchy <- function(amend.topic.hierarchy,
                      
 }
 
-
+##' Crosstabs topics, committees, and acceptance/rejection for matched
+##' amendments. Called within ctab.amend.hierarchy.
+##' @title ctab.topics
+##' @param topics the topic vector as returned by model.amend.hierarchy
+##' @param committees the committee list corresponding to the
+##' committees responsible for the amendments
+##' @param master.idx The index of matched amendments in the composite
+##' bill, specifically the match.origin element of a composite.bill object
+##' @param this.idx Index of the amendments as they appear in the
+##' topic model, on the same interval as master.idx. Note that this is
+##' not the same as the dtm.idx, because of dropped cases due to
+##' amendment length or different stopwords lists.
+##' @return A list of crosstabs: by topic and accepted/rejected
+##' (count.by.topic.status); by committee and accepted/rejected
+##' (count.by.committee.status); and proportion by topic status
+##' @author Mark Huberty
 ctab.topics <- function(topics, committees, master.idx, this.idx){
 
   labels <- rep(NA, length(this.idx))
@@ -2297,122 +2254,10 @@ my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
     return(out)
 }
 
-# # # # 
-# # ## Blah, this isn't working. Needs to properly subset everything
-# # ## so that it re-aligns the topics and subtopics with the amendments. 
-# # ctab.amendment.topics <- function(topic.model, doc.list, composite.mat, type){
-	
-# # # #   stopifnot(type %in% c("incl.amend", "rej.amend"))
-
-  # # # if(type == "incl.amend")
-    # # # {
-    	# # #  ...
-
-  # # # tab <- table(topics
-  
-  # # # return (tab)
-  
-# # # })
-
-        
-
-	
-# # # topic.model   =  LDA(this.dtm, method=sampling.method, k=k, ...)
-# # # doc.list      =  list of indices (final, initial, amends) 1:n, and the big giant dtm, all in a list.
-# # # composite.mat =  GetLikelyComposite output: big list of c(x, match.idx, match.origin, alt.origin, match.dist, match.txt)'s
-				  # # # Note that match.idx is ordered by which amendment matched to mapbills.out$bill2.idx, i.e. 1:f 
-				  # # # so: match.idx <- mapbills.out[x, c("bill1.idx",
-                    # # #                   "amend.idx")[dist.idx]  ] i.e. the xth final bill paragraph, the index of
-                    # # #					whichever type was the best match (amend or bill1).                   
-                                     
-# # # type          =   the subset of the text to be clustered by topic: one
-					# # # of "incl.amend" (default), "rej.amend", "incl.orig", "rej.orig",
-					# # # "all.amend", or "final".
-					
-
- # # # e.g. say you've got model.1 = output of ModelText
-
-# # # Input: a model created from ModelText.
-# # # Output: A list with three elements:
-# # #       1) a topic index (i.e. 1: # of topics)
-# # #       2) the proportion of amendments in each respective topic
-# # #       3) a matrix containing k columns, where there are k columns,
-# # #          each column containing a vector of length = (# of amendments),
-# # #          representing the index of which amendments are in the given 
-# # #          topic. Corresponds to the idx.amendments for the big dtm
-# # #          created from CreateAllVectorSpaces.
-
-# # proportions<-function(model=model.1){
-	
-  # # number.of.amends<-length(model$dtm.idx)
-        
-  # # number.of.topics<-ncol(model$terms)
-        
-  # # topic.idx<-matrix (rep (0,number.of.topics*number.of.amends)
-                       # # ,ncol = number.of.topics) 
-                       
-  # # p<-c(rep(0,number.of.topics))
-        
-  # # for(i in 1:number.of.topics) {
-       	 # # p[i]<- ( (sum (model$topics==i) / 
-          			# # length(model.1$dtm.idx) )
-          			 # # ) 
-       	 # # topic.idx[,i]<-as.numeric (
-                # # (1:length(model$topics)) %in% 
-                        # # which (model$topics==i) )
-                # # }
-		# # # end for loop
-		
-   # # props.out<-list((1:number.of.topics),p,topic.idx)
-   # # names(props.out)<-c("topics","proportions","topic.indices")
-
-        # # return (props.out)
-        # # }
-        
-# # ## # It would be nice to have an index of the amendment topics relating to the amendment 
-# # ## # number, i.e. topic.indices, but  not ordered by the scattered amendments in 
-# # ## # the output of CreateAllVectorSpaces, rather the amendment #. 
-# # ## # So: let's order the matrix differently by altering a few lines in the above function:
-# # ## # So: let's take the indices created by the above function and shuffle them around a bit.
-
-# # ## fun<-function(x){which(x==1)}
-# # ## orders<- apply(props$topic.indices,2,fun)
-# # ## # remember that each column i in 1:k denotes the ith topic -> the values denote the 
-# # ## # amenments which are assigned to that topic i.
-
-# # ## composite.mat<-GetLikelyComposite
-# # ##                 (mapbills.out = ?
-# # ##                  doc.initial = initial.bill,
-# # ##                  doc.final = final.bill,
-# # ##                  amendments = amendments,
-# # ##                  amendment.origin = doc.mat$idx.amendments)
-# # ##         # I can't get MapBills to work for some reason, and thus this to work... Will soon.
-# # ## match.idx<-composite.mat$match.idx
-
-# # ## amends.only<- match.idx[composite.mat$match.origin=="amendment"]
-# # ##         # i.e. the big dtm (1:N) ordered amendments, shuffled by which final bill paragraph
-# # ##         # each matches to (where the final bill paragraphs are ordered 1,2,...f).
-# # ## order.midx <- order(amends.only)
-
-# # ## order1:m<- function(x) {x[order.midx]}
-
-# # ## # To make the topic.indices represent the amendments from 1:m  :
-
-# # ## ordered.i:m.topic.indices<-apply(orders,2,order1:m)
-
 
 
 #################################################################
-## Hillary Sanders
-## Automated analysis of legislative history - Graphing 
-## Begun: March 2012
-
-## This part of the file contains functions that will be the graphing component of
-## an R package whose purpose is to automate the textual evolution of legislation.
-## The file contains two major functions which create different directed acyclic
-## graphs, as well as a few smaller helper functions which are called within 
-## the larger functions.
-## END
+## BEGIN VISUALIZATION CODE FOR AMENDMENT AND TOPIC FLOW
 #################################################################
 ## require(igraph)
 ## require(plyr)
@@ -2969,12 +2814,12 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
 ##' @return Text on plotted onto a See.Committee.Topics() graph (with default 
 ##' layout style).
 ##' @author Hillary Sanders
-  Plot.Topic.Words <- function(words.list, layout,
-                               cex=.5, col="grey30", pos=1,
-                               x.offset=0, y.offset=-.05,
-                               adjust=2.8, text.close=.8
-                               ) {
-        
+Plot.Topic.Words <- function(words.list, layout,
+                             cex=.5, col="grey30", pos=1,
+                             x.offset=0, y.offset=-.05,
+                             adjust=2.8, text.close=.8
+                             ) {
+  
   num.top <- length(words.list)
   x.axis <- ( (layout[ ( layout[,2] == unique (layout[,2])[2]),1] # the 2nd level
                )*adjust) - adjust*.5
@@ -2984,10 +2829,10 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
 
   for (i in 1:num.top){
     x <- (x.axis[i]-x.offset )  # scale
- text(x=x, y=y.axis, pos=pos, offset=x.offset,
-      labels=c(words.list[[i]]), col=col,cex=cex)
-    }
+    text(x=x, y=y.axis, pos=pos, offset=x.offset,
+         labels=c(words.list[[i]]), col=col,cex=cex)
   }
+}
 # end Plot.Topic.Words
 
 
