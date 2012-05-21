@@ -33,8 +33,8 @@
 ## require(Matrix)
 ## require(RWeka)
 
-##' @import tm topicmodels stringr lsa Matrix RWeka
-##' @importFrom gdata trim
+##' @import tm topicmodels stringr lsa Matrix RWeka gdata catspec 
+NULL ## terminatest the import statement, don't take it out.
 
 ##' Maps the final bill to both the original bill and any proposed
 ##' amendments. Returns a matrix that maps from the final bill to the
