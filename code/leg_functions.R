@@ -33,7 +33,8 @@
 ## require(Matrix)
 ## require(RWeka)
 
-##' @import tm topicmodels stringr lsa Matrix RWeka gdata catspec 
+##' @import tm topicmodels stringr lsa Matrix RWeka gdata catspec
+##' @import foreach RecordLinkage igraph plyr
 NULL ## terminates the import statement, don't take it out.
 
 ##' Maps the final bill to both the original bill and any proposed
@@ -53,38 +54,38 @@ NULL ## terminates the import statement, don't take it out.
 ##' amendments, with distance values for each matched pair.
 ##' @export
 ##' @author Mark Huberty
-MapBills <- function(doc.list,
-                     distance.fun="cosine.dist",
+MapBills <- function(cvsobject,
+                     distance.fun="cosine.mat",
                      filter.fun="max"
                      ){
 
-
-  idx.collection <- ifelse(is.na(doc.list[["idx.amendments"]]),
-                           doc.list[["idx.initial"]],
-                           c(doc.list[["idx.initial"]],
-                             doc.list[["idx.amendments"]]
+  stopifnot(class(cvsobject) == "leghistCVS")
+  idx.collection <- ifelse(is.na(cvsobject[["idx.amendments"]]),
+                           cvsobject[["idx.initial"]],
+                           c(cvsobject[["idx.initial"]],
+                             cvsobject[["idx.amendments"]]
                              )
                            )
                     
   ## Create mapping by loop
   print("mapping final to initial")
-  map.initial.final <- MapFun(doc.list[["vs.out"]],
+  map.initial.final <- MapFun(cvsobject,
                               distance.fun=distance.fun,
-                              idx.final=doc.list[["idx.final"]],
-                              idx.compare=doc.list[["idx.initial"]],
+                              idx.final=cvsobject[["idx.final"]],
+                              idx.compare=cvsobject[["idx.initial"]],
                               idx.collection=idx.collection,
                               filter.fun
                               )
 
   
 
-  if (!is.na(doc.list[["idx.amendments"]]))
+  if (!is.na(cvsobject[["idx.amendments"]]))
     {
       print("mapping final to amendments")
-      map.amend.final <- MapFun(doc.list[["vs.out"]],
+      map.amend.final <- MapFun(cvsobject,
                                 distance.fun=distance.fun,
-                                idx.final=doc.list[["idx.final"]],
-                                idx.compare=doc.list[["idx.amendments"]],
+                                idx.final=cvsobject[["idx.final"]],
+                                idx.compare=cvsobject[["idx.amendments"]],
                                 idx.collection=idx.collection,
                                 filter.fun
                                 )
@@ -119,48 +120,44 @@ MapBills <- function(doc.list,
 ##' via nearest-neighbor matching on the basis of a user-supplied
 ##' distance / similarity function.
 ##' @title MapFun
-##' @param dtm A document-term matrix as output from
-##' CreateAllVectorSpaces
-##' @param distance.fun a distance or similarity function. The
-##' underlying distance metric should return larger values when two
-##' objects are closer. It should return a matrix of form idx.final *
-##' idx.compare
-##' @param idx.final 
+##' @param cvsobject an object of class leghistCVS, as output
+##' by CreateAllVectorSpaces
+##' @param distance.fun a distance or similarity function. It may
+##' either use the "vs.out" object (for bag-of-words based metrics) or
+##' the "corpus" object (for string-based metrics). It should return a
+##' matrix of form idx.final * idx.compare.
+##' @param idx.final an integer index indicating the location of the
+##' target documents to be matched to
 ##' @param idx.compare an integer index vector indicating rows in dtm
 ##' corresponding to potential matches for the target documents
 ##' @param idx.collection all rows in dtm corresponding to potential
-##' matches
-##' @param idx.query an integer index vector indicating the rows in
-##' dtm corresponding to a set of target documents for which matches
-##' are desired
+##' matches (e.g., initial + amendments if both are present)
 ##' @param filter.fun one of "min" or "max", indicating how the best
 ##' match should be chosen. The choice should depend on whether
 ##' distance.fun returns returns distance (min) or similarity (max)
+##' @param dtm A document-term matrix as output from
+##' CreateAllVectorSpaces
+##' @param idx.query an integer index vector indicating the rows in
+##' dtm corresponding to a set of target documents for which matches
+##' are desired
 ##' @return a 3-column matrix of form idx.query:idx.match:distance
 ##' @export
 ##' @author Mark Huberty
-MapFun <- function(dtm,
+MapFun <- function(cvsobject,
                    distance.fun="cosine.dist",
                    idx.final,
                    idx.compare,
                    idx.collection,
                    filter.fun){
 
-  if ("DocumentTermMatrix" %in% class(dtm))
-    {
-      dtm <- DtmToMatrix(dtm)
-    } else {
-      stopifnot(class(dtm) %in% c("data.frame", "matrix") |
-                "dgCMatrix" %in% class(dtm)
-                )
-    }
-  
+  stopifnot(class(cvsobject) == "leghistCVS")
+    
   ## Set the sort order flag based on the filter function
   d <- ifelse(filter.fun == "max", TRUE, FALSE)
   dist.fun <- match.fun(distance.fun)
-
+  
   ## Generate the distance matrix
-  dist.mat <- dist.fun(dtm, idx.final, idx.compare, idx.collection)
+  dist.mat <- dist.fun(cvsobject, idx.final, idx.compare, idx.collection)
 
   ## Retrieve the match indices and the distance 
   match.idx <- sapply(1:ncol(dist.mat), function(x){
@@ -286,16 +283,16 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
     } else {
 
        idx.amendments <-
-        (length(doc.final) + length(doc.initial) + 1):vs.all$nrow
+        (length(doc.final) + length(doc.initial) + 1):vs.all$dtm$nrow
       
     }
 
   ## Convert the dtm to a sparse matrix so I can do math on it later.
   ## Note that this is much faster than the SparseToDtm code
-  vs.out <- sparseMatrix(i=vs.all$i,
-                         j=vs.all$j,
-                         x=vs.all$v,
-                         dimnames=vs.all$dimnames
+  vs.out <- sparseMatrix(i=vs.all$dtm$i,
+                         j=vs.all$dtm$j,
+                         x=vs.all$dtm$v,
+                         dimnames=vs.all$dtm$dimnames
                          )
 
   list.out <- list(idx.final,
@@ -311,7 +308,7 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
                        "vs.out",
                        "corpus.out"
                        )
-                   
+  attr(list.out, "class") <- "leghistCVS"
   return(list.out)
   
 
@@ -969,29 +966,6 @@ SanitizeTex <- function(string){
   
 }
 
-##' A wrapper function for the cosine() function in the lsa package,
-##' which allows it to work with the MapBills function.
-##' @title cosine.dist
-##' @param dtm a document-term matrix, such as is output from
-##' CreateAllVectorSpaces(), containing the term frequency vectors of
-##' both the documents for which matches are needed, and the set of
-##' candidate match documents D
-##' @param idx.dtm1 a row index indicating the location of the first document.
-##' @param idx.dtm2 a row indiex indicating the location of a second document.
-##' @param idx.collection a vector of indices indicating which rows in
-##' dtm are for the set of comparison documents D (as opposed to the
-##' documents requiring matches.
-##' @return the output of cosine()
-##' @export
-##' @author Mark Huberty
-cosine.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
-
-  out = cosine(dtm[idx.dtm1,], dtm[idx.dtm2,])
-
-  return(out)
-
-}
-
 
 ##' A wrapper function for similarity() that takes a standard set of
 ##' inputs and handles pre-processing for the outputs
@@ -1010,7 +984,7 @@ cosine.dist <- function(dtm, idx.dtm1, idx.dtm2, idx.collection){
 ##' @export
 ##' @author Mark Huberty
 similarity.dist <- function(dtm, idx.query, idx.compare, idx.collection){
-
+  dtm <- dtm[["vs.out"]]
   N <- length(idx.collection)
   ft <- colSums(dtm[idx.collection,] > 0)
   
@@ -1076,7 +1050,7 @@ similarity <-function(vec.d,
 ##' @export
 ##' @author Mark Huberty
 cosine.length.mat <- function(dtm, idx.query, idx.compare, idx.collection){
-
+  dtm <- dtm[["corpus.out"]]
   rq <- rowSums(dtm[idx.query,])
   rd <- rowSums(dtm[idx.compare,])
 
@@ -1119,7 +1093,7 @@ vector.diff <- function(x, y){
 ##' @export
 ##' @author Mark Huberty
 cosine.mat <- function(dtm, idx.query, idx.compare, idx.collection){
-
+  dtm <- dtm[["vs.out"]]
   dtm.query <- dtm[idx.query,]
   dtm.compare <- dtm[idx.compare,]
   
@@ -1136,6 +1110,31 @@ cosine.mat <- function(dtm, idx.query, idx.compare, idx.collection){
 
 }
 
+##' Computes the levenshtein distance between each element of the
+##' a character vector of query documents and an entire vector of
+##' sources. Supports use of a parallel backend via the foreach()
+##' library to speed computation for large data sizes. Produces output
+##' compatible with the MapBills function and can be passed as dist.fun.
+##' @title LevenshteinDist
+##' @param dtm a leghistCVS object as output from CreateAllVectorSpaces 
+##' @param idx.query the index of the final bill in the corpus
+##' @param idx.compare the index of potential matches to the final
+##' bill
+##' @param idx.collection all entries in the corpus corresponding to potential matches
+##' @return A distance matrix of form idx.query * idx.compare
+##' @author Mark Huberty
+##' @export
+LevenshteinDist <- function(dtm, idx.query, idx.compare, idx.collection){
+  stopifnot(class(dtm) == "leghistCVS")
+  txt <- unlist(dtm$corpus.out)
+  out <- foreach(x=idx.query, .combine=rbind) %dopar% {
+
+    levenshteinSim(txt[x], txt[idx.compare])
+    
+    }
+  
+  return(t(out))
+}
 
 
 
@@ -1712,9 +1711,11 @@ encoder <- function(target.text,
               "or NA): ",
               sep=" "
               )
-      selection <- ValidateSelection(prompt=prompt.text,
-                                     valid.matches=valid.matches
-                                     )
+
+      selection <- readline(prompt=prompt.text)
+      valid.selection <- ValidateSelection(selection,
+                                           valid.matches
+                                           )
       while(!valid.selection)
         {
           
@@ -1725,6 +1726,7 @@ encoder <- function(target.text,
 
         }
 
+      selection <- as.integer(selection)
       if (!is.na(selection))
         {
           match.selections <- append(match.selections,
@@ -1785,11 +1787,12 @@ ValidateSelection <- function(selection, valid.matches){
       if(selection %in% valid.matches)
         {
           valid.selection <- TRUE
-          selection <- as.integer(selection)
         }else{
+          valid.selection <- FALSE
           print("Invalid choice. Please try again")
         }
     }
+  print(valid.selection)
   return(valid.selection)
 }
 
@@ -1895,7 +1898,7 @@ run.encoder <- function(target.text=NULL,
   print("Vector space created")
   dist.fun <- match.fun(dist.fun)
 
-  distance.mat.orig <- dist.fun(doc.list$vs.out,
+  distance.mat.orig <- dist.fun(doc.list,
                                 doc.list$idx.final,
                                 doc.list$idx.initial
                                 )
@@ -1904,7 +1907,7 @@ run.encoder <- function(target.text=NULL,
       distance.mat.amend <- NULL
     } else {
       
-      distance.mat.amend <- dist.fun(doc.list$vs.out,
+      distance.mat.amend <- dist.fun(doc.list,
                                      doc.list$idx.final,
                                      doc.list$idx.amendments
                                      )
