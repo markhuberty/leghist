@@ -34,7 +34,7 @@
 ## require(RWeka)
 
 ##' @import tm topicmodels stringr lsa Matrix RWeka gdata catspec 
-NULL ## terminatest the import statement, don't take it out.
+NULL ## terminates the import statement, don't take it out.
 
 ##' Maps the final bill to both the original bill and any proposed
 ##' amendments. Returns a matrix that maps from the final bill to the
@@ -301,10 +301,16 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
   list.out <- list(idx.final,
                    idx.initial,
                    idx.amendments,
-                   vs.out
+                   vs.out,
+                   vs.all[["corpus"]]
                    )
   
-  names(list.out) <- c("idx.final", "idx.initial", "idx.amendments", "vs.out")
+  names(list.out) <- c("idx.final",
+                       "idx.initial",
+                       "idx.amendments",
+                       "vs.out",
+                       "corpus.out"
+                       )
                    
   return(list.out)
   
@@ -372,14 +378,14 @@ CreateVectorSpace <- function(docs,
                           )
     }
 
-  if (rm.whitespace)
-    {
-      corpus.in <- tm_map(corpus.in, stripWhitespace)
-    }
-
   if (rm.punctuation)
     {
       corpus.in <- tm_map(corpus.in, removePunctuation)
+    }
+  
+  if (rm.whitespace)
+    {
+      corpus.in <- tm_map(corpus.in, stripWhitespace)
     }
 
   if (stem)
@@ -393,8 +399,9 @@ CreateVectorSpace <- function(docs,
                                      tokenizer=tokenizer)
                                    )
 
-
-  return(dtm.corpus)
+  corpus.dtm.out <- list(corpus.in, dtm.corpus)
+  names(corpus.dtm.out) <- c("corpus", "dtm")
+  return(corpus.dtm.out)
   
 }
 ## End CreateVectorSpace
