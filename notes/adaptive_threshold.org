@@ -1,0 +1,80 @@
+#+TITLE: Adaptive thresholds for ~leghist~
+#+AUTHOR: Mark Huberty
+
+* Motivation
+
+The present ~leghist~ matching process determines "bad" matches using
+a single threshold for the entire set of matched pairs. That's
+probably cruder than it needs to be. The user must supply some piece
+of information to establish the good/bad partition--either some labeled
+data to train a partitioning algorithm against, or a threshold
+value--but there's no reason that the threshold value need be the same
+for each set of matched pairs. 
+
+* Intuition
+
+Drawing on Chaudhuri et al (2005), we note that a good matched pair
+would have the following qualities:
+- Dense in the immediate locality
+- Sparse in the larger neighborhood
+
+In practical terms, that would suggest that we would want a "small"
+distance between the final bill section and its match, and a "large"
+distance between that match and all other matches. 
+
+This suggests that information about the /distribution/ of similarity
+values should provide information about the quality of the match,
+which could then be used to determine whether to accept or reject a
+match on a per-case basis. 
+
+* Possibilities
+
+1. Maximum inter-match distance
+
+   The insight here goes as follows: Consider a similarity vector $S =
+   [s_1, s_2, s_3, ...s_n]$. The similarity value of the best match is then $s_{best}$. We can
+   represent the $n-1$ inter-match distances as vector $D=[d_1, d_2,
+   d_3, ...d_n]$, where $d_i = s_i - s_{i+1}$. Finally, the match
+   distance itself is $MD=1-s_{best}$. 
+
+   The insight here is that a very good match will have a large
+   $max(D)$, that is, it will have a large distance between the
+   nearest-neighbor match(es) and the bulk of the potential
+   matches. Hence we can specify a threshold value in terms of the
+   ratio $R=\frac{MD}{max(D)}$. Small values of R indicate
+   better-quality matches by indicating a more skewed distribution
+   between the "best" match and everthing else. 
+
+2. Standard deviation and sequential deletion
+   
+   We could also exploit the distribution of distance values by
+   looking at how distribution measures change under sequential
+   deletion of the "best" matches. Again consider the similarity
+   vector $S$, sorted such that $s_1=s_{best}$. Remember that a very
+   good match has a skewed distribution such that the $s_{best} \gg
+   \bar S_{!best}$.
+
+   Under that assumption, the standard deviation of the similarity
+   vector $\sigma_S$ should change significantly under sequential
+   deletion of the best matches. Given that we know at least a little
+   about the data-generating process, the user could specify a maximum
+   number of "close" matches and a multiplier $\heta$for changes to sigma
+   required to justify the "best" match as a valid match. A good match
+   under that rubric is $\frac{\sigma(S_{!best})}{\sigma(S)} <
+   \theta$.
+
+   This could in theory be developed further to use a one-tailed T
+   test (or a similar concept) for differences in means between the
+   distributions under sequential deletion.
+
+3. Ratio of match distance to nearest-neighbor distance
+   
+   Finally, given the match distance $MD=1-s_{best}$ and the
+   nearest-neighbor distance $NN=s_{best} - s_{next best}$, we could
+   establish local density and neighborhood sparseness as the ratio
+   $R=\frac{MD}{NN}$. For $R \gg 1$ this implies a "bad" match due to
+   local sparsity and neighborhood density. Likewise, $R \ll 1$
+   implies a good match. Finally, $R \approx 1$ suggests ambiguity: it
+   could be a good match or a good match with a lot of ties or
+   near-ties. 
+
