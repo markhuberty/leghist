@@ -2754,6 +2754,12 @@ Edge.Widths <- function(edge.width="absolute", edge.width.scale=1, A, num.com, n
 ##' node (vertex). If NULL, the committee nodes (bottom layer) will be named with 
 ##' their full names, each ith topic node will be named Topic i, and the two final
 ##' bins will be labeled "Final" and "Junk" (for accepted and rejected amendments).
+##' @param vertex.label.font Type of font for the vertex labels.
+##' @param vertex.label.cex Size of the vertex label font. Vectorized.
+##' @param vertex.color The color vertex labels are filled with.
+##' @param vertex.shape The shape of the vertices. Default = "rectangle". Note that
+##' if another shape is passed, area will no longer be (one-to-one) related to the 
+##' number of amendments represented. (For now)
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
 See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.out,
@@ -2766,7 +2772,8 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
                                  plot.terms=TRUE, terms.cex=.5, terms.col="grey30",
                                  terms.x.offset=0, terms.y.offset=-.05, 
                                  terms.spread=1, terms.text.close=1,
-                                 labels=NULL
+                                 labels=NULL, vertex.label.font=3, vertex.label.cex=.75,
+                                 vertex.color="cornflowerblue", vertex.shape = "rectangle"
                                  ) {
   
   merged <- Out.To.In(model.amend.hierarchy.out,get.likely.composite.out,committees)
@@ -2838,18 +2845,19 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
   
   # graph it!                
   plot(g,
-       layout=lay.mat,
-       edge.arrow.width= arrowhead.size,
-       edge.width= width,
-       edge.color= edge.color,
-       vertex.label= labels,
-       vertex.shape= "rectangle",
-       vertex.size= v.size,
+       layout = lay.mat,
+       edge.arrow.width = arrowhead.size,
+       edge.width = width,
+       edge.color = edge.color,
+       vertex.label = labels,
+       vertex.shape = vertex.shape,
+       vertex.size = v.size,
        vertex.size2 = v.size2,
-       vertex.label.dist= 0,
-       vertex.label.font=.3,
-       vertex.label.cex=.75,
-       main=main
+       vertex.label.dist = 0,
+       vertex.label.font = vertex.label.font,
+       vertex.label.cex = vertex.label.cex,
+       vertex.color = vertex.color,
+       main = main
        )
   
   if( plot.terms == TRUE){
@@ -2900,7 +2908,7 @@ See.Committee.Topics <- function(model.amend.hierarchy.out,get.likely.composite.
 
   for (i in 1:num.top){
     x <- (x.axis[i]+x.offset )  # scale
- text(x=x, y=y.axis, pos=pos,
+ text(x=x, y=y.axis,
       labels=c(words.list[[i]]), col=col, cex=cex)
     }
   }
@@ -3038,7 +3046,7 @@ Lay.SAS <- function(x, a, f){
   # End Lay.SAS
 
 
-##' Creates a two layered directed acyclic graph to visualize bill evolution.
+##' Creates a three tiered directed acyclic graph to visualize bill evolution.
 ##' Individual amendments are either connected (with an arrow) to a junk bin if the
 ##' amendment was not accepted into the final bill, or if it was, to its place in 
 ##' the final bill.

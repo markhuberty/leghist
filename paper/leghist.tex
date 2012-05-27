@@ -403,6 +403,20 @@ for inferring topics from empirical word distributions, and assigning
 documents to those topics on the basis of document-specific
 distributions. 
 
+\subsection{Macro-scale amendment visualization}
+\label{sec:macro-scale-vis}
+
+In order to examine overall trends, \texttt leghist provides an interface to visualize the macro-scale development of a bill in terms of amendment and topic flow. Implementation occurs via the \tttext{igraph} package for R \citep{...}. Two types of acyclic directed graphs are facilitated:
+
+\begin{enumerate}
+\item The flow of amendments, stemming  from the committees which submitted them, to the topics the amendments were modeled to, and to their final acceptance or rejection into the final bill, is modeled by a three tiered directed acyclic graph.
+Committees are represented by nodes on the bottom tier. Arrows, representing amendments submitted by each committee and modeled to some topic, connect committee nodes to topic nodes in the middle tier. Arrows, representing all amendments modeled to a given topic, connect topic nodes to one of two nodes - Junk or Final - in the top and final tier. Individual arrow widths and node areas correspond to the number of amendments represented by each. Arrow colors represent amendment success, failure, or combination thereof. Underneath each topic node, its set of terms is optionally plotted. 
+\item The failure, or the success and placement (index) in the final bill, of each submitted amendment is modeled by a three tiered directed acyclic graph. Each amendment, represented by an individual node in the bottom tier, is connected to its final destination - either a junk bin in the middle tier of the graph, or the amendment's placement in the final bill, each paragraph of which is represented as an individual node in the top and final tier. Arrow colors represent either an amendment's topic or committee.
+\end{enumerate}
+
+In graph (1), users are able to specify how arrow widths are calculated, the placement of the three layers, the scale of node areas in each tier, node colors, node shapes, how to plot the k terms which apply to each topic, arrow transparency, arrow color, layout, labels, and the title. Arrow widths can be calculated by the absolute number of amendments represented by each arrow, by the relative number of amendments represented given the node an arrow originates from, or by the proportion of successful amendments in the amendments represented by an arrow. Graph (1) is helpful in visualizing how various committees have trended towards submitting amendments regarding certain topics, and how successful those amendments have been. It's also helpful to visualize the scale and success of both committees and topics.
+
+In graph (2) users are able to specify how arrow colors are calculated, the colors used, the scale of arrow widths, the shape of various nodes, the scale of various node sizes, font, font size, labels, the title, and the placement and size of the legend. Arrow colors may either represent the topic a given amendment was assigned to, or alternatively the committee it was submitted by. Graph (2) is helpful in noticing amendment hotspots in the final bill, and visualizing the committees or topics associated with these hotspots.
 
 
 \section{Vignette: the 2009 European Electricity Market Regulation }
@@ -919,6 +933,39 @@ available tools for semantic clustering of text.
  [9,] "regions"      "mass"      "carbon"     "impact"      "body"          
 [10,] "rules"        "molecular" "annualised" "priority"    "established" 
 \end{verbatim}
+
+Finally, we create macro scale graphs of amendment flows.
+
+\begin{lstlisting}[language=R, numbers=none]
+See.Committee.Topics(rese.topics.2007, rese.composite.2007,
+                                 committees,
+                                 edge.width.scale=1, edge.width = "absolute",
+                                 scale.c=1, scale.t=1, scale.fin=1,
+                                 edge.transparency=75, edge.col=NULL,
+                                 main=NULL, arrowhead.size=0, 
+                                 layout=NULL, mid.layer=.65, 
+                                 plot.terms=TRUE, terms.cex=.5, terms.col="grey20",
+                                 terms.x.offset=0, terms.y.offset=0, 
+                                 terms.spread=1, terms.text.close=1,
+                                 labels=NULL
+                                 )
+\end{lstlisting}
+
+Output is shown below. We can easily observe that while the Parliament's 1st reading supplied the majority of amendments, the Commission's amendments were far more successful - though overall, most amendments were rejected. Topic six amendments, mostly submitted by the Parliament 1st reading, were mostly unsuccessful, while the rest were relatively equal in their success, Topic four amendments doing slightly better than others.
+
+\begin{lstlisting}[language=R, numbers=none]
+See.Amends.Success(model.amend.hierarchy.out, get.likely.composite.out, committees,
+		       color.by="topics", col = NULL,
+                               edge.width.scale=1, arrowhead.size=0,
+                               af.shape="none", junk.shape="rectangle",
+                               af.scale=1, junk.scale=1,
+                               label.font=3,label.cex=.75, labels=NULL,
+                               main="Amendments' Destinations",
+                               legend.x=-1.25, legend.y=.5, legend.cex=.5
+                               )
+\end{lstlisting}
+
+Output is shown below. This second graph again shows that while the majority of amendments were submitted by the Parliament 1st reading, the Commission was much more successful in their amendment proposals. The Commission's successful amendments focused most on the end of the bill, around paragraph 320.
 
 
 \section{Conclusions}
