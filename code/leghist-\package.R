@@ -12,7 +12,7 @@
 ##' 4. Modeling of the content of added and discarded material
 ##' 5. Visualization of the flow of bill content, by subject matter
 ##'    area, from the initial to final bill.
-##' @name leg-package
+##' @name leghist-package
 ##' @docType package
 ##' @title Mapping of textual evolution of legislation
 ##' @keywords package
