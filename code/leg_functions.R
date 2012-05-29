@@ -2620,7 +2620,7 @@ GetEdgeWidth.Relative <- function(x,A,num.arrows.to.topics){
 ##' of 1:t), and its final destination (junk or final bill: 0 or 1). See
 ##' SeeCommitteeTopics() for more details.
 ##' @param num.arrows.to.topics The number of distinct edges (arrows) that are
-##'going to topic nodes (the middle layer) in the SeeCommitteeTopics() plot.
+##' going to topic nodes (the middle layer) in the SeeCommitteeTopics() plot.
 ##' @param num.com The number of committees in the SCT graph to be plotted.
 ##' @param num.top The number of topics in the SCT graph to be plotted.
 ##' @return the width of the x[3]th edge (arrow), according to the % of
@@ -2662,7 +2662,7 @@ GetEdgeWidth.Success <- function(x, A, num.arrows.to.topics, num.com, num.top){
 ##' where a = the number of amendments. The columns 1:4 respectively indicate 
 ##' amendment index, committee, topic, and logical success or failure. Each row
 ##' corresponds to one non-discarded (so rejected and accepted) amendment.
-##' @ param num.com The number of committees in the SCT graph to be plotted.
+##' @param num.com The number of committees in the SCT graph to be plotted.
 ##' @param num.top The number of topics in the SCT graph to be plotted.
 ##' @param edge.width The method used to calculate edge widths. The default, "absolute",
 ##' means that edge widths will correspond to the absolute number of amendments they
@@ -2671,7 +2671,7 @@ GetEdgeWidth.Success <- function(x, A, num.arrows.to.topics, num.com, num.top){
 ##' "success" means edge widths will correspond to the % of amendments in each edge
 ##' which are destined for the final bill (with respect to the total number of
 ##' amendments each edge is carrying).
-##' edge.width.scale Default = 1. Thicker edges = bigger number.
+##' @param edge.width.scale Default = 1. Thicker edges = bigger number.
 ##' @return A vector of edge widths for each arrow to be drawn. 
 EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.scale=1){
   
