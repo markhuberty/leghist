@@ -875,7 +875,7 @@ WriteCompositeFinal <- function(composite.match,
 ##' @return A character string with all LaTeX-sensitive characters
 ##' appropriately escaped, and all highlights and origin information
 ##' inserted with LaTeX-appropriate data. This assumes that the final
-##' LaTeX document will have a defined command of form \texthighlight{}
+##' LaTeX document will have a defined command of form texthighlight{}
 ##' defined. Both WriteSideBySide and WriteComposite provide for this in
 ##' their preamble.
 ##' @author Mark Huberty
@@ -2359,7 +2359,7 @@ CheckAndFixRGB <- function (x) {
 
 
 ##' A function called within See.Committee.Topics() to calculate edge colors.
-##' @title Edge.Color.SCT()
+##' @title Edge.Color.SCT
 ##' @param A
 ##' @param num.com number of committees
 ##' @param num.top number of topics
@@ -2648,7 +2648,7 @@ How.Wide.Success <- function(x, A, num.arrows.to.topics, num.com, num.top){
 
 
 ##' A function called within See.Committee.Topics() to calculate edge width.
-##' @title Edge.Widths()
+##' @title Edge.Widths
 ##' @param edge.width The method used to calculate edge widths. The default, "absolute",
 ##' means that edge widths will correspond to the absolute number of amendments they
 ##' represent. "relative" means that edge widths will correspond to the % of
@@ -2968,7 +2968,7 @@ Out.To.In.SAS <- function(model.amend.hierarchy.out,
 
 ##' Called within See.Committee.Topics to calculate a vector of colors for the graph's
 ##' edges based on the "color.by" argument chosen.
-##' @title Color.See.Committee.Topics
+##' @title Edge.Color.SAS
 ##' @param color.by Either "topics" ("t") or "committees" ("c") may be chosen by the user.
 ##' If "topics", edge color will be based on the topic each amendment pertains to. If
 ##' "committees", edge color will be based on the committee each amendment was submitted
@@ -3001,7 +3001,7 @@ Edge.Color.SAS <- function(color.by="topics", col=NULL, coms, tops){
 
 
 ##' Creates a vector of node (vertex) labels for a See.Committee.Topics() graph.
-##' @title Make.Labels.SAS.
+##' @title Make.Labels.SAS
 ##' amends.idx 1:a, where a = the number of amendments.
 ##' @param a The number of amendments.
 ##' @param f the number of paragraphs in the final bill.
