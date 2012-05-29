@@ -2361,7 +2361,7 @@ CheckAndFixRGB <- function (x) {
 
 ##' A function called within SeeCommitteeTopics() to calculate edge colors.
 ##' @title EdgeColorSCT
-##' @param A  An ax4 matrix, where a = number of amendments. Each row represents an
+##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
 ##' of 1:t), and its final destination (junk or final bill: 0 or 1). See
 ##' SeeCommitteeTopics() for more details. 
@@ -2621,7 +2621,7 @@ GetEdgeWidth.Relative <- function(x,A,num.arrows.to.topics){
 ##' SeeCommitteeTopics() for more details.
 ##' @param num.arrows.to.topics The number of distinct edges (arrows) that are
 ##'going to topic nodes (the middle layer) in the SeeCommitteeTopics() plot.
-##' @ param num.com The number of committees in the SCT graph to be plotted.
+##' @param num.com The number of committees in the SCT graph to be plotted.
 ##' @param num.top The number of topics in the SCT graph to be plotted.
 ##' @return the width of the x[3]th edge (arrow), according to the % of
 ##' successful amendments the edge carries (with respect to all of the amendments
