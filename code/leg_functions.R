@@ -2228,6 +2228,7 @@ ctab.topics <- function(topics, committees, master.idx, this.idx){
 ## NA, FALSE) returns FALSE, while all(TRUE, NA, TRUE) returns
 ## NA. This provides a facility for specifying the NA handling
 ## explicitly, so that it will be consistent across cases.
+##' @title my.print.ctab
 my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
                            x$addmargins,
                            all.NA=TRUE,
