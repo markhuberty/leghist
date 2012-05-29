@@ -2821,7 +2821,7 @@ SeeCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.ou
   arrows.mat <- rbind( unique( A[,2:3] ), unique(A[,3:4]) )
   
   # Calculate edge widths
-  width <- EdgeWidths(edge.width, edge.width.scale, A, num.com, num.top)
+  width <- EdgeWidths(A, num.com, num.top, edge.width, edge.width.scale)
   
   # Calculate edge colors
   edge.color <- EdgeColorSCT(A, num.com, num.top, edge.col, edge.transparency)  
