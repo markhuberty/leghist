@@ -2286,9 +2286,9 @@ my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
 ## require(plyr)
 
 
-##' A function called within SeeCommitteeTopics() to take the output of
+##' A function called within PlotCommitteeTopics() to take the output of
 ##' various bill mapping functions and create an easily usable matrix 
-##' carrying the information SeeCommitteeTopics() needs.
+##' carrying the information PlotCommitteeTopics() needs.
 ##' @title OutToInSCT
 ##' @param model.amend.hierarchy.out the output of ModelAmendHierarchy()
 ##' @param get.likely.composite.out the output of get.likely.composite()
@@ -2340,7 +2340,7 @@ OutToInSCT <- function(model.amend.hierarchy.out,
 
 
 ##' Is x an RGB code? Called within CheckAndFixRGB, which is called within EdgeColorSCT(),
-##' which is called within SeeCommitteeTopics().
+##' which is called within PlotCommitteeTopics().
 ##' @title IsRGB
 ##' @param x a character vector
 ##' @return logical, does x start with a "#" sign?
@@ -2353,7 +2353,7 @@ IsRGB <- function(x){
 
 ##' If the passed vector doesn't look like an RGB code, CheckAndFixRGB assumes the
 ##' input is a color and tries to extract the RGB code so transparency can be added.
-##' Called within EdgeColorSCT(), which is called within SeeCommitteeTopics().
+##' Called within EdgeColorSCT(), which is called within PlotCommitteeTopics().
 ##' @title CheckAndFixRGB
 ##' @param x Presumably an RGB code or a character vector representing a color.
 ##' @return the input, but in RGB form, if possible.
@@ -2369,12 +2369,12 @@ CheckAndFixRGB <- function (x) {
 ## end CheckAndFixRGB
 
 
-##' A function called within SeeCommitteeTopics() to calculate edge colors.
+##' A function called within PlotCommitteeTopics() to calculate edge colors.
 ##' @title EdgeColorSCT
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
 ##' of 1:t), and its final destination (junk or final bill: 0 or 1). See
-##' SeeCommitteeTopics() for more details. 
+##' PlotCommitteeTopics() for more details. 
 ##' @param num.com number of committees
 ##' @param num.top number of topics
 ##' @param edge.col optional vector of colors (length 2).
@@ -2428,7 +2428,7 @@ EdgeColorSCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=N
 ## end Edge.Color()
 
 
-##' A function called within SeeCommitteeTopics() to calculate vertex (node) 
+##' A function called within PlotCommitteeTopics() to calculate vertex (node) 
 ##' sizes.
 ##' @title VertexSizes
 ##' @param A ax4 information matrix
@@ -2483,15 +2483,15 @@ VertexSizes <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
                                         # end VertexSizes()
 
 
-##' A function called within SeeCommitteeTopics() to creates vertex 
+##' A function called within PlotCommitteeTopics() to creates vertex 
 ##' (node) labels.
 ##' @title VertexLabels
 ##' @param labels An optional vector of labels, usually NULL. If not NULL,
 ##' the function will only output this same object.
 ##' @param merged Output of OutToInSCT
-##' @param topics.matrix An object defined inside SeeCommitteeTopics(): 
+##' @param topics.matrix An object defined inside PlotCommitteeTopics(): 
 ##' model.amend.hierarchy.out[[1]][[1]][[2]]
-##' @return a vector of labels for each node in a SeeCommitteeTopics()
+##' @return a vector of labels for each node in a PlotCommitteeTopics()
 ##' graph.
 VertexLabels <- function(labels, merged, topics.matrix) {
   
@@ -2509,8 +2509,8 @@ VertexLabels <- function(labels, merged, topics.matrix) {
 ## end VertexLabels()
 
 
-##' Creates the "x"th layout coordinates for SeeCommitteeTopics(). This function
-##' is called inside of SeeCommitteeTopics() to create the layout: three layers 
+##' Creates the "x"th layout coordinates for PlotCommitteeTopics(). This function
+##' is called inside of PlotCommitteeTopics() to create the layout: three layers 
 ##' consisting of 1) committees (c of them), 2) topics (t of them), and the final
 ##' destinations of the amendments (junk and final). 
 ##' @title LayoutSCT
@@ -2522,7 +2522,7 @@ VertexLabels <- function(labels, merged, topics.matrix) {
 ##' @param mid.layer The y-axis placement of the middle layer on the graph. 
 ##' Defaults to .6. Note that the bottom and top layers are at 0 and 1. 
 ##' @return the xth pair of coordinates for the default layout of 
-##' SeeCommitteeTopics().
+##' PlotCommitteeTopics().
 ##' @author Hillary Sanders
 LayoutSCT <- function(x,num.com,num.top,mid.layer=.6){
   
@@ -2543,8 +2543,8 @@ LayoutSCT <- function(x,num.com,num.top,mid.layer=.6){
 ## end LayoutSCT
 
 
-##' A small function called within SeeCommitteeTopics() to calculate edge widths
-##' (arrow widths) for SeeCommitteeTopics(), where the edge.width argument is set
+##' A small function called within PlotCommitteeTopics() to calculate edge widths
+##' (arrow widths) for PlotCommitteeTopics(), where the edge.width argument is set
 ##' to "absolute" (default). Similar to GetEdgeWidth.Relative and GetEdgeWidth.Success.
 ##' @title GetEdgeWidth
 ##' @param x A vector of length three, for the ith edge, indicating which node the
@@ -2552,9 +2552,9 @@ LayoutSCT <- function(x,num.com,num.top,mid.layer=.6){
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
 ##' of 1:t), and its final destination (junk or final bill: 0 or 1). See
-##' SeeCommitteeTopics() for more details. 
+##' PlotCommitteeTopics() for more details. 
 ##' @param num.arrows.to.topics The number of distinct edges (arrows) that are going
-##' to topic nodes (the middle layer) in the SeeCommitteeTopics() plot.
+##' to topic nodes (the middle layer) in the PlotCommitteeTopics() plot.
 ##' @return the width of the x[3]th edge (arrow) according to the absolute number of
 ##' amendments represented by the given edge.
 ##' @author Hillary Sanders
@@ -2578,9 +2578,9 @@ GetEdgeWidth <- function(x,A,num.arrows.to.topics){
 ## End GetEdgeWidth
 
 
-##' A small function called within SeeCommitteeTopics() if the argument
+##' A small function called within PlotCommitteeTopics() if the argument
 ##' edge.width is set to "relative". This function creates edge (arrow) widths for 
-##' SeeCommitteeTopics() relative to an edge's origin. Similar to GetEdgeWidth() and
+##' PlotCommitteeTopics() relative to an edge's origin. Similar to GetEdgeWidth() and
 ##' GetEdgeWidth.Success().
 ##' @title GetEdgeWidth.Relative
 ##' @param x A vector of length three, for the ith edge, indicating which node the
@@ -2588,9 +2588,9 @@ GetEdgeWidth <- function(x,A,num.arrows.to.topics){
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
 ##' of 1:t), and its final destination (junk or final bill: 0 or 1). See
-##' SeeCommitteeTopics() for more details. 
+##' PlotCommitteeTopics() for more details. 
 ##' @param num.arrows.to.topics The number of distinct edges that are going
-##' to topic nodes (the middle layer) in the SeeCommitteeTopics() plot.
+##' to topic nodes (the middle layer) in the PlotCommitteeTopics() plot.
 ##' @return the width of the x[3]th edge, according to the percentage
 ##' of amendments that the the given edge is carrying with respect to the total 
 ##' number of amendments coming from the edge's source (either a committee or topic
@@ -2617,20 +2617,20 @@ GetEdgeWidth.Relative <- function(x,A,num.arrows.to.topics){
 ##End GetEdgeWidth.Relative
 
 
-##' A small function called within SeeCommitteeTopics() if the argument
+##' A small function called within PlotCommitteeTopics() if the argument
 ##' edge.width is set to "success". Creates edge (arrow) widths for
-##' SeeCommitteeTopics() based on the percentage of successful (headed for
+##' PlotCommitteeTopics() based on the percentage of successful (headed for
 ##' the final bill) amendments in the given edge.
-##' SeeCommitteeTopics().
+##' PlotCommitteeTopics().
 ##' @title GetEdgeWidth.Success
 ##' @param x A vector of length three, for the ith edge, indicating which node the
 ##' edge came from, where it is going, and its index.
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
 ##' of 1:t), and its final destination (junk or final bill: 0 or 1). See
-##' SeeCommitteeTopics() for more details.
+##' PlotCommitteeTopics() for more details.
 ##' @param num.arrows.to.topics The number of distinct edges (arrows) that are
-##' going to topic nodes (the middle layer) in the SeeCommitteeTopics() plot.
+##' going to topic nodes (the middle layer) in the PlotCommitteeTopics() plot.
 ##' @param num.com The number of committees in the SCT graph to be plotted.
 ##' @param num.top The number of topics in the SCT graph to be plotted.
 ##' @return the width of the x[3]th edge (arrow), according to the % of
@@ -2666,9 +2666,9 @@ GetEdgeWidth.Success <- function(x, A, num.arrows.to.topics, num.com, num.top){
 ##End GetEdgeWidth.Sucess
 
 
-##' A function called within SeeCommitteeTopics() to calculate all edge widths.
+##' A function called within PlotCommitteeTopics() to calculate all edge widths.
 ##' @title EdgeWidths
-##' @param A A matrix (created inside SeeCommitteeTopics()) of dimensions a by 4,
+##' @param A A matrix (created inside PlotCommitteeTopics()) of dimensions a by 4,
 ##' where a = the number of amendments. The columns 1:4 respectively indicate 
 ##' amendment index, committee, topic, and logical success or failure. Each row
 ##' corresponds to one non-discarded (so rejected and accepted) amendment.
@@ -2722,7 +2722,7 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
 ##' and "Final" - again according to the amendments that the edges represent.
 ##' Edge width, as well as node area, by default correspond to the number of
 ##' amendments they are representing.
-##' @title SeeCommitteeTopics
+##' @title PlotCommitteeTopics
 ##' @param model.amend.hierarchy.out The object created by ModelAmendHierarchy().
 ##' @param get.likely.composite.out The object created by GetLikelyComposite().
 ##' @param committees The object created by ModelAmendHierarchy.
@@ -2745,7 +2745,7 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
 ##' will be kept opaque.
 ##' @param edge.col Two edge colors to signify edges which contain 1) junk destined
 ##' amendments, 2) final destined amendments, or 3) both. Both RGB codes and 
-##' character vectors are accepted. If NULL (the default) SeeCommitteeTopics()
+##' character vectors are accepted. If NULL (the default) PlotCommitteeTopics()
 ##' will use "cornflowerblue", "darkgoldenrod1", and varying shades of green to
 ##' respectively signify if each edge's amendments were all successfull (in
 ##' making it to the final bill), were all rejected, or had some combination
@@ -2754,7 +2754,7 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
 ##' @param arrowhead.size The size of arrowheads (edge arrowheads). Defaults
 ##' to 0, i.e. no arrowhead.
 ##' @param layout The layout of the graph. If NULL (the default), 
-##' SeeCommitteeTopics() will create the three layers decribed above. But users 
+##' PlotCommitteeTopics() will create the three layers decribed above. But users 
 ##' can also pass graphing algorithms (e.g. layout.fruchterman.reingold) for a
 ##' different layout.
 ##' @param mid.layer The placement of the middle layer of the graph on the y 
@@ -2762,7 +2762,7 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
 ##' Helpful if topic terms are being plotted (see plot.terms=TRUE below),
 ##' and space is needed.
 ##' @param plot.terms Logical. Should topic terms be plotted? Default = TRUE.
-##' Note that SeeCommitteeTopics() plots the terms beneath each topic node.
+##' Note that PlotCommitteeTopics() plots the terms beneath each topic node.
 ##' @param terms.cex Text size for the topic terms plotted, if plot.terms=TRUE.
 ##' @param terms.col Text color for the topic terms plotted, if plot.terms=TRUE.
 ##' @param terms.x.offset X axis adjustment for the topic terms plotted, if 
@@ -2784,7 +2784,7 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
 ##' number of amendments represented. (For now)
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
-SeeCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.out,
+PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.out,
                                committees,
                                edge.width.scale=1, edge.width = "absolute",
                                scale.c=1, scale.t=1, scale.fin=1,
@@ -2898,19 +2898,19 @@ SeeCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.ou
 
 
 ##' Plots a list of words next to each topic node in the graph created by this
-##' package's SeeCommitteeTopics() function. To be used within 
-##' SeeCommitteeTopics().
+##' package's PlotCommitteeTopics() function. To be used within 
+##' PlotCommitteeTopics().
 ##' @title PlotTopicWords
 ##' @param words.list A list (of length num.top or less, where num.top is the
-##' number of topics in your SeeCommitteeTopics() graph.
-##' @param layout A layout matrix, created inside SeeCommitteeTopics().
+##' number of topics in your PlotCommitteeTopics() graph.
+##' @param layout A layout matrix, created inside PlotCommitteeTopics().
 ##' @param cex Text size, default = .5.
 ##' @param col Text color, default = "grey30".
 ##' @param x.offset Adjust the x axis placement of the terms. Default = 0.
 ##' @param y.offset Adjust the y axis placement of the terms. Default = 0.
 ##' @param spread Adjust the breadth of the terms to be plotted. Default = 1.
 ##' @param text.close How close should each term for a given topic be? Default = 1.
-##' @return Text on plotted onto a SeeCommitteeTopics() graph (with default 
+##' @return Text on plotted onto a PlotCommitteeTopics() graph (with default 
 ##' layout style).
 ##' @author Hillary Sanders
 PlotTopicWords <- function(words.list, layout,
@@ -2937,7 +2937,7 @@ PlotTopicWords <- function(words.list, layout,
                                         # end PlotTopicWords
 
 ##' Takes output from various bill mapping functions and prepares the data 
-##' for the SeeCommitteeTopics() function.
+##' for the PlotCommitteeTopics() function.
 ##' @title OutToInSAS
 ##' @param model.amend.hierarchy.out the output of ModelAmendHierarchy().
 ##' @param get.likely.composite.out the output of get.likely.composite().
@@ -2988,7 +2988,7 @@ OutToInSAS <- function(model.amend.hierarchy.out,
 ## end OutToInSCT()
 
 
-##' Called within SeeCommitteeTopics to calculate a vector of colors for the graph's
+##' Called within PlotCommitteeTopics to calculate a vector of colors for the graph's
 ##' edges based on the "color.by" argument chosen.
 ##' @title EdgeColorSAS
 ##' @param color.by Either "topics" ("t") or "committees" ("c") may be chosen by the user.
@@ -3022,7 +3022,7 @@ EdgeColorSAS <- function(color.by="topics", col=NULL, coms, tops){
 ## end EdgeColorSAS
 
 
-##' Creates a vector of node (vertex) labels for a SeeAmendsSuccess() graph.
+##' Creates a vector of node (vertex) labels for a PlotAmendsSuccess() graph.
 ##' @title MakeLabelsSAS
 ##' @param amends.idx 1:a, where a = the number of amendments.
 ##' @param a The number of amendments.
@@ -3047,8 +3047,8 @@ MakeLabelsSAS <- function(amends.idx, a, f, labels=NULL){
 
 
 
-##' Creates the "x"th layout coordinates for SeeAmendsSuccess(). This function
-##' is called inside of SeeAmendsSuccess() to create the layout: coordinates
+##' Creates the "x"th layout coordinates for PlotAmendsSuccess(). This function
+##' is called inside of PlotAmendsSuccess() to create the layout: coordinates
 ##' for two layers consisting of 1) amendments (a of them), 2) the final bill 
 ##' (all of the paragraphs (or other text chunks) in the final bill, as well as
 ##' a junk bin placed in the middle of the graph.
@@ -3056,7 +3056,7 @@ MakeLabelsSAS <- function(amends.idx, a, f, labels=NULL){
 ##' @param x the index of the coordinates to be created. 
 ##' @param a the number of amendments.
 ##' @param f the number of text chunks (generally, paragraphs) in the final bill.
-##' @return the xth layout coordinates for SeeAmendsSuccess().
+##' @return the xth layout coordinates for PlotAmendsSuccess().
 ##' @author Hillary Sanders
 Layout.SAS <- function(x, a, f){
   if (x<(a+1)) { cords<- c(x/(1+a), .2)
@@ -3073,7 +3073,7 @@ Layout.SAS <- function(x, a, f){
 ##' Individual amendments are either connected (with an arrow) to a junk bin if the
 ##' amendment was not accepted into the final bill, or if it was, to its place in 
 ##' the final bill.
-##' @title SeeAmendsSuccess
+##' @title PlotAmendsSuccess
 ##' @param model.amend.hierarchy.out the output of ModelAmendHierarchy().
 ##' @param get.likely.composite.out the output of get.likely.composite().
 ##' @param committees the object "committees", used in other parts of this
@@ -3105,7 +3105,7 @@ Layout.SAS <- function(x, a, f){
 ##' @param legend.cex size of the legend.
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
-SeeAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.out, committees,
+PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.out, committees,
                              color.by="topics", col = NULL,
                              edge.width.scale=1, arrowhead.size=0,
                              af.shape="none", junk.shape="rectangle",
