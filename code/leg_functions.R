@@ -3088,8 +3088,8 @@ Layout.SAS <- function(x, a, f){
 ##' @param edge.width.scale Scale edge widths. Default = 1
 ##' @param arrowhead.size Size of edge arrowheads. Default = 0.
 ##' @param af.shape The node shape of the amendment and final bill nodes. Possible 
-##' shapes are “circle”, “square”, “csquare”, “rectangle”, “crectangle”,
-##' “vrectangle” and “none”. Default = "none".
+##' shapes are "circle", "square", "csquare", "rectange", "crectangle", "vrectangle",
+##' and "none". Default = "none".
 ##' @param junk.shape The shape of the junk bin node. Default = "rectangle"
 ##' @param af.scale Scale the size of the amendment and final nodes.
 ##' @param junk.scale Scale the size of the junk node. 
