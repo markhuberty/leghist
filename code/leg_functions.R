@@ -42,9 +42,10 @@ NULL ## terminates the import statement, don't take it out.
 ##' initial bill and (if supplied) the amendments, with distance metrics
 ##' for the best match from each source. 
 ##' @title MapBills
-##' @param doc.list A list of document-term matrices, as output from
-##' ComputeAllVectorSpaces().
-##' @param distance.fun A distance function. The underlying distance
+##' @param cvsobject The output from from CreateAllVectorSpaces().
+##' @param distance.fun A similarity or distance function, which can
+##' take two vectors and return a matrix. See CosineMat() for details of
+##' the return format. 
 ##' metric should return larger values for more similar objects. 
 ##' @param filter.fun one of "min" or "max", indicating how the best
 ##' match should be chosen. The choice should depend on whether
@@ -55,7 +56,7 @@ NULL ## terminates the import statement, don't take it out.
 ##' @export
 ##' @author Mark Huberty
 MapBills <- function(cvsobject,
-                     distance.fun="cosine.mat",
+                     distance.fun="CosineMat",
                      filter.fun="max"
                      ){
 
@@ -66,7 +67,7 @@ MapBills <- function(cvsobject,
                              cvsobject[["idx.amendments"]]
                              )
                            )
-                    
+  
   ## Create mapping by loop
   print("mapping final to initial")
   map.initial.final <- MapFun(cvsobject,
@@ -94,14 +95,14 @@ MapBills <- function(cvsobject,
                        map.amend.final[,2:3]
                        )
       
-  
+      
     } else {
 
       map.all <- cbind(map.initial.final,
                        NA,
                        NA
                        )
-  
+      
     }
 
   names(map.all) <- c("bill2.idx", "bill1.idx", "bill1.dist",
@@ -135,23 +136,18 @@ MapBills <- function(cvsobject,
 ##' @param filter.fun one of "min" or "max", indicating how the best
 ##' match should be chosen. The choice should depend on whether
 ##' distance.fun returns returns distance (min) or similarity (max)
-##' @param dtm A document-term matrix as output from
-##' CreateAllVectorSpaces
-##' @param idx.query an integer index vector indicating the rows in
-##' dtm corresponding to a set of target documents for which matches
-##' are desired
 ##' @return a 3-column matrix of form idx.query:idx.match:distance
 ##' @export
 ##' @author Mark Huberty
 MapFun <- function(cvsobject,
-                   distance.fun="cosine.dist",
+                   distance.fun="CosineMat",
                    idx.final,
                    idx.compare,
                    idx.collection,
                    filter.fun){
 
   stopifnot(class(cvsobject) == "leghistCVS")
-    
+  
   ## Set the sort order flag based on the filter function
   d <- ifelse(filter.fun == "max", TRUE, FALSE)
   dist.fun <- match.fun(distance.fun)
@@ -279,10 +275,10 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
     {
 
       idx.amendments <- NA
-     
+      
     } else {
 
-       idx.amendments <-
+      idx.amendments <-
         (length(doc.final) + length(doc.initial) + 1):vs.all$dtm$nrow
       
     }
@@ -438,7 +434,7 @@ WriteSideBySide <- function(composite.match,
                             ){
 
   composite.match <-
-    composite.match[order(composite.match$doc.final.idx),]
+    composite.match[order(composite.match$doc.final.idx), ]
 
   preamble="\\documentclass{article}\n\\usepackage{framed}\n\\usepackage{color}\n\\usepackage{marginnote}\n"
   texthighlight <- paste("\\newcommand{\\texthighlight}[1]{\\textcolor{",
@@ -473,73 +469,72 @@ WriteSideBySide <- function(composite.match,
   cat("\\vspace{12pt}")
   cat("\n\n")
   
-  for(i in 1:nrow(composite.match))
-    {
-      origin <- composite.match[i, "match.origin"]
-      alt.origin <- composite.match[i, "alt.origin"]
-      origin.idx <- composite.match[i, "match.idx"]
-      dist <- composite.match[i, "match.dist"]
-      
-      if (origin == "doc.initial")
-        {
-          idx.subset <- cavs.out$idx.initial
-        } else if (origin == "amendment"){  
-          idx.subset <- cavs.out$idx.amendments
-        } else {
-          idx.subset <- cavs.out$idx.final
-        }
+  for (i in 1:nrow(composite.match)) {
+    origin <- composite.match[i, "match.origin"]
+    alt.origin <- composite.match[i, "alt.origin"]
+    origin.idx <- composite.match[i, "match.idx"]
+    dist <- composite.match[i, "match.dist"]
+    
+    if (origin == "doc.initial")
+      {
+        idx.subset <- cavs.out$idx.initial
+      } else if (origin == "amendment"){  
+        idx.subset <- cavs.out$idx.amendments
+      } else {
+        idx.subset <- cavs.out$idx.final
+      }
 
-      ## Return word diffs to highlight
-      highlight.words <-
-        GetWordsToHighlight(cavs.out[["vs.out"]][cavs.out$idx.final,][i,],
-                            cavs.out[["vs.out"]][idx.subset,][origin.idx,],
-                            colnames(cavs.out[["vs.out"]])
-                            )
-                             
-      string.in <- SanitizeTex(doc.final[composite.match$doc.final.idx[i]])
-      this.section <-  WriteTexSection(string.in,
-                                       highlight.words=highlight.words,
-                                       origin=alt.origin,
-                                       origin.idx=origin.idx,
-                                       dist=NULL,
-                                       marginnote=FALSE
-                                       )
-      
-      cat("\\begin{minipage}[t]{0.45\\linewidth}")
-      cat("\n")
-      cat(this.section)
-      cat("\n")
-      cat("\\end{minipage}")
-      cat("\n")
-      cat("\\begin{minipage}[t]{0.08\\linewidth}")
-      cat("\n")
-      cat("\\end{minipage}")
+    ## Return word diffs to highlight
+    highlight.words <-
+      GetWordsToHighlight(cavs.out[["vs.out"]][cavs.out$idx.final, ][i,],
+                          cavs.out[["vs.out"]][idx.subset, ][origin.idx,],
+                          colnames(cavs.out[["vs.out"]])
+                          )
+    
+    string.in <- SanitizeTex(doc.final[composite.match$doc.final.idx[i]])
+    this.section <-  WriteTexSection(string.in,
+                                     highlight.words=highlight.words,
+                                     origin=alt.origin,
+                                     origin.idx=origin.idx,
+                                     dist=NULL,
+                                     marginnote=FALSE
+                                     )
+    
+    cat("\\begin{minipage}[t]{0.45\\linewidth}")
+    cat("\n")
+    cat(this.section)
+    cat("\n")
+    cat("\\end{minipage}")
+    cat("\n")
+    cat("\\begin{minipage}[t]{0.08\\linewidth}")
+    cat("\n")
+    cat("\\end{minipage}")
 
-      highlight.words <-
-        GetWordsToHighlight(cavs.out[["vs.out"]][idx.subset,][origin.idx,],
-                            cavs.out[["vs.out"]][cavs.out$idx.final,][i,],
-                            colnames(cavs.out[["vs.out"]])
-                            )
-      
-      string.in <- SanitizeTex(composite.match$match.txt[i])
-      this.section <-  WriteTexSection(string.in,
-                                       highlight.words=highlight.words,
-                                       origin=alt.origin,
-                                       origin.idx=origin.idx,
-                                       dist=dist,
-                                       marginnote=TRUE
-                                       )
-      
-      cat("\\begin{minipage}[t]{0.45\\linewidth}")
-      cat("\n")
-      cat(trim(this.section))
-      cat("\n")
-      cat("\\end{minipage}")
-      cat("\n\n")
-      cat("\\vspace{12pt}")
-      cat("\n\n")
+    highlight.words <-
+      GetWordsToHighlight(cavs.out[["vs.out"]][idx.subset, ][origin.idx,],
+                          cavs.out[["vs.out"]][cavs.out$idx.final, ][i,],
+                          colnames(cavs.out[["vs.out"]])
+                          )
+    
+    string.in <- SanitizeTex(composite.match$match.txt[i])
+    this.section <-  WriteTexSection(string.in,
+                                     highlight.words=highlight.words,
+                                     origin=alt.origin,
+                                     origin.idx=origin.idx,
+                                     dist=dist,
+                                     marginnote=TRUE
+                                     )
+    
+    cat("\\begin{minipage}[t]{0.45\\linewidth}")
+    cat("\n")
+    cat(trim(this.section))
+    cat("\n")
+    cat("\\end{minipage}")
+    cat("\n\n")
+    cat("\\vspace{12pt}")
+    cat("\n\n")
 
-    }
+  }
 
   cat("\\end{document}")
   sink()
@@ -619,14 +614,14 @@ GetLikelyComposite <- function(mapbills.out,
   ## Make sure that if the amendment origin list is provided,
   ## it's the the same length as the amendments
   stopifnot((!is.null(amendment.origin) &
-            length(amendments) == length(amendment.origin))##  |
+             length(amendments) == length(amendment.origin))##  |
             ## is.null(amendment.origin)
             )
   
   ## Validate the distance function and then grab it
   stopifnot(filter %in% c("min", "max"))
   filter.fun <- match.fun(filter)
- 
+  
   ## Placeholder for amendments
   if (is.null(amendments))
     amendments <- rep(NA, nrow(mapbills.out))
@@ -640,7 +635,7 @@ GetLikelyComposite <- function(mapbills.out,
     dist.idx <-
       which(mapbills.out[x, c("bill1.dist", "amend.dist")] == 
             filter.fun(mapbills.out[x, c("bill1.dist", "amend.dist")],
-                na.rm=TRUE)
+                       na.rm=TRUE)
             )[1] 
 
     ## Get the corresponding distance and check whether NA
@@ -691,7 +686,7 @@ GetLikelyComposite <- function(mapbills.out,
           
         }
       
-       
+      
       vec.out <- c(x,
                    match.idx,
                    match.origin,
@@ -699,8 +694,8 @@ GetLikelyComposite <- function(mapbills.out,
                    match.dist,
                    match.txt
                    )
-      }
-      
+    }
+    
     return(vec.out)
     
   }) ## End sapply
@@ -754,13 +749,13 @@ WriteCompositeFinal <- function(composite.match,
 
   ## Write out the preamble
 
-  composite.match <- composite.match[order(composite.match$doc.final.idx),]
+  composite.match <-
+    composite.match[order(composite.match$doc.final.idx), ]
 
-  for(idx in 1:length(cavs.out))
-    {
-      if("DocumentTermMatrix" %in% class(cavs.out[[idx]]))
-        cavs.out[[idx]] <- DtmToMatrix(cavs.out[[idx]])
-    }
+  for (idx in 1:length(cavs.out)) {
+    if ("DocumentTermMatrix" %in% class(cavs.out[[idx]]))
+      cavs.out[[idx]] <- DtmToMatrix(cavs.out[[idx]])
+  }
   preamble="\\documentclass{article}\n\\usepackage{framed}\n\\usepackage{color}\n\\usepackage{marginnote}\n"
 
   texthighlight <- paste("\\newcommand{\\texthighlight}[1]{\\textcolor{",
@@ -777,74 +772,73 @@ WriteCompositeFinal <- function(composite.match,
   cat("\\begin{document}")
   cat("\n\n")
   
-  for(idx in 1:length(composite.match$doc.final.idx))
-    {
+  for (idx in 1:length(composite.match$doc.final.idx)) {
 
-      origin <- composite.match[idx, "match.origin"]
-      alt.origin <- composite.match[idx, "alt.origin"]
-      
-      if (origin == "doc.final")
-        {
-          string.in <- SanitizeTex(composite.match$match.txt[idx])
-          this.out <- WriteTexSection(string.in,
-                                      highlight.words=NULL,
-                                      origin=alt.origin,
-                                      origin.idx=idx
-                                      )
+    origin <- composite.match[idx, "match.origin"]
+    alt.origin <- composite.match[idx, "alt.origin"]
+    
+    if (origin == "doc.final")
+      {
+        string.in <- SanitizeTex(composite.match$match.txt[idx])
+        this.out <- WriteTexSection(string.in,
+                                    highlight.words=NULL,
+                                    origin=alt.origin,
+                                    origin.idx=idx
+                                    )
+
+        cat(this.out)
+        cat("\n\n")
+
+      } else {
+        
+        match.idx <- composite.match[idx,"match.idx"]
+
+        ## Does a diff on the binary final and binary initial
+        ## records to detect new words. Does not detect word order.
+        ## TODO: insert a better function here to handle this.
+        ##       this is really crude.
+        highlight.words <-
+          GetWordsToHightlight(cavs.out[["doc.final"]][idx, ],
+                               cavs.out[[origin]][match.idx, ],
+                               colnames(cavs.out)
+                               )
+        
+        this.out <- WriteTexSection(composite.match$match.txt[idx],
+                                    highlight.words=highlight.words,
+                                    origin=alt.origin,
+                                    origin.idx=match.idx
+                                    )
+
+        
+        if (origin == "doc.initial"){
 
           cat(this.out)
           cat("\n\n")
 
-        } else {
-          
-          match.idx <- composite.match[idx,"match.idx"]
+        } else { ## Then it's an amendment
 
-          ## Does a diff on the binary final and binary initial
-          ## records to detect new words. Does not detect word order.
-          ## TODO: insert a better function here to handle this.
-          ##       this is really crude.
-          highlight.words <-
-            GetWordsToHightlight(cavs.out[["doc.final"]][idx,],
-                                 cavs.out[[origin]][match.idx,],
-                                 colnames(cavs.out)
-                                 )
-          
-          this.out <- WriteTexSection(composite.match$match.txt[idx],
-                                      highlight.words=highlight.words,
-                                      origin=alt.origin,
-                                      origin.idx=match.idx
-                                      )
+          if (box.amendments)
+            {
+              
+              cat("\\begin{framed}",
+                  this.out,
+                  "\\end{framed}",
+                  sep="\n"
+                  )
+              cat("\n\n")
+              
+            } else {
 
-          
-          if (origin == "doc.initial"){
+              cat(this.out)
+              cat("\n\n")
 
-            cat(this.out)
-            cat("\n\n")
+            }
 
-          } else { ## Then it's an amendment
-
-            if (box.amendments)
-              {
-                
-                cat("\\begin{framed}",
-                    this.out,
-                    "\\end{framed}",
-                    sep="\n"
-                    )
-                cat("\n\n")
-                
-              } else {
-
-                cat(this.out)
-                cat("\n\n")
-
-              }
-
-          }
+        }
 
 
-        } ## End if / else
-    } ## End for loop
+      } ## End if / else
+  } ## End for loop
 
   cat("\\end{document}")
   sink()
@@ -863,14 +857,18 @@ WriteCompositeFinal <- function(composite.match,
 
 ##' For a given text string and a list of words to highlight, WriteTexSection
 ##' reforms the string to be LaTeX-valid and highlights words. If the
-##' necessary information is provided, the source of the string is
+##' necessary information is provided, the source of the string and
+##' a distance or similarity value are printed as margin notes.
 ##' indicated in a margin note.
 ##' @title WriteTexSection
 ##' @param section a string representing a document section.
 ##' @param highlight.words a character vector of words to highlight
-##' @param origin a character string representing the origin of the section.
+##' @param origin a character string representing the origin of the
+##' section.
 ##' @param origin.idx the index of the document in the origin source
 ##' (e.g. paragraph number).
+##' @param dist The distance or similarity value to be displayed with
+##' origin in the margin note
 ##' @param marginnote boolean, should margin notes be printed.
 ##' @return A character string with all LaTeX-sensitive characters
 ##' appropriately escaped, and all highlights and origin information
@@ -893,18 +891,17 @@ WriteTexSection <- function(section,
   if (!is.null(highlight.words) & length(highlight.words) > 0)
     {
 
-      for(i in 1:length(highlight.words))
-        {
+      for (i in 1:length(highlight.words)) {
 
-          regexp.in <- paste("(", highlight.words[i], ")", sep="")
-          regexp.out <- paste("\\\\\\texthighlight\\{\\1\\}")
-          
-          string.out <- str_replace_all(string.out,
-                                        regexp.in,
-                                        regexp.out
-                                        )
-          
-        }
+        regexp.in <- paste("(", highlight.words[i], ")", sep="")
+        regexp.out <- paste("\\\\\\texthighlight\\{\\1\\}")
+        
+        string.out <- str_replace_all(string.out,
+                                      regexp.in,
+                                      regexp.out
+                                      )
+        
+      }
 
     }
   
@@ -925,7 +922,7 @@ WriteTexSection <- function(section,
     }
 
   return(string.out)
-    
+  
 
 }
 ##' Converts a DocumentTermMatrix from the tm() package into a sparse
@@ -943,10 +940,9 @@ DtmToMatrix <- function(dtm){
               dimnames=dtm$dimnames
               )
   
-  for(index in 1:length(dtm$i))
-    {
-      m[dtm$i[index], dtm$j[index]] <- dtm$v[index]
-    }
+  for (index in 1:length(dtm$i)) {
+    m[dtm$i[index], dtm$j[index]] <- dtm$v[index]
+  }
   
   return(m)
 }
@@ -967,9 +963,9 @@ SanitizeTex <- function(string){
 }
 
 
-##' A wrapper function for similarity() that takes a standard set of
+##' A wrapper function for HoadSimilarityCore() that takes a standard set of
 ##' inputs and handles pre-processing for the outputs
-##' @title similarity.dist
+##' @title HoadSimilarity
 ##' @param dtm a document-term matrix, such as is output from
 ##' CreateAllVectorSpaces(), containing the term frequency vectors of
 ##' both the documents for which matches are needed, and the set of
@@ -983,14 +979,14 @@ SanitizeTex <- function(string){
 ##' containing the output of similiarty()
 ##' @export
 ##' @author Mark Huberty
-similarity.dist <- function(dtm, idx.query, idx.compare, idx.collection){
+HoadSimilarity <- function(dtm, idx.query, idx.compare, idx.collection){
   dtm <- dtm[["vs.out"]]
   N <- length(idx.collection)
-  ft <- colSums(dtm[idx.collection,] > 0)
+  ft <- colSums(dtm[idx.collection, ] > 0)
   
   out <- sapply(idx.query, function(x){
     sapply(idx.compare, function(y){
-      similarity(dtm[x,], dtm[y,], N, ft)
+      HoadSimilarityCore(dtm[x, ], dtm[y, ], N, ft)
     })
   })
 
@@ -998,7 +994,7 @@ similarity.dist <- function(dtm, idx.query, idx.compare, idx.collection){
 
 }
 ##' Computes similarity measure #5 from Hoad & Zobel (2003).
-##' @title similarity
+##' @title HoadSimilarityCore
 ##' @param vec.d a term-freqency vector from a set of candidate
 ##' matches D.
 ##' @param vec.q a term-frequency vector of a document being matched
@@ -1009,17 +1005,11 @@ similarity.dist <- function(dtm, idx.query, idx.compare, idx.collection){
 ##' indicate more similar documents.
 ##' @export
 ##' @author Mark Huberty
-similarity <-function(vec.d,
-                      vec.q,
-                      N,
-                      ft
-                      ){
-
-  ## These two lines were wrong--don't want number of
-  ## unique terms, want number of terms. 
-  #fd <- sum(vec.d > 0)
-  #fq <- sum(vec.q > 0)
-
+HoadSimilarity <-function(vec.d,
+                          vec.q,
+                          N,
+                          ft
+                          ){
   
   fd <- sum(vec.d)
   fq <- sum(vec.q)
@@ -1040,67 +1030,69 @@ similarity <-function(vec.d,
 
 
 ##' Provides a length-weighted cosine similarity measure
-##' @title cosine.length.mat
+##' @title CosineInvLength
 ##' @param dtm a document-term matrix
 ##' @param idx.query the indices of one set of documents in dtm
 ##' @param idx.compare the indices of the set of comparison documents
 ##' in dtm
-##' @param idx.collection the indices of all non-query documents in dtm
+##' @param idx.collection the indices of all non-query documents in
+##' dtm
 ##' @return A similarity matrix of dimension idx.query * idx.compare
 ##' @export
 ##' @author Mark Huberty
-cosine.length.mat <- function(dtm, idx.query, idx.compare, idx.collection){
+CosineInvLength <- function(dtm, idx.query, idx.compare, idx.collection){
   dtm <- dtm[["corpus.out"]]
-  rq <- rowSums(dtm[idx.query,])
-  rd <- rowSums(dtm[idx.compare,])
+  rq <- rowSums(dtm[idx.query, ])
+  rd <- rowSums(dtm[idx.compare, ])
 
-  len.coef <- 1 / (1 + log(1 + outer(rd, rq, vector.diff)))
+  len.coef <- 1 / (1 + log(1 + outer(rd, rq, VectorDiff)))
   mat <- cosine.mat(dtm, idx.query, idx.compare, idx.collection)
 
   out <- len.coef * mat
-
   return(out)
 
 }
+
+
 ##' Returns the vector of absolute differences of two vectors
-##' @title vector.diff
+##' @title VectorDiff
 ##' @param x a numeric or integer vector
 ##' @param y a numeric or integer vector of length x
 ##' @return A vector of length x with the absolute pairwise
 ##' differences between x and y
 ##' @author Mark Huberty
-vector.diff <- function(x, y){
-
+VectorDiff <- function(x, y){
   abs(x - y)
-
 }
 
 
 
-##' Vectorized version (to cut out the loop function) of the cosine similarity
-##' distance measure. This computes the entire cosine similarity
-##' between two row-major matrices at once using matrix algebra
-##' @title cosine.mat
-##' @param dtm A document-term matrix as output from CreateAllVectorSpaces 
+##' Vectorized version the cosine similarity
+##' measure. This computes the entire cosine similarity
+##' between two conformable row-major matrices at once using matrix algebra
+##' @title CosineMat
+##' @param dtm A document-term matrix as output from
+##' CreateAllVectorSpaces 
 ##' @param idx.query an integer index vector indicating the rows in
 ##' dtm corresponding to a set of target documents for which matches
 ##' are desired
 ##' @param idx.compare an integer index vector indicating rows in dtm
 ##' corresponding to potential matches for the target documents
-##' @param idx.collection all rows in dtm corresponding to potential matches
+##' @param idx.collection all rows in dtm corresponding to potential
+##' matches
 ##' @return A matrix of dimension idx.query * idx.compare, with values
 ##' as the pairwise cosine similarity
 ##' @export
 ##' @author Mark Huberty
-cosine.mat <- function(dtm, idx.query, idx.compare, idx.collection){
+CosineMat <- function(dtm, idx.query, idx.compare, idx.collection){
   dtm <- dtm[["vs.out"]]
-  dtm.query <- dtm[idx.query,]
-  dtm.compare <- dtm[idx.compare,]
+  dtm.query <- dtm[idx.query, ]
+  dtm.compare <- dtm[idx.compare, ]
   
   numerator <- dtm.compare %*% t(dtm.query)
 
-  denominator.a <- sqrt(rowSums(dtm[idx.query,]^2))
-  denominator.b <- sqrt(rowSums(dtm[idx.compare,]^2))
+  denominator.a <- sqrt(rowSums(dtm[idx.query, ]^2))
+  denominator.b <- sqrt(rowSums(dtm[idx.compare, ]^2))
 
   denominator <- denominator.b %*% t(denominator.a)
   
@@ -1131,7 +1123,7 @@ LevenshteinDist <- function(dtm, idx.query, idx.compare, idx.collection){
 
     levenshteinSim(txt[x], txt[idx.compare])
     
-    }
+  }
   
   return(t(out))
 }
@@ -1155,7 +1147,10 @@ LevenshteinDist <- function(dtm, idx.query, idx.compare, idx.collection){
 ##' in doc.list
 ##' @param weighting one of weightTf, weightTfIdf, or weightBin,
 ##' depending on the weighting used to construct the document-term
-##' matrix in doc.list. Note that only weightTf is supported at present.
+##' matrix in doc.list. Note that only weightTf is supported at
+##' present.
+##' @param control a list of control statements appropriate for
+##' topic.method. See the topicmodels documentation for more detail.
 ##' @param ... other arguments as required; see ModelTopics.
 ##' @return a ModelTopics object, and additionally an index of
 ##' of the documents as it points to the text inputs, rather than the
@@ -1181,7 +1176,7 @@ ModelDocSet <- function(doc.list,
                         )
             )
   
-  if(type == "incl.amend")
+  if (type == "incl.amend")
     {
 
       dtm.idx <- doc.list$idx.amendments
@@ -1190,7 +1185,7 @@ ModelDocSet <- function(doc.list,
 
       topic.idx <- dtm.idx[orig.idx]
       
-    }else if(type=="rej.amend"){
+    }else if (type=="rej.amend"){
 
       dtm.idx <- doc.list$idx.amendments
       orig.idx <-
@@ -1198,7 +1193,7 @@ ModelDocSet <- function(doc.list,
 
       topic.idx <- dtm.idx[-orig.idx]
       
-    }else if(type=="incl.orig"){
+    }else if (type=="incl.orig"){
 
       dtm.idx <- doc.list$idx.initial
       orig.idx <-
@@ -1207,7 +1202,7 @@ ModelDocSet <- function(doc.list,
       topic.idx <- dtm.idx[orig.idx]
 
 
-    }else if(type=="rej.orig"){
+    }else if (type=="rej.orig"){
 
       dtm.idx <- doc.list$idx.initial
       orig.idx <-
@@ -1215,11 +1210,11 @@ ModelDocSet <- function(doc.list,
 
       topic.idx <- dtm.idx[-orig.idx]
       
-    }else if(type=="all.amend"){
+    }else if (type=="all.amend"){
 
       dtm.idx <- topic.idx <- doc.list$idx.amendments
       
-    }else if(type=="final"){
+    }else if (type=="final"){
 
       dtm.idx <- doc.list$idx.final
       orig.idx <-
@@ -1227,14 +1222,14 @@ ModelDocSet <- function(doc.list,
       
       topic.idx <- dtm.idx[orig.idx]
       
-    }else if(type=="composite.bill"){
+    }else if (type=="composite.bill"){
       topic.idx <- sapply(1:nrow(composite.mat), function(x){
         origin <- composite.mat$match.origin[x]
         match.idx <- composite.mat$match.idx[x]
-        if(origin == "doc.initial")
+        if (origin == "doc.initial")
           {
             out <- doc.list$idx.initial[match.idx]
-          }else if(origin == "amendment"){
+          }else if (origin == "amendment"){
             out <- doc.list$idx.amendment[match.idx]
           }else{
             doc.list$idx.final[match.idx]
@@ -1281,10 +1276,9 @@ ModelDocSet <- function(doc.list,
 ##' @param weighting one of weightTf, weightTfIdf, or weightBin,
 ##' corresponding to the weighting used to construct dtm. Note that at
 ##' present only weightTf is supported.
+##' @param control a set of control parameters appropriate for
+##' topic.method. See the topicmodels package documentation for details.
 ##' @param ... other arguments as passed to the LDA or CTM methods
-##' @param method one of "LDA" (default) or "CTM. See the topicmodels
-##' documentation for details. The LDA default assumes independence in
-##' term distributions across topics. This may not be appropriate. 
 ##' @return A list containing the topic model, the top N terms by topic, and the topic
 ##' assignments for each document indicated by idx.
 ##' @export
@@ -1293,7 +1287,7 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
                         sampling.method, addl.stopwords=NULL,
                         n.terms, weighting=weightTf,control=control){
 
-  if(!is.null(addl.stopwords))
+  if (!is.null(addl.stopwords))
     {
 
       to.remove <-
@@ -1301,30 +1295,30 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
 
           grepl(x, colnames(dtm))
           
-          })
+        })
 
       remove.vec <- rep(FALSE, ncol(dtm))
-      for(i in 1:length(to.remove))
+      for (i in 1:length(to.remove))
         {
           remove.vec <- remove.vec | to.remove[[i]]
         }
       print(sum(remove.vec))
       dtm <- dtm[, !remove.vec]
-  
+      
     }
 
-  dtm.sub <- dtm[idx,]
+  dtm.sub <- dtm[idx, ]
   print(dim(dtm.sub))
   ## Check to ensure that all rows have at least one term
   has.terms <- rowSums(dtm.sub) > 0
-  dtm.sub <- dtm.sub[has.terms,]
+  dtm.sub <- dtm.sub[has.terms, ]
   idx <- idx[has.terms]
 
-  this.dtm <- sparseToDtm(dtm.sub, weighting=weighting)
-  #print(dim(this.dtm))
+  this.dtm <- SparseToDtm(dtm.sub, weighting=weighting)
+                                        #print(dim(this.dtm))
   
   ## If no K provided, ensure that each topic has on average 10 documents
-  if(is.null(k))
+  if (is.null(k))
     k <- ceiling(nrow(this.dtm) / 10)
 
   ## Match and execute the topic modeling function
@@ -1341,13 +1335,13 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
 
 ##' Helper function to translate a sparse Matrix into
 ##' a document-term matrix equivalent to that produced by the tm package.
-##' @title sparseToDtm
+##' @title SparseToDtm
 ##' @param sparseM : a sparse Matrix of form dgCMatrix.
 ##' @param weighting one of weightTf, weightTfIdf, or weightBin
 ##' @return a simple_triplet_matrix as described in the slam package,
 ##' with the same dimensions and properties as sparseM.
 ##' @author Mark Huberty
-sparseToDtm <- function(sparseM, weighting=weightTf){
+SparseToDtm <- function(sparseM, weighting=weightTf){
 
   stm <- as.DocumentTermMatrix(sparseM, weighting=weighting)
   return(stm)
@@ -1359,7 +1353,7 @@ sparseToDtm <- function(sparseM, weighting=weightTf){
 ##' to target document and a sequence of threshold values, it will
 ##' return the optimum based on either maximization of the accuracy rate
 ##' or miniminzation of the false positive/negative rate.
-##' @title learn.threshold
+##' @title LearnThreshold
 ##' @param map.bills.out the output of MapBills for this document. 
 ##' @param initial.bill the text of the initial bill.
 ##' @param final.bill the text of the final bill.
@@ -1371,7 +1365,7 @@ sparseToDtm <- function(sparseM, weighting=weightTf){
 ##' @param threshold.values a numeric vector of potential threshold
 ##' values. See GetLikelyComposite for the definition of the threshold
 ##' value. A suitably granular vector is recommended, as in seq(0,0.5, 0.005)
-##' @param encoder.out the output of run.encoder for the human-coded
+##' @param encoder.out the output of RunEncoder for the human-coded
 ##' matches of these documents.
 ##' @param type one of "overall" (overall accuracy) or "tradeoff"
 ##' (false positive/negative).
@@ -1379,43 +1373,43 @@ sparseToDtm <- function(sparseM, weighting=weightTf){
 ##' the best threshold value.
 ##' @export
 ##' @author Mark Huberty
-learn.threshold <- function(map.bills.out,
-                            initial.bill,
-                            final.bill,
-                            amendments,
-                            labels,
-                            filter="max",
-                            threshold.values,
-                            encoder.out,
-                            type="overall"){
+LearnThreshold <- function(map.bills.out,
+                           initial.bill,
+                           final.bill,
+                           amendments,
+                           labels,
+                           filter="max",
+                           threshold.values,
+                           encoder.out,
+                           type="overall"){
 
   
   if (type == "overall")
     {
-      accuracy.measures <- get.accuracy.measures(map.bills.out,
-                                                 initial.bill,
-                                                 final.bill,
-                                                 amendments,
-                                                 labels,
-                                                 filter="max",
-                                                 threshold.values,
-                                                 encoder.out
-                                                 )
+      accuracy.measures <- GetAccuracyMeasures(map.bills.out,
+                                               initial.bill,
+                                               final.bill,
+                                               amendments,
+                                               labels,
+                                               filter="max",
+                                               threshold.values,
+                                               encoder.out
+                                               )
 
       best.idx <- which(accuracy.measures$overall ==
                         max(accuracy.measures$overall)
                         )
     } else if (type == "tradeoff"){
 
-      accuracy.measures <- get.type.errors(map.bills.out,
-                                           initial.bill,
-                                           final.bill,
-                                           amendments,
-                                           labels,
-                                           filter="max",
-                                           threshold.values,
-                                           encoder.out
-                                           )
+      accuracy.measures <- GetTypeErrors(map.bills.out,
+                                         initial.bill,
+                                         final.bill,
+                                         amendments,
+                                         labels,
+                                         filter="max",
+                                         threshold.values,
+                                         encoder.out
+                                         )
       ## Minimize the absolute difference between the
       ## negative match accuracy rate and the positive match accuracy rate
       accuracy.dif <- abs(accuracy.measures$pct.no.match -
@@ -1431,9 +1425,9 @@ learn.threshold <- function(map.bills.out,
 
 ##' Calculates the overall accuracy rate by threshold value for a set
 ##' of documents based on a human-coded set of matches. See
-##' learn.threshold() for more details.
-##' @title get.accuracy.measures
-##' ##' @param map.bills.out the output of MapBills
+##' LearnThreshold() for more details.
+##' @title GetAccuracyMeasures
+##' @param map.bills.out the output of MapBills
 ##' @param initial.bill the character vector representation of the initial bill
 ##' @param final.bill the character vector representation of the final bill
 ##' @param amendments the character vector representation of the amendments
@@ -1442,20 +1436,20 @@ learn.threshold <- function(map.bills.out,
 ##' distance or similarity metric
 ##' @param threshold.values a vector of similarity thresholds, as in
 ##' seq(0, 0.5, 0.005)
-##' @param encoder.out the output of run.encoder for the bill in
+##' @param encoder.out the output of RunEncoder for the bill in
 ##' question, using the same bill and amendment arguments in the same order
 ##' @return Source and source+index accuracy of the automated match,
 ##' compared with the hand-coded version
 ##' @export
 ##' @author Mark Huberty
-get.accuracy.measures <- function(map.bills.out,
-                                  initial.bill,
-                                  final.bill,
-                                  amendments,
-                                  labels,
-                                  filter="max",
-                                  threshold.values,
-                                  encoder.out){
+GetAccuracyMeasures <- function(map.bills.out,
+                                initial.bill,
+                                final.bill,
+                                amendments,
+                                labels,
+                                filter="max",
+                                threshold.values,
+                                encoder.out){
 
   accuracy.measures <- sapply(threshold.values, function(x){
 
@@ -1468,7 +1462,7 @@ get.accuracy.measures <- function(map.bills.out,
                              dist.threshold=x
                              )
     ## Subset in case only some of the bill was hand-coded
-    cb <- cb[encoder.out$target.index,]
+    cb <- cb[encoder.out$target.index, ]
 
     ## Tabulate the source accuracy data
     tab.source.acc <- table(cb$match.origin,
@@ -1497,8 +1491,8 @@ get.accuracy.measures <- function(map.bills.out,
 ##' Optimizes the tradeoff between false negative values (rejecting
 ##' matches that should have been matched to source documents) and false
 ##' positive values (accepting matches for which no match existed), on
-##' the basis of the threshold value. See learn.threshold for more detail.
-##' @title get.type.error
+##' the basis of the threshold value. See LearnThreshold for more detail.
+##' @title GetTypeErrors
 ##' @param map.bills.out the output of MapBills
 ##' @param initial.bill the character vector representation of the initial bill
 ##' @param final.bill the character vector representation of the final bill
@@ -1508,19 +1502,19 @@ get.accuracy.measures <- function(map.bills.out,
 ##' distance or similarity metric
 ##' @param threshold.values a vector of similarity thresholds, as in
 ##' seq(0, 0.5, 0.005)
-##' @param encoder.out the output of run.encoder for the bill in
+##' @param encoder.out the output of RunEncoder for the bill in
 ##' question, using the same bill and amendment arguments in the same order
 ##' @return Type 1 and Type 2 accuracy rates by threshold value
 ##' @export
 ##' @author Mark Huberty
-get.type.errors <- function(map.bills.out,
-                            initial.bill,
-                            final.bill,
-                            amendments,
-                            labels,
-                            filter="max",
-                            threshold.values,
-                            encoder.out){
+GetTypeErrors <- function(map.bills.out,
+                          initial.bill,
+                          final.bill,
+                          amendments,
+                          labels,
+                          filter="max",
+                          threshold.values,
+                          encoder.out){
   
   accuracy.measures <- sapply(threshold.values, function(x){
 
@@ -1533,7 +1527,7 @@ get.type.errors <- function(map.bills.out,
                              dist.threshold=x
                              )
     ## Subset in case only some of the bill was hand-coded
-    cb <- cb[encoder.out$target.index,]
+    cb <- cb[encoder.out$target.index, ]
     
     pct.no.match <- sum(cb$match.origin == "doc.final" &
                         encoder.out$match.source == "doc.final"
@@ -1561,7 +1555,7 @@ get.type.errors <- function(map.bills.out,
 ##' Provides a streamlined interface to manually match text under the
 ##' same conditions as used for the automated MapBills process. Output
 ##' is directly comparable with the output of GetLikelyComposite.
-##' @title encoder. 
+##' @title Encoder 
 ##' @param target.text the final bill. 
 ##' @param initial.match.text the initial bill.
 ##' @param amend.match.text any amendments (should be passed in the
@@ -1579,7 +1573,7 @@ get.type.errors <- function(map.bills.out,
 ##' the amendment text.
 ##' @export
 ##' @author Mark Huberty
-encoder <- function(target.text,
+Encoder <- function(target.text,
                     initial.match.text,
                     amend.match.text,
                     initial.distance.mat,
@@ -1591,7 +1585,7 @@ encoder <- function(target.text,
 
   if (!is.null(amend.distance.mat) & !is.null(amend.match.text))
     {
-    
+      
       has.amend <- TRUE
       n.matches.to.show <- ceiling(n.matches.to.show / 2)
       print(n.matches.to.show)
@@ -1609,13 +1603,13 @@ encoder <- function(target.text,
   })
 
   if (has.amend)
-     {
-       idx.amend.mat <- sapply(1:ncol(amend.distance.mat), function(x){
-         
-         order(amend.distance.mat[,x], decreasing=similarity)[1:n.matches.to.show]
-         
-       })
-     }
+    {
+      idx.amend.mat <- sapply(1:ncol(amend.distance.mat), function(x){
+        
+        order(amend.distance.mat[,x], decreasing=similarity)[1:n.matches.to.show]
+        
+      })
+    }
 
   source.selections <- c()
   match.selections <- c()
@@ -1623,135 +1617,133 @@ encoder <- function(target.text,
   sep.string <- "***************"
 
   print("starting loop")
-  for(r in 1:length(target.text))
-    {
+  for (r in 1:length(target.text)) {
 
-      ## Get the potential targets
-      target <- target.text[r]
+    ## Get the potential targets
+    target <- target.text[r]
 
-      potential.initial.match.idx <-
-        idx.initial.mat[,r]
-      potential.initial.matches <-
-        initial.match.text[potential.initial.match.idx]
-      potential.initial.match.distances <-
-        initial.distance.mat[potential.initial.match.idx, r]
+    potential.initial.match.idx <-
+      idx.initial.mat[,r]
+    potential.initial.matches <-
+      initial.match.text[potential.initial.match.idx]
+    potential.initial.match.distances <-
+      initial.distance.mat[potential.initial.match.idx, r]
 
-      if (has.amend)
-        {
+    if (has.amend)
+      {
 
-          potential.amend.match.idx <-
-            idx.amend.mat[,r]
-          potential.amend.matches <-
-            amend.match.text[potential.amend.match.idx]
-          potential.amend.match.distances <-
-            amend.distance.mat[potential.amend.match.idx, r]
+        potential.amend.match.idx <-
+          idx.amend.mat[,r]
+        potential.amend.matches <-
+          amend.match.text[potential.amend.match.idx]
+        potential.amend.match.distances <-
+          amend.distance.mat[potential.amend.match.idx, r]
 
-        }
+      }
 
-      ## Generate the list of matches and shuffle order
-      if (has.amend)
-        {
-          match.len <- 2 * n.matches.to.show
-          shuffle.master <- sample(1:match.len, replace=FALSE)
-          
-          match.source <- c(rep("amendment", n.matches.to.show),
-                            rep("doc.initial", n.matches.to.show)
-                            )[shuffle.master]
-          
-          potential.matches <-
-            c(potential.amend.matches,
-              potential.initial.matches
-              )[shuffle.master]
+    ## Generate the list of matches and shuffle order
+    if (has.amend)
+      {
+        match.len <- 2 * n.matches.to.show
+        shuffle.master <- sample(1:match.len, replace=FALSE)
+        
+        match.source <- c(rep("amendment", n.matches.to.show),
+                          rep("doc.initial", n.matches.to.show)
+                          )[shuffle.master]
+        
+        potential.matches <-
+          c(potential.amend.matches,
+            potential.initial.matches
+            )[shuffle.master]
 
-          potential.match.distances <-
-            c(potential.amend.match.distances,
-              potential.initial.match.distances
-              )[shuffle.master]
+        potential.match.distances <-
+          c(potential.amend.match.distances,
+            potential.initial.match.distances
+            )[shuffle.master]
 
-          potential.match.idx <-
-            c(potential.amend.match.idx,
-              potential.initial.match.idx
-              )[shuffle.master]
-          
-        } else {
-          match.len <- n.matches.to.show
-          shuffle.master <- sample(1:match.len, replace=FALSE)
+        potential.match.idx <-
+          c(potential.amend.match.idx,
+            potential.initial.match.idx
+            )[shuffle.master]
+        
+      } else {
+        match.len <- n.matches.to.show
+        shuffle.master <- sample(1:match.len, replace=FALSE)
 
-          match.source <-
-            rep("initial", n.matches.to.show)[shuffle.master]
+        match.source <-
+          rep("initial", n.matches.to.show)[shuffle.master]
 
-          potential.matches <-
-            potential.initial.matches[shuffle.master]
-          potential.match.distances <-
-            potential.initial.match.distances[shuffle.master]
-          potential.match.idx <-
-            potential.initial.match.idx[shuffle.master]
-          
-        }
-      ## Run the print statements
+        potential.matches <-
+          potential.initial.matches[shuffle.master]
+        potential.match.distances <-
+          potential.initial.match.distances[shuffle.master]
+        potential.match.idx <-
+          potential.initial.match.idx[shuffle.master]
+        
+      }
+    ## Run the print statements
+    print(sep.string)
+    print("TEXT TO MATCH:")
+    print(target)
+    print(sep.string)
+
+    print("POTENTIAL MATCHES:")
+    for (i in 1:length(potential.matches)) {
       print(sep.string)
-      print("TEXT TO MATCH:")
-      print(target)
-      print(sep.string)
-
-      print("POTENTIAL MATCHES:")
-      for(i in 1:length(potential.matches))
-        {
-          print(sep.string)
-          print(paste("Index: ", i, sep=""))
-          print(potential.matches[i])
-        }
-
-      ## Loop over the target text to get user input
-      valid.selection <- FALSE
-      valid.matches <- c(as.character(1:match.len), "NA")
-      prompt.text <-
-        paste("Enter index of best match (valid entries:",
-              paste(1:match.len, collapse=" "),
-              "or NA): ",
-              sep=" "
-              )
-
-      selection <- readline(prompt=prompt.text)
-      valid.selection <- ValidateSelection(selection,
-                                           valid.matches
-                                           )
-      while(!valid.selection)
-        {
-          
-          selection <- readline(prompt=prompt.text)
-          valid.selection <- ValidateSelection(selection,
-                                               valid.matches
-                                               )
-
-        }
-
-      selection <- as.integer(selection)
-      if (!is.na(selection))
-        {
-          match.selections <- append(match.selections,
-                                     potential.match.idx[selection])
-          dist.selections <- append(dist.selections,
-                                    potential.match.distances[selection]
-                                    )
-          source.selections <- append(source.selections,
-                                      match.source[selection]
-                                      )
-        } else { ## No match, append as final
-
-          match.selections <- append(match.selections, r)
-          dist.selections <- append(dist.selections, selection)
-          source.selections <- append(source.selections, "doc.final")
-        }
-
-      print(paste("Matched",
-                  r,
-                  "of",
-                  length(target.text),
-                  "necessary matches"
-                  )
-            )
+      print(paste("Index: ", i, sep=""))
+      print(potential.matches[i])
     }
+
+    ## Loop over the target text to get user input
+    valid.selection <- FALSE
+    valid.matches <- c(as.character(1:match.len), "NA")
+    prompt.text <-
+      paste("Enter index of best match (valid entries:",
+            paste(1:match.len, collapse=" "),
+            "or NA): ",
+            sep=" "
+            )
+
+    selection <- readline(prompt=prompt.text)
+    valid.selection <- ValidateSelection(selection,
+                                         valid.matches
+                                         )
+    while(!valid.selection)
+      {
+        
+        selection <- readline(prompt=prompt.text)
+        valid.selection <- ValidateSelection(selection,
+                                             valid.matches
+                                             )
+
+      }
+
+    selection <- as.integer(selection)
+    if (!is.na(selection))
+      {
+        match.selections <- append(match.selections,
+                                   potential.match.idx[selection])
+        dist.selections <- append(dist.selections,
+                                  potential.match.distances[selection]
+                                  )
+        source.selections <- append(source.selections,
+                                    match.source[selection]
+                                    )
+      } else { ## No match, append as final
+
+        match.selections <- append(match.selections, r)
+        dist.selections <- append(dist.selections, selection)
+        source.selections <- append(source.selections, "doc.final")
+      }
+
+    print(paste("Matched",
+                r,
+                "of",
+                length(target.text),
+                "necessary matches"
+                )
+          )
+  }
   match.selections <- as.integer(match.selections)
   dist.selections <- as.numeric(dist.selections)
   source.selections <- as.character(source.selections)
@@ -1776,7 +1768,7 @@ encoder <- function(target.text,
 ##' @author Mark Huberty
 ValidateSelection <- function(selection, valid.matches){
 
-  if(selection == "")
+  if (selection == "")
     {
 
       print("Empty entries not valid, please try again")
@@ -1784,7 +1776,7 @@ ValidateSelection <- function(selection, valid.matches){
 
     }else{
 
-      if(selection %in% valid.matches)
+      if (selection %in% valid.matches)
         {
           valid.selection <- TRUE
         }else{
@@ -1802,7 +1794,7 @@ ValidateSelection <- function(selection, valid.matches){
 ##' asks the user to select the best (or no good match). Returns
 ##' a data frame that maps from the final paragraph to both the initial
 ##' bill and the amendments.
-##' @title run.encoder
+##' @title RunEncoder
 ##' @param target.text a character string of pargraphs needing matches
 ##' @param original.text a character string of the original proposed
 ##' text.
@@ -1818,7 +1810,7 @@ ValidateSelection <- function(selection, valid.matches){
 ##' @param filter Should a tfidf filter be applied?
 ##' @param filter.thres What filter threshold should be used?
 ##' @param dist.fun a distance function consistent with that of
-##' cosine.mat
+##' CosineMat
 ##' @param n.matches.to.show integer, how many potential matches
 ##' should be shown to the user?
 ##' @param encode.random should only a random subset of the target
@@ -1833,26 +1825,26 @@ ValidateSelection <- function(selection, valid.matches){
 ##' equivalent to similar values in the output of GetLikelyComposite.
 ##' @export
 ##' @author Mark Huberty
-run.encoder <- function(target.text=NULL,
-                        original.text=NULL,
-                        amendments=NULL,
-                        ngram.min=1,
-                        ngram.max=3,
-                        stem=FALSE,
-                        rm.stopwords=TRUE,
-                        rm.whitespace=TRUE,
-                        rm.punctuation=TRUE,
-                        filter=NULL,
-                        filter.thres=NULL,
-                        dist.fun="cosine.mat",
-                        n.matches.to.show=5,
-                        encode.random=FALSE,
-                        pct.encode=NULL
-                        ){
+RunEncoder <- function(target.text=NULL,
+                       original.text=NULL,
+                       amendments=NULL,
+                       ngram.min=1,
+                       ngram.max=3,
+                       stem=FALSE,
+                       rm.stopwords=TRUE,
+                       rm.whitespace=TRUE,
+                       rm.punctuation=TRUE,
+                       filter=NULL,
+                       filter.thres=NULL,
+                       dist.fun="cosine.mat",
+                       n.matches.to.show=5,
+                       encode.random=FALSE,
+                       pct.encode=NULL
+                       ){
 
-  if(encode.random)
+  if (encode.random)
     {
-      if(is.null(pct.encode))
+      if (is.null(pct.encode))
         {
 
           idx.to.test <-
@@ -1875,7 +1867,7 @@ run.encoder <- function(target.text=NULL,
     }else{
 
       target.idx <- 1:length(target.text)
-                
+      
     }
 
   stopifnot(!is.null(original.text) &
@@ -1915,7 +1907,7 @@ run.encoder <- function(target.text=NULL,
   
   print("Distance matrices created, starting the encoding sequence")
 
-  match.df.orig <- encoder(target.text,
+  match.df.orig <- Encoder(target.text,
                            original.text,
                            amendments,
                            distance.mat.orig,
@@ -1932,19 +1924,19 @@ run.encoder <- function(target.text=NULL,
 
 ##' Provides a 2-level hierarchical topic modeling interface for
 ##' modeling the amendment content
-##' <details>
-##' @title model.amend.hierarchy
+##' @title ModelAmendHierarchy
 ##' @param doc.list the output of CreateAllVectorSpaces
-##' @param composite.mat the output of GetLikelyComposite, for this bill
+##' @param composite.mat the output of GetLikelyComposite, for this
+##' bill
 ##' @param k the number of topics to model. May be one of NULL, an
 ##' integer value, or an integer vector. If NULL, then the number of
 ##' topics is assumed to be D/10, where D is either the count of
-##' amendments (level 1) or the count of amendments assigned to a topic
-##' (level 2). If a vector, the first element of the vector specifies
-##' how many topics should be used for modeling level 1, and the
-##' remaining elements how many topics should be used for modeling the
-##' amendments assigned to those topics. In this case, the vector must
-##' be of length V[1] ##' 
+##' amendments (level 1) or the count of amendments assigned to a
+##' topic (level 2). If a vector, the first element of the vector
+##' specifies how many topics should be used for modeling level 1, and
+##' the remaining elements how many topics should be used for modeling
+##' the amendments assigned to those topics. In this case, the vector
+##' must be of length V[1]  
 ##' @param topic.method One of "LDA" or "CTM"
 ##' @param sampling.method One of "VEM", or "Gibbs"
 ##' @param n.terms An integer value indicating how many terms should
@@ -1952,6 +1944,8 @@ run.encoder <- function(target.text=NULL,
 ##' @param addl.stopwords Any additional stopwords that should be
 ##' removed prior to modeling
 ##' @param weighting One of weightTf, weightTfIdf, or weightBin
+##' @param ngram 
+##' @param sparseness.probs 
 ##' @param control A vector of control parameters for the topic model
 ##' function; see the topicmodels documentation for more detail.
 ##' @param ... 
@@ -1965,19 +1959,19 @@ run.encoder <- function(target.text=NULL,
 ##' within that level-one category.
 ##' @author Mark Huberty
 ##' @export
-model.amend.hierarchy <- function(doc.list,
-                                  composite.mat,
-                                  k=NULL,
-                                  topic.method="LDA",
-                                  sampling.method="VEM",
-                                  n.terms=5,
-                                  addl.stopwords="NULL",
-                                  weighting=weightTf,
-                                  ngram=2,
-                                  sparseness.probs=c(0.01, 0.99),
-                                  control=control,
-                                  ...
-                                  ){
+ModelAmendHierarchy <- function(doc.list,
+                                composite.mat,
+                                k=NULL,
+                                topic.method="LDA",
+                                sampling.method="VEM",
+                                n.terms=5,
+                                addl.stopwords="NULL",
+                                weighting=weightTf,
+                                ngram=2,
+                                sparseness.probs=c(0.01, 0.99),
+                                control=control,
+                                ...
+                                ){
 
   ## Fix the K values appropriately
   ## Three cases: No K; single K, vector of K's, one per
@@ -2002,8 +1996,8 @@ model.amend.hierarchy <- function(doc.list,
   ## Filter for ngram length by getting indices of the
   ## desired ngram (for handling multi-ngram-length dtms
   ## used for bill matching
-  ngram.idx <- get.ngram.idx(colnames(doc.list$vs.out), ngram)
-  tf.idx <- get.tf.idx(doc.list$vs.out, sparseness.probs)
+  ngram.idx <- GetNgramIdx(colnames(doc.list$vs.out), ngram)
+  tf.idx <- GetTfIdx(doc.list$vs.out, sparseness.probs)
   
   cols.to.keep <- intersect(ngram.idx, tf.idx)
   
@@ -2054,7 +2048,7 @@ model.amend.hierarchy <- function(doc.list,
 
   ## Then pull out the term sets of each topic, and structure by the
   ## topic hierarchy
-  terms.list <- get.term.list(out, k[1])
+  terms.list <- GetTermList(out, k[1])
 
   out <- list(out, terms.list)
   names(out) <- c("models", "terms")
@@ -2064,8 +2058,12 @@ model.amend.hierarchy <- function(doc.list,
 
 ## Get the terms for each model and return the primary:secondary
 ## termlist pairs
-##' @title get.term.list
-get.term.list <- function(model.list, k.primary){
+##' @title GetTermList
+##' @param model.list A list of topic models as output from ModelAmendHierarchy
+##' @param k.primary The number of primary topics
+##' @return Returns a nested list containing the top terms of each primary
+##' topic and its associated secondary topics
+GetTermList <- function(model.list, k.primary){
 
   out <- lapply(1:k.primary, function(x){
     terms.primary <- model.list[[1]]$terms[,x]
@@ -2080,9 +2078,13 @@ get.term.list <- function(model.list, k.primary){
 
 ## For a dtm, check the ngram length of the column
 ## headers and return the indices of n-length ngrams
-##' @title get.ngram.idx
-get.ngram.idx <- function(str, n){
-
+##' @title GetNgramIdx
+##' @param str A character vector whose components are strings
+##' containing one or more words
+##' @param n The length of the n-grams for which vector indices are to
+##' be returned. 
+GetNgramIdx <- function(str, n){
+ 
   str.split <- strsplit(str, " ")
   l <- sapply(strsplit(str, " "), length)
   idx.out <- which(l == n)
@@ -2093,9 +2095,14 @@ get.ngram.idx <- function(str, n){
 ## For a dtm, check the term frequency quantiles
 ## for each term and return the indices of frequencies w/in
 ## a quantile range defined by probs
-##' @title get.tf.idx
-get.tf.idx <- function(dtm, probs){
-
+##' @title GetTfIdx
+##' @param dtm A document-term matrix
+##' @param probs a character vector of length 2 indicating the minimum
+## and maximum quantile ranges to keep.
+GetTfIdx <- function(dtm, probs){
+  stopifnot(length(probs) == 2)
+  if (probs[1] > probs[2])
+    probs <- rev(probs)
   tf <- colSums(as.matrix(dtm))
   q.tf <- quantile(tf, probs)
   idx.out <- which(tf > q.tf[1] & tf < q.tf[2])
@@ -2103,14 +2110,12 @@ get.tf.idx <- function(dtm, probs){
   
 }
 
-##' Takes as input a topic structure from model.amend.hierarchy and
+##' Takes as input a topic structure from ModelAmendHierarchy and
 ##' returns a set of crosstabs indicating the proportion of amendments
 ##' in each topic that were accepted or rejected.
-##'
-##' <details>
-##' @title ctab.amend.hierarchy
+##' @title CtabAmendHierarchy
 ##' @param amend.topic.hierarchy an object as returned from
-##' model.amend.hierarchy 
+##' ModelAmendHierarchy 
 ##' @param composite.bill the composite bill
 ##' @param committees the committee list for amendments
 ##' @param doc.list the original document list containing a doc-term
@@ -2128,12 +2133,12 @@ get.tf.idx <- function(dtm, probs){
 ##' and accept/reject.
 ##' @author Mark Huberty
 ##' @export
-ctab.amend.hierarchy <- function(amend.topic.hierarchy,
-                                 composite.bill,
-                                 committees,
-                                 doc.list,
-                                 tab.idx=1
-                                 ){
+CtabAmendHierarchy <- function(amend.topic.hierarchy,
+                               composite.bill,
+                               committees,
+                               doc.list,
+                               tab.idx=1
+                               ){
   
   ## Baseline the primary index to 1:N
   min.amend.idx <- length(doc.list$idx.final) + length(doc.list$idx.initial)
@@ -2141,35 +2146,35 @@ ctab.amend.hierarchy <- function(amend.topic.hierarchy,
     amend.topic.hierarchy[[1]][[1]]$dtm.idx - min.amend.idx
 
   tab.primary <-
-    ctab.topics(amend.topic.hierarchy[[1]][[1]]$topics,
-                committees,
-                composite.bill$match.idx[composite.bill$match.origin=="amendment"],
-                model.amend.idx
-                )
-                             
+    CtabTopics(amend.topic.hierarchy[[1]][[1]]$topics,
+               committees,
+               composite.bill$match.idx[composite.bill$match.origin=="amendment"],
+               model.amend.idx
+               )
+  
   ## Generate subtopic crosstabs
   tab.secondary <- lapply(amend.topic.hierarchy[[1]][[2]], function(x){
 
     model.amend.idx <- x$dtm.idx
 
-    ctab.topics(x$topics,
-                committees,
-                composite.bill$match.idx[composite.bill$match.origin=="amendment"],
-                model.amend.idx
-                )
+    CtabTopics(x$topics,
+               committees,
+               composite.bill$match.idx[composite.bill$match.origin=="amendment"],
+               model.amend.idx
+               )
   })
 
   ## Return the entire list
   out <- list(tab.primary, tab.secondary)
   names(out) <- c("tab.primary", "tab.secondary")
   return(out)
-                     
+  
 }
 
 ##' Crosstabs topics, committees, and acceptance/rejection for matched
-##' amendments. Called within ctab.amend.hierarchy.
-##' @title ctab.topics
-##' @param topics the topic vector as returned by model.amend.hierarchy
+##' amendments. Called within CtabAmendHierarchy.
+##' @title CtabTopics
+##' @param topics the topic vector as returned by ModelAmendHierarchy
 ##' @param committees the committee list corresponding to the
 ##' committees responsible for the amendments
 ##' @param master.idx The index of matched amendments in the composite
@@ -2182,7 +2187,7 @@ ctab.amend.hierarchy <- function(amend.topic.hierarchy,
 ##' (count.by.topic.status); by committee and accepted/rejected
 ##' (count.by.committee.status); and proportion by topic status
 ##' @author Mark Huberty
-ctab.topics <- function(topics, committees, master.idx, this.idx){
+CtabTopics <- function(topics, committees, master.idx, this.idx){
 
   labels <- rep(NA, length(this.idx))
   acc.amend.idx <- this.idx %in% master.idx
@@ -2202,12 +2207,12 @@ ctab.topics <- function(topics, committees, master.idx, this.idx){
                                      )
   prop.by.topic.committee.status <-
     my.print.ctab(ctab(factor(topics),
-                      factor(committees.sub),
-                      factor(labels),
-                      dec.places=1,
-                      type="column"
-                      )
-                 )
+                       factor(committees.sub),
+                       factor(labels),
+                       dec.places=1,
+                       type="column"
+                       )
+                  )
   
   out <- list(count.by.topic.status,
               count.by.committee.status,
@@ -2229,43 +2234,48 @@ ctab.topics <- function(topics, committees, master.idx, this.idx){
 ## NA. This provides a facility for specifying the NA handling
 ## explicitly, so that it will be consistent across cases.
 ##' @title my.print.ctab
+##' @param x An object output from ctab()
+##' @param dec.places Decimal places to print in output
+##' @param addmargins Should margins be calculated?
+##' @param all.NA Boolean, should NA values be recognized or skipped
+##' @param ... 
 my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
                            x$addmargins,
                            all.NA=TRUE,
                            ...) 
 {
-    if (length(dim(x$ctab)) == 1) {
-        tbl <- x$ctab
-        if (addmargins) 
-            tbl <- addmargins(tbl)
-        if (x$style == "long") {
-            tbl <- as.matrix(tbl)
-            colnames(tbl) <- names(dimnames(x$ctab))
-        }
+  if (length(dim(x$ctab)) == 1) {
+    tbl <- x$ctab
+    if (addmargins) 
+      tbl <- addmargins(tbl)
+    if (x$style == "long") {
+      tbl <- as.matrix(tbl)
+      colnames(tbl) <- names(dimnames(x$ctab))
     }
-    else {
-        row.vars <- x$row.vars
-        col.vars <- x$col.vars
-        a = length(row.vars)
-        if (length(x$type) > 1) {
-            z <- length(names(dimnames(x$ctab)))
-            if (x$style == "long") 
-                row.vars <- c(row.vars, z)
-            else col.vars <- c(z, col.vars)
-        }
-        b = length(col.vars)
-        tbl <- x$ctab
-        mrgn <- c(row.vars[a], col.vars[b])
-        if (length(dim(x$table)) == 1) 
-            mrgn <- 1
-        if (addmargins) 
-            tbl <- addmargins(tbl, margin = mrgn)
-        tbl <- ftable(tbl, row.vars = row.vars, col.vars = col.vars)
+  }
+  else {
+    row.vars <- x$row.vars
+    col.vars <- x$col.vars
+    a = length(row.vars)
+    if (length(x$type) > 1) {
+      z <- length(names(dimnames(x$ctab)))
+      if (x$style == "long") 
+        row.vars <- c(row.vars, z)
+      else col.vars <- c(z, col.vars)
     }
-    if (!all(as.integer(tbl) == as.numeric(tbl), na.rm=all.NA)) 
-        tbl <- round(tbl, dec.places)
-    out <- print(tbl, ...)
-    return(out)
+    b = length(col.vars)
+    tbl <- x$ctab
+    mrgn <- c(row.vars[a], col.vars[b])
+    if (length(dim(x$table)) == 1) 
+      mrgn <- 1
+    if (addmargins) 
+      tbl <- addmargins(tbl, margin = mrgn)
+    tbl <- ftable(tbl, row.vars = row.vars, col.vars = col.vars)
+  }
+  if (!all(as.integer(tbl) == as.numeric(tbl), na.rm=all.NA)) 
+    tbl <- round(tbl, dec.places)
+  out <- print(tbl, ...)
+  return(out)
 }
 
 
@@ -2280,7 +2290,7 @@ my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
 ##' various bill mapping functions and create an easily usable matrix 
 ##' carrying the information SeeCommitteeTopics() needs.
 ##' @title OutToInSCT
-##' @param model.amend.hierarchy.out the output of model.amend.hierarchy()
+##' @param model.amend.hierarchy.out the output of ModelAmendHierarchy()
 ##' @param get.likely.composite.out the output of get.likely.composite()
 ##' @param committees the object "committees", used in other parts of this
 ##' package, consisting of a vector of committee names for each ith 
@@ -2291,54 +2301,54 @@ my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
 ##' the third is the committees, and the fourth is a logical vector for 
 ##' amendment success (made it into the final bill) or failure.
 OutToInSCT <- function(model.amend.hierarchy.out,
-                        get.likely.composite.out,
-                        committees){
+                       get.likely.composite.out,
+                       committees){
   
-  # Create a matrix of each amendment index and their topic assignments.
+  ## Create a matrix of each amendment index and their topic assignments.
   amend.top.index <- cbind( model.amend.hierarchy.out[[1]][[1]][[4]]
-                            -min(model.amend.hierarchy.out[[1]][[1]][[4]])+1
-                            , as.numeric(model.amend.hierarchy.out[[1]][[1]][[3]]))
-  # Note that here, only those amendments that are not thrown out due to length 
-  # (e.g. ":") are represented.
+                           -min(model.amend.hierarchy.out[[1]][[1]][[4]])+1
+                           , as.numeric(model.amend.hierarchy.out[[1]][[1]][[3]]))
+  ## Note that here, only those amendments that are not thrown out due to length 
+  ## (e.g. ":") are represented.
   colnames(amend.top.index) <- c("idx","topic #")
 
-  # Find the indices of those amendments which made it to the composite final bill.
+  ## Find the indices of those amendments which made it to the composite final bill.
   successful<- get.likely.composite.out[ get.likely.composite.out[,3]=="amendment",2:3]
   
   unique.successful<- unique(successful) 
-  # Create a matrix of the successful amendment indices. The second row
-  # becomes helpful in a moment!
-  y <- unique.successful[order(unique.successful[,1]),]
+  ## Create a matrix of the successful amendment indices. The second row
+  ## becomes helpful in a moment!
+  y <- unique.successful[order(unique.successful[,1]), ]
   x<- data.frame(1:length(committees),committees)
   names(x)<-c("match.idx","committees")
 
   joined <- join( x, y, type="left")
-  # All of the elements in the third row that are <NA> (not "amendment") 
-  # must be rejected amendments or amendments discarded by the computer (due to
-  # their very short length).
+  ## All of the elements in the third row that are <NA> (not "amendment") 
+  ## must be rejected amendments or amendments discarded by the computer (due to
+  ## their very short length).
   joined[,3][is.na(joined[,3])]<- 0
   joined[,3][joined[,3]=="amendment"]<- 1
-  # Three columns: amendment index, committee, logical: was the amendment accepted?
+  ## Three columns: amendment index, committee, logical: was the amendment accepted?
   
-  # However, amendments that were discarded still need to be removed:
-  # Use amend.top.index, as it only shows non-discarded amendments, and has topic info:
+  ## However, amendments that were discarded still need to be removed:
+  ## Use amend.top.index, as it only shows non-discarded amendments, and has topic info:
   merged<- merge(amend.top.index,joined,by=1)
 
   return(merged)
 }
-# end OutToInSCT()
+## end OutToInSCT()
 
 
 ##' Is x an RGB code? Called within CheckAndFixRGB, which is called within EdgeColorSCT(),
-#' which is called within SeeCommitteeTopics().
+##' which is called within SeeCommitteeTopics().
 ##' @title IsRGB
 ##' @param x a character vector
 ##' @return logical, does x start with a "#" sign?
 IsRGB <- function(x){
-    y <- grepl("^#",x)
-    return(y)
+  y <- grepl("^#",x)
+  return(y)
 }
-# end IsRGB
+## end IsRGB
 
 
 ##' If the passed vector doesn't look like an RGB code, CheckAndFixRGB assumes the
@@ -2350,13 +2360,13 @@ IsRGB <- function(x){
 CheckAndFixRGB <- function (x) {
   
   if (!IsRGB (x)){
-            x <- rgb(col2rgb(x)[1],
-                         col2rgb(x)[2],
-                         col2rgb(x)[3], maxColorValue=255)
-        }
+    x <- rgb(col2rgb(x)[1],
+             col2rgb(x)[2],
+             col2rgb(x)[3], maxColorValue=255)
+  }
   return (x)
-      }
-# end CheckAndFixRGB
+}
+## end CheckAndFixRGB
 
 
 ##' A function called within SeeCommitteeTopics() to calculate edge colors.
@@ -2374,48 +2384,48 @@ CheckAndFixRGB <- function (x) {
 EdgeColorSCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=NULL){ 
   if (is.null(edge.col)){
     colors <- c("#FFB90F","#6495ED")
-  # "darkgoldenrod1", "cornflowerblue" : (Failure, Success)
+    ## "darkgoldenrod1", "cornflowerblue" : (Failure, Success)
   } else { 
     colors <- rep(edge.col,2) [1:2]
     
     colors <- as.character (sapply(colors, CheckAndFixRGB))
-    }
-      
-  # The final destination (1 or 2: junk or final) of each unique edge (arrow):
+  }
+  
+  ## The final destination (1 or 2: junk or final) of each unique edge (arrow):
   edge.color.idx <- c( (A[!duplicated(A[,2:3]),4]),
-                       (A[!duplicated(A[,3:4]),4]) ) -num.com-num.top+1
+                      (A[!duplicated(A[,3:4]),4]) ) -num.com-num.top+1
   
   edge.color <- colors[edge.color.idx]
-            
-  # Are the amendment(s) that a committee-to-topics arrow is representing heading to both 
-  # the final bill AND junk? If both, then the arrow color should be some shade of (default) green.
+  
+  ## Are the amendment(s) that a committee-to-topics arrow is representing heading to both 
+  ## the final bill AND junk? If both, then the arrow color should be some shade of (default) green.
   for ( i in which(!duplicated(A[,2:3]))){
 
     identical <- c( which ( ( (A[i,2]==A[,2]) * (A[i,3]==A[,3])) ==1) )
 
     destinations <- A [ identical,4]
-    # If their final destinations are not all the same, then make their arrow be green.
-    if(length(unique(destinations))!=1) {
+    ## If their final destinations are not all the same, then make their arrow be green.
+    if (length(unique(destinations))!=1) {
       
       success.rate <- mean(destinations)-min(destinations)
       
       lum <- ((1-success.rate)*100)
       shade <- hcl(110,c=100,l=lum)
-      # So if success rate is high, edges will be dark green, if low, light yellow/green.         
+      ## So if success rate is high, edges will be dark green, if low, light yellow/green.         
       
       edge.color[ order((i==which(!duplicated(A[,2:3])))==0)[1]] <- shade
-                  }
-                }
- 
-    if(!is.null(edge.transparency)){ 
-      for (i in 1:length(edge.color)){
-        # Add a transparency number (in 00:99)
-        edge.color[i] <- paste( edge.color[i], as.character(edge.transparency), sep="")
-        }
-      }
+    }
+  }
+  
+  if (!is.null(edge.transparency)){ 
+    for (i in 1:length(edge.color)){
+      ## Add a transparency number (in 00:99)
+      edge.color[i] <- paste( edge.color[i], as.character(edge.transparency), sep="")
+    }
+  }
   return (edge.color)
 }
-# end Edge.Color()
+## end Edge.Color()
 
 
 ##' A function called within SeeCommitteeTopics() to calculate vertex (node) 
@@ -2433,24 +2443,24 @@ EdgeColorSCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=N
 VertexSizes <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
   
   vertex.size <- rep(0,(num.com+num.top+2))
-      
-      for (i in 1:num.com){
-        vertex.size[i] <- sum(A[,2]==(i-1))
-        }
-      for (i in (num.com+1):(num.com+num.top)) {
-        vertex.size[i] <- sum(A[,3]==(i-1))
-        }
-      for (i in (num.com+num.top+1):(num.com+num.top+2)) {
-        vertex.size[i] <- sum(A[,4]==(i-1))
-        }
-  # Here, both dimensions of the default rectangle vertex shape are created, and scaled
-  # by how large the biggest vertex is on the graph. 
+  
+  for (i in 1:num.com){
+    vertex.size[i] <- sum(A[,2]==(i-1))
+  }
+  for (i in (num.com+1):(num.com+num.top)) {
+    vertex.size[i] <- sum(A[,3]==(i-1))
+  }
+  for (i in (num.com+num.top+1):(num.com+num.top+2)) {
+    vertex.size[i] <- sum(A[,4]==(i-1))
+  }
+  ## Here, both dimensions of the default rectangle vertex shape are created, and scaled
+  ## by how large the biggest vertex is on the graph. 
   biggest <- max(vertex.size)
   v.size <- ((sqrt(vertex.size))/(sqrt(biggest))*(60))
   v.size2 <- ((sqrt(vertex.size)/(sqrt(biggest))*(45)))
-        
-  # Vertex sizes can also be rescaled by the user by scale.c, scale.t, and
-  # scale.fin inputs. Defaults = 1.
+  
+  ## Vertex sizes can also be rescaled by the user by scale.c, scale.t, and
+  ## scale.fin inputs. Defaults = 1.
 
   v.size[1:num.com] <- v.size[1:num.com]*sqrt(scale.c)
   v.size2[1:num.com] <- v.size2[1:num.com]*sqrt(scale.c)
@@ -2463,14 +2473,14 @@ VertexSizes <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
 
   v.size[(num.com+num.top+1):(num.com+num.top+2)] <-
     v.size[(num.com+num.top+1):(num.com+num.top+2)]*sqrt(scale.fin)
- 
-   v.size2[(num.com+num.top+1):(num.com+num.top+2)] <-
+  
+  v.size2[(num.com+num.top+1):(num.com+num.top+2)] <-
     v.size2[(num.com+num.top+1):(num.com+num.top+2)]*sqrt(scale.fin)
- 
+  
   
   return(cbind(v.size,v.size2))
 }
-# end VertexSizes()
+                                        # end VertexSizes()
 
 
 ##' A function called within SeeCommitteeTopics() to creates vertex 
@@ -2486,17 +2496,17 @@ VertexSizes <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
 VertexLabels <- function(labels, merged, topics.matrix) {
   
   if (is.null(labels)) {
-      
+    
     com <- levels(merged[,3])
     top <- paste( "Topic", 1:ncol(topics.matrix))
     final <- c("Junk", "Final")  
     
     labels <- c(com, top, final)
-    }
+  }
 
   return(labels)
 }
-# end VertexLabels()
+## end VertexLabels()
 
 
 ##' Creates the "x"th layout coordinates for SeeCommitteeTopics(). This function
@@ -2519,17 +2529,17 @@ LayoutSCT <- function(x,num.com,num.top,mid.layer=.6){
   if (x<(num.com+1)) {
     cords <- c(x/(1+num.com),0)
     
-    } else {
-      
-      if (x>(num.com+num.top)) 
-        { cords<- c( (x-num.com-num.top)/3,1)
-          
-          } else {
-            cords <- c( (x-num.com)/(1+num.top),mid.layer)
-            }
+  } else {
+    
+    if (x>(num.com+num.top)) 
+      { cords<- c( (x-num.com-num.top)/3,1)
+        
+      } else {
+        cords <- c( (x-num.com)/(1+num.top),mid.layer)
       }
-  return (cords)
   }
+  return (cords)
+}
 ## end LayoutSCT
 
 
@@ -2552,20 +2562,20 @@ GetEdgeWidth <- function(x,A,num.arrows.to.topics){
   
   if (x[3]< num.arrows.to.topics+1){
     width <- sum(
-      (x[1]==A[,2]) & 
-        (x[2]==A[,3])
-      ) 
+                 (x[1]==A[,2]) & 
+                 (x[2]==A[,3])
+                 ) 
     
-    } else {
-      
-      width <- sum(
-        (x[1]==A[,3]) &
-          (x[2]==A[,4])
-        )
-      }
-  return (width)
+  } else {
+    
+    width <- sum(
+                 (x[1]==A[,3]) &
+                 (x[2]==A[,4])
+                 )
   }
-# End GetEdgeWidth
+  return (width)
+}
+## End GetEdgeWidth
 
 
 ##' A small function called within SeeCommitteeTopics() if the argument
@@ -2590,21 +2600,21 @@ GetEdgeWidth.Relative <- function(x,A,num.arrows.to.topics){
   if (x[3]< num.arrows.to.topics+1){
     
     width <- sum(
-      (x[1]==A[ ,2]) &
-        (x[2]==A[ ,3]) ) /
-        sum(x[1]==A[ ,2]) *15 
-    # The 15 is so that the default with of 1 (more user friendly) makes
-    # reasonably sized edges
-    } else {    
-      width <- sum(
-        (x[1]==A[ ,3]) &
-          (x[2]==A[ ,4])) /
-          sum(x[1]==A[ ,3]) *15
-      } 
+                 (x[1]==A[ ,2]) &
+                 (x[2]==A[ ,3]) ) /
+                   sum(x[1]==A[ ,2]) *15 
+    ## The 15 is so that the default with of 1 (more user friendly) makes
+    ## reasonably sized edges
+  } else {    
+    width <- sum(
+                 (x[1]==A[ ,3]) &
+                 (x[2]==A[ ,4])) /
+                   sum(x[1]==A[ ,3]) *15
+  } 
   
   return (width)
-  }
-#End GetEdgeWidth.Relative
+}
+##End GetEdgeWidth.Relative
 
 
 ##' A small function called within SeeCommitteeTopics() if the argument
@@ -2631,29 +2641,29 @@ GetEdgeWidth.Success <- function(x, A, num.arrows.to.topics, num.com, num.top){
   
   if (x[3]< num.arrows.to.topics+1){
     width <- sum(
-      (x[1]==A[, 2]) &
-        (x[2]==A[, 3]) &
-        (A[, 4] == (num.com+num.top+1))
-      ) / 
-        sum((x[1]==A[, 2]) &
-        (x[2]==A[, 3])) *15
+                 (x[1]==A[, 2]) &
+                 (x[2]==A[, 3]) &
+                 (A[, 4] == (num.com+num.top+1))
+                 ) / 
+                   sum((x[1]==A[, 2]) &
+                       (x[2]==A[, 3])) *15
     
-    } else {
-      
-      width <- sum(
-        (x[1]==A[, 3]) &
-          (x[2]==A[, 4]) &
-          (A[, 4]==(num.com+num.top+1))
-        ) /
-        sum(
-          (x[1]==A[, 3]) &
-            (x[2]==A[, 4])) *15
-    # The 15 is so that the default with of 1 (more user friendly) makes
-    # reasonably sized edges
-      }
+  } else {
+    
+    width <- sum(
+                 (x[1]==A[, 3]) &
+                 (x[2]==A[, 4]) &
+                 (A[, 4]==(num.com+num.top+1))
+                 ) /
+                   sum(
+                       (x[1]==A[, 3]) &
+                       (x[2]==A[, 4])) *15
+    ## The 15 is so that the default with of 1 (more user friendly) makes
+    ## reasonably sized edges
+  }
   return(width)
-  } 
-#End GetEdgeWidth.Sucess
+} 
+##End GetEdgeWidth.Sucess
 
 
 ##' A function called within SeeCommitteeTopics() to calculate all edge widths.
@@ -2679,28 +2689,28 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
   num.arrows.to.topics <- nrow(unique( A[, 2:3]))
   num.arrows.to.jf <- nrow(unique(A[, 3:4]))
   num.arrows <- nrow(arrows.mat) # the total number of arrows to be drawn
-                       
-  if((edge.width == "absolute") | (edge.width == "a")){
+  
+  if ((edge.width == "absolute") | (edge.width == "a")){
     width <- apply(cbind(arrows.mat,1:num.arrows), 1, GetEdgeWidth,
                    A, num.arrows.to.topics)
-    }
+  }
   
-  if((edge.width == "relative") | (edge.width == "r")){
+  if ((edge.width == "relative") | (edge.width == "r")){
     width <- apply(cbind(arrows.mat,1:num.arrows), 1, GetEdgeWidth.Relative,
                    A, num.arrows.to.topics)
-    }
+  }
   
-  if((edge.width == "success") | (edge.width == "s")){ 
+  if ((edge.width == "success") | (edge.width == "s")){ 
     width <- apply(cbind(arrows.mat,1:num.arrows), 1, GetEdgeWidth.Success,
                    A, num.arrows.to.topics, num.com, num.top)
-    }
-  # Scale it:
+  }
+                                        # Scale it:
   width <- ceiling(edge.width.scale*width)
   if ((edge.width == "absolute") | (edge.width == "a")) width <- width/10
   
   return(width)
 }
-# end Edge.Width()
+                                        # end Edge.Width()
 
 
 ##' The main graphing function for the legislative bill mapping package. This
@@ -2713,9 +2723,9 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
 ##' Edge width, as well as node area, by default correspond to the number of
 ##' amendments they are representing.
 ##' @title SeeCommitteeTopics
-##' @param model.amend.hierarchy.out The object created by model.amend.hierarchy().
+##' @param model.amend.hierarchy.out The object created by ModelAmendHierarchy().
 ##' @param get.likely.composite.out The object created by GetLikelyComposite().
-##' @param committees The object created by model.amend.hierarchy.
+##' @param committees The object created by ModelAmendHierarchy.
 ##' @param edge.width.scale Scales the width of the arrows. Default = 1.
 ##' @param edge.width The method used to calculate edge widths. The default, "absolute",
 ##' means that edge widths will correspond to the absolute number of amendments they
@@ -2775,25 +2785,25 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
 SeeCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.out,
-                                 committees,
-                                 edge.width.scale=1, edge.width = "absolute",
-                                 scale.c=1, scale.t=1, scale.fin=1,
-                                 edge.transparency=70, edge.col=NULL,
-                                 main=NULL, arrowhead.size=0, 
-                                 layout=NULL, mid.layer=.65, 
-                                 plot.terms=TRUE, terms.cex=.5, terms.col="grey30",
-                                 terms.x.offset=0, terms.y.offset=-.05, 
-                                 terms.spread=1, terms.text.close=1,
-                                 labels=NULL, vertex.label.font=3, vertex.label.cex=.75,
-                                 vertex.color="cornflowerblue", vertex.shape = "rectangle"
-                                 ) {
+                               committees,
+                               edge.width.scale=1, edge.width = "absolute",
+                               scale.c=1, scale.t=1, scale.fin=1,
+                               edge.transparency=70, edge.col=NULL,
+                               main=NULL, arrowhead.size=0, 
+                               layout=NULL, mid.layer=.65, 
+                               plot.terms=TRUE, terms.cex=.5, terms.col="grey30",
+                               terms.x.offset=0, terms.y.offset=-.05, 
+                               terms.spread=1, terms.text.close=1,
+                               labels=NULL, vertex.label.font=3, vertex.label.cex=.75,
+                               vertex.color="cornflowerblue", vertex.shape = "rectangle"
+                               ) {
   
   merged <- OutToInSCT(model.amend.hierarchy.out,get.likely.composite.out,committees)
   
   committees <- merged[,3]
-  # Need to make the committees column numeric.
-  # Also need to make sure that if there are any skipped indices, everything 
-  # gets re-ordered properly.
+  ## Need to make the committees column numeric.
+  ## Also need to make sure that if there are any skipped indices, everything 
+  ## gets re-ordered properly.
   amend.committees <- as.numeric(factor(merged[,3]))
   amend.topics <- as.numeric(factor((merged[,2])))
   amend.final <- as.numeric(factor(merged[,4])) -1
@@ -2805,57 +2815,57 @@ SeeCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.ou
   
   A <- matrix(c(1:a,amend.committees,amend.topics,amend.final),ncol=4)
   
-  # num.amd = # of amendments, num.com = # of committees, num.top = # of topics.
+  ## num.amd = # of amendments, num.com = # of committees, num.top = # of topics.
   num.amd <- nrow(A)
   num.com <- length(unique(A[,2]))
   num.top <- length(unique(A[,3])) 
-     
-  # reindex. Note that igraph takes numbers starting at 0, not 1.
-  # Now the last 3 columns of A represent the nodes each amendment will touch.
+  
+  ## reindex. Note that igraph takes numbers starting at 0, not 1.
+  ## Now the last 3 columns of A represent the nodes each amendment will touch.
   A[,1:4] <- c( (A[,1]),
-                (A[,2]-1),
-                (A[,3]+num.com-1),
-                (A[,4]+num.com+num.top))
-        
-  # A matrix of all of the unique arrows that need to be drawn:
+               (A[,2]-1),
+               (A[,3]+num.com-1),
+               (A[,4]+num.com+num.top))
+  
+  ## A matrix of all of the unique arrows that need to be drawn:
   arrows.mat <- rbind( unique( A[,2:3] ), unique(A[,3:4]) )
   
-  # Calculate edge widths
+  ## Calculate edge widths
   width <- EdgeWidths(A, num.com, num.top, edge.width, edge.width.scale)
   
-  # Calculate edge colors
+  ## Calculate edge colors
   edge.color <- EdgeColorSCT(A, num.com, num.top, edge.col, edge.transparency)  
 
-  # Calculate vertex sizes
+  ## Calculate vertex sizes
   size <- VertexSizes(A, num.com, num.top, scale.c, scale.t, scale.fin)
   v.size <- size[,1]
   v.size2 <- size[,2]
   
   topics.matrix <- model.amend.hierarchy.out[[1]][[1]][[2]]
 
-  # Calculate vertex labels
+  ## Calculate vertex labels
   labels <- VertexLabels(labels,merged,topics.matrix)
-        
-  # The actual object to be graphed:
+  
+  ## The actual object to be graphed:
   g. <- arrows.mat-min(arrows.mat)
   g.. <- as.numeric(t(g.))
   g <- graph(g..)
-        
-  # To create the layout, an nx2 matrix denoting the coordinates of each x vertices, you can use
-  # a function or a matrix. The default is to use the following lines to create the matrix: 
-              
-  if(is.null(layout)){
+  
+  ## To create the layout, an nx2 matrix denoting the coordinates of each x vertices, you can use
+  ## a function or a matrix. The default is to use the following lines to create the matrix: 
+  
+  if (is.null(layout)){
     x <- 1:(num.com+num.top+2)
     lay.mat <- t(sapply(x,FUN=LayoutSCT,num.com=num.com,num.top=num.top,
                         mid.layer=mid.layer))
-    # So currently the graph is plotted on a (0,0),(1,1) screen, more or less.
-    } else {
-      lay.mat <- layout(g)
-      }
-        
-  if(is.null(main)) main <- ""
+    ## So currently the graph is plotted on a (0,0),(1,1) screen, more or less.
+  } else {
+    lay.mat <- layout(g)
+  }
   
-  # graph it!                
+  if (is.null(main)) main <- ""
+  
+  ## graph it!                
   plot(g,
        layout = lay.mat,
        edge.arrow.width = arrowhead.size,
@@ -2872,7 +2882,7 @@ SeeCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.ou
        main = main
        )
   
-  if( plot.terms == TRUE){
+  if ( plot.terms == TRUE){
     
     terms.list <- list()
     for (i in 1:ncol(topics.matrix)){
@@ -2880,13 +2890,13 @@ SeeCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.ou
     }
     
     PlotTopicWords(terms.list, layout=lay.mat,
-                     terms.cex, terms.col,
-                     terms.x.offset, terms.y.offset,
-                     terms.spread, terms.text.close)
-      }
+                   terms.cex, terms.col,
+                   terms.x.offset, terms.y.offset,
+                   terms.spread, terms.text.close)
+  }
 }
- 
- 
+
+
 ##' Plots a list of words next to each topic node in the graph created by this
 ##' package's SeeCommitteeTopics() function. To be used within 
 ##' SeeCommitteeTopics().
@@ -2903,33 +2913,33 @@ SeeCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.ou
 ##' @return Text on plotted onto a SeeCommitteeTopics() graph (with default 
 ##' layout style).
 ##' @author Hillary Sanders
-  PlotTopicWords <- function(words.list, layout,
-                               cex=.5, col="grey30",
-                               x.offset=0, y.offset=-.05,
-                               spread=1, text.close=1
-                               ) {
-    
+PlotTopicWords <- function(words.list, layout,
+                           cex=.5, col="grey30",
+                           x.offset=0, y.offset=-.05,
+                           spread=1, text.close=1
+                           ) {
+  
   num.top <- length(words.list)
   x.axis <- ( (layout[ ( layout[,2] == unique (layout[, 2])[2]), 1] # the 2nd level
                )*2.8*spread) - 1.4*spread
-  # The constants 2.8 and -4/25 help to make the more-user-friendly defaults of 1
-  # look good on a graph plotting a reasonably sized bill.
+                                        # The constants 2.8 and -4/25 help to make the more-user-friendly defaults of 1
+                                        # look good on a graph plotting a reasonably sized bill.
   y.axis <- seq(.1,
                 by=(-4/25)*cex*text.close,length=length(words.list[[1]])) +
                   y.offset
 
   for (i in 1:num.top){
     x <- (x.axis[i]+x.offset )  # scale
- text(x=x, y=y.axis,
-      labels=c(words.list[[i]]), col=col, cex=cex)
-    }
+    text(x=x, y=y.axis,
+         labels=c(words.list[[i]]), col=col, cex=cex)
   }
-# end PlotTopicWords
+}
+                                        # end PlotTopicWords
 
 ##' Takes output from various bill mapping functions and prepares the data 
 ##' for the SeeCommitteeTopics() function.
 ##' @title OutToInSAS
-##' @param model.amend.hierarchy.out the output of model.amend.hierarchy().
+##' @param model.amend.hierarchy.out the output of ModelAmendHierarchy().
 ##' @param get.likely.composite.out the output of get.likely.composite().
 ##' @param committees the object "committees", used in other parts of this
 ##' package, consisting of a vector of committee names for each ith 
@@ -2938,44 +2948,44 @@ SeeCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.ou
 ##' committee, and a final destinations column: either a final bill index or
 ##' 0, for rejected amenments.
 OutToInSAS <- function(model.amend.hierarchy.out,
-                        get.likely.composite.out,
-                        committees){
+                       get.likely.composite.out,
+                       committees){
   
-  # Create a matrix of each amendment index and their topic assignments.
+  ## Create a matrix of each amendment index and their topic assignments.
   amend.top.index <- cbind( model.amend.hierarchy.out[[1]][[1]][[4]]
-                            -min(model.amend.hierarchy.out[[1]][[1]][[4]])+1
-                            , as.numeric(model.amend.hierarchy.out[[1]][[1]][[3]]))
-  # Note that here, only those amendments that are not thrown out due to length 
-  # (e.g. ":") are represented.
+                           -min(model.amend.hierarchy.out[[1]][[1]][[4]])+1
+                           , as.numeric(model.amend.hierarchy.out[[1]][[1]][[3]]))
+  ## Note that here, only those amendments that are not thrown out due to length 
+  ## (e.g. ":") are represented.
   colnames(amend.top.index) <- c("idx","topic #")
 
-  # Find the indices of those amendments which made it to the composite final bill.
+  ## Find the indices of those amendments which made it to the composite final bill.
   successful<- get.likely.composite.out[ get.likely.composite.out[,3]=="amendment",c(1,2)]
   colnames(successful) <- c("final.idx","amend.idx")
   
 
-  # Create a matrix of the successful amendment indices. The second row
-  # becomes helpful in a moment!
+  ## Create a matrix of the successful amendment indices. The second row
+  ## becomes helpful in a moment!
   x <- data.frame(1:length(committees),committees)
   names(x) <-c("amend.idx","committees")
-    
+  
   joined <- join( x, successful, type="left")
-    
-  # All of the elements in the third row that are <NA> (not "amendment") 
-  # must be rejected amendments or amendments discarded by the computer (due to
-  # their very short length).
+  
+  ## All of the elements in the third row that are <NA> (not "amendment") 
+  ## must be rejected amendments or amendments discarded by the computer (due to
+  ## their very short length).
   joined[,3][is.na(joined[,3])] <- 0
   
-  # Three columns: amendment index, committee, logical: was the amendment accepted?
+  ## Three columns: amendment index, committee, logical: was the amendment accepted?
   
-  # However, amendments that were discarded still need to be removed:
-  # Use amend.top.index, as it only shows non-discarded amendments, and has topic info:
+  ## However, amendments that were discarded still need to be removed:
+  ## Use amend.top.index, as it only shows non-discarded amendments, and has topic info:
   merged <- merge(amend.top.index,joined,by=1)
   colnames(merged) <- c("amendment.idx","topic.idx","committee","final.idx/junk")
 
   return(merged)
 }
-# end OutToInSCT()
+## end OutToInSCT()
 
 
 ##' Called within SeeCommitteeTopics to calculate a vector of colors for the graph's
@@ -3009,7 +3019,7 @@ EdgeColorSAS <- function(color.by="topics", col=NULL, coms, tops){
   
   return(list(edge.color,col))
 }
-# end EdgeColorSAS
+## end EdgeColorSAS
 
 
 ##' Creates a vector of node (vertex) labels for a SeeAmendsSuccess() graph.
@@ -3021,7 +3031,7 @@ EdgeColorSAS <- function(color.by="topics", col=NULL, coms, tops){
 ##' @return A vector of labels for a SAS graph.
 MakeLabelsSAS <- function(amends.idx, a, f, labels=NULL){
   
-    if (is.null(labels)) {
+  if (is.null(labels)) {
     
     a.labeled <- amends.idx[floor( c( seq(1, a, length=10) ))]
     f.labeled <- floor(seq(1, f, length=10) )
@@ -3032,7 +3042,7 @@ MakeLabelsSAS <- function(amends.idx, a, f, labels=NULL){
     for (i in f.labeled) labels[a+i] <- i
     labels[a+f+1] <- "Junk"
   }
-    return(labels)
+  return(labels)
 }
 
 
@@ -3050,13 +3060,13 @@ MakeLabelsSAS <- function(amends.idx, a, f, labels=NULL){
 ##' @author Hillary Sanders
 Layout.SAS <- function(x, a, f){
   if (x<(a+1)) { cords<- c(x/(1+a), .2)
-                 } else {
-                   if (x>(a+f)) { cords <- c(.5, .5)
-                                  } else {
-                                    cords <- c( ((x-a)/(1+f)), .8) }}
+               } else {
+                 if (x>(a+f)) { cords <- c(.5, .5)
+                              } else {
+                                cords <- c( ((x-a)/(1+f)), .8) }}
   return (cords)
-  }
-  # End Layout.SAS
+}
+                                        # End Layout.SAS
 
 
 ##' Creates a three tiered directed acyclic graph to visualize bill evolution.
@@ -3064,7 +3074,7 @@ Layout.SAS <- function(x, a, f){
 ##' amendment was not accepted into the final bill, or if it was, to its place in 
 ##' the final bill.
 ##' @title SeeAmendsSuccess
-##' @param model.amend.hierarchy.out the output of model.amend.hierarchy().
+##' @param model.amend.hierarchy.out the output of ModelAmendHierarchy().
 ##' @param get.likely.composite.out the output of get.likely.composite().
 ##' @param committees the object "committees", used in other parts of this
 ##' package, consisting of a vector of committee names for each ith 
@@ -3096,14 +3106,14 @@ Layout.SAS <- function(x, a, f){
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
 SeeAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.out, committees,
-                               color.by="topics", col = NULL,
-                               edge.width.scale=1, arrowhead.size=0,
-                               af.shape="none", junk.shape="rectangle",
-                               af.scale=1, junk.scale=1,
-                               label.font=3,label.cex=.75, labels=NULL,
-                               main="Amendments' Destinations",
-                               legend.x=-1.25, legend.y=.5, legend.cex=.5
-                               ){
+                             color.by="topics", col = NULL,
+                             edge.width.scale=1, arrowhead.size=0,
+                             af.shape="none", junk.shape="rectangle",
+                             af.scale=1, junk.scale=1,
+                             label.font=3,label.cex=.75, labels=NULL,
+                             main="Amendments' Destinations",
+                             legend.x=-1.25, legend.y=.5, legend.cex=.5
+                             ){
   
   merged <- OutToInSAS (model.amend.hierarchy.out, get.likely.composite.out, committees)
   amends.idx <- merged[,1]
@@ -3111,38 +3121,38 @@ SeeAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.out
   coms <- merged[,3]
   destinations <- merged[,4]
 
-  # number of paragraphs in final bill.
+  ## number of paragraphs in final bill.
   f <- nrow(get.likely.composite.out) 
-  # number of amendments.
+  ## number of amendments.
   a <- length(destinations) 
   amends.plot.idx <- 1:a
   final.idx <- 1:f
-       
+  
   colors <- EdgeColorSAS(color.by, col, coms, tops)
   edge.color <- colors[[1]]
   col <- colors[[2]]
-                            
+  
   destinations[destinations==0] <- f+1
-  # So that each amendment destined for the junk bin will go to that last,
-  # (a+f+1)th, vertex, with index a+f, since igraph indices start at 0:
+  ## So that each amendment destined for the junk bin will go to that last,
+  ## (a+f+1)th, vertex, with index a+f, since igraph indices start at 0:
   
   mat <- matrix(c(amends.plot.idx-1, 0, 0, destinations+a-1, (f+a-1), a), ncol=2)
   g <- as.numeric(t(mat))          
   graph <- graph(g)
-  # the 0 -> f+a-1 and 0 -> a are to ensure that all 1:f final paragraphs are
-  # shown in the graph. They will have no color, so will be invisible. The 
-  # (f+a+1)th vertex will be the junk bin, with graph index (f+a), since igraph 
-  # indices start at 0.
-         
+  ## the 0 -> f+a-1 and 0 -> a are to ensure that all 1:f final paragraphs are
+  ## shown in the graph. They will have no color, so will be invisible. The 
+  ## (f+a+1)th vertex will be the junk bin, with graph index (f+a), since igraph 
+  ## indices start at 0.
+  
   x <- (a+f+1)
   y <- 1:x
   lay.mat <- t(sapply(y,FUN=Layout.SAS, a=a, f=f))
-        
+  
   labels <- MakeLabelsSAS(amends.idx, a, f, labels)
-   
+  
   v.shape <- c(rep(af.shape, a+f),junk.shape)
   v.size <- c(rep(15*af.scale, a+f),30*junk.scale)
-        
+  
   plot(graph, layout=lay.mat, edge.arrow.width=arrowhead.size,
        edge.width=edge.width.scale, edge.color=edge.color, vertex.shape=v.shape,
        vertex.size=v.size, vertex.label=labels, vertex.label.font=label.font,
@@ -3151,13 +3161,13 @@ SeeAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.out
 
   if (color.by == "topics" | color.by == "t"){
     leg.text <- paste("Topic",1:length(unique(tops)), sep=" ")
-    }
+  }
   
   if (color.by == "committees" | color.by =="c"){
     leg.text <- levels(factor(committees))
-    }
+  }
   
-    legend(legend.x,legend.y, leg.text, col, bg="lavenderblush",cex=legend.cex)
+  legend(legend.x,legend.y, leg.text, col, bg="lavenderblush",cex=legend.cex)
 }
 
- 
+

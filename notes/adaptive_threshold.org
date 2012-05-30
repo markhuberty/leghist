@@ -58,7 +58,7 @@ match on a per-case basis.
    vector $\sigma_S$ should change significantly under sequential
    deletion of the best matches. Given that we know at least a little
    about the data-generating process, the user could specify a maximum
-   number of "close" matches and a multiplier $\heta$for changes to sigma
+   number of "close" matches and a multiplier $\theta$ for changes to sigma
    required to justify the "best" match as a valid match. A good match
    under that rubric is $\frac{\sigma(S_{!best})}{\sigma(S)} <
    \theta$.
@@ -77,4 +77,10 @@ match on a per-case basis.
    implies a good match. Finally, $R \approx 1$ suggests ambiguity: it
    could be a good match or a good match with a lot of ties or
    near-ties. 
+
+
+## Brief thoughts on precision/recall measures here--what's the right
+## denom for recall?
+## Precision here: correct matches / length(final.bill)
+## Recall here: correct matches / (correct matches + mismatches)
 
