@@ -3149,7 +3149,9 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
                              legend.x=-1.25, legend.y=.5, legend.cex=.5
                              ){
   
-  merged <- OutToInSAS (model.amend.hierarchy.out, get.likely.composite.out, committees)
+  merged <- OutToInSAS (model.amend.hierarchy.out,
+                        get.likely.composite.out,
+                        committees)
   amends.idx <- merged[,1]
   tops <- merged[,2]
   coms <- merged[,3]
