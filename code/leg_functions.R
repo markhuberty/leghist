@@ -3088,9 +3088,9 @@ MakeShapesSAS <- function(a, f, a.lab, f.lab, af.shape, junk.shape){
 ##' @return the xth layout coordinates for PlotAmendsSuccess().
 ##' @author Hillary Sanders
 LayoutSAS <- function(x, a, f){
-  if (x<=a) { cords <- c(x/(1+a), .2)
+  if (x<=a) { cords <- c(x/(1+a), .5)
                  } else {
-                   if (x==(a+f+1)) { cords <- c(.5, .5)
+                   if (x==(a+f+1)) { cords <- c(.5, .2)
                               } else {
                                 cords <- c( ((x-a)/(1+f)), .8) }}
   return (cords)
@@ -3118,7 +3118,7 @@ LayoutSAS <- function(x, a, f){
 ##' @param arrowhead.size Size of edge arrowheads. Default = 0.
 ##' @param af.shape The node shape of the amendment and final bill nodes. Possible 
 ##' shapes are "circle", "square", "csquare", "rectange", "crectangle", "vrectangle",
-##' and "none". Default = "circle".
+##' and "none". Default = "none".
 ##' @param junk.shape The shape of the junk bin node. Default = "rectangle"
 ##' @param af.scale Scale the size of the amendment and final nodes.
 ##' @param junk.scale Scale the size of the junk node. 
@@ -3142,7 +3142,7 @@ LayoutSAS <- function(x, a, f){
 PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.out, committees,
                              color.by="topics", col=NULL,
                              edge.width.scale=1, arrowhead.size=0,
-                             af.shape="circle", junk.shape="rectangle",
+                             af.shape="none", junk.shape="rectangle",
                              af.scale=1, junk.scale=1,
                              label.font=3,label.cex=.75, labels=NULL,
                              a.lab=10, f.lab=10,
