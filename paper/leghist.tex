@@ -308,7 +308,7 @@ on the basis of one of several metrics including term-frequency and
 term frequency / inverse document frequency measures. 
 
 The \texttt{leghist} package comes with several alternative distance metrics for use
-in step (2). We implement a standard cosine similarity, a
+in step (2). For token-based distance metrics, we implement a standard cosine similarity, a
 length-weighted cosine similarity, and a length-weighted joint
 information distance measure as described by \cite{hoad2003methods}. In plagiarism applications, length-sensitive
 distance metrics have performed well in identifying correct documents
@@ -318,7 +318,8 @@ by the length-insensitive cosine similarity. This may, as we will discuss, be du
 somewhat arbitrary choice of what constitutes a document section, and
 its instability over time. Finally, the function interfaces allow the
 user to supply any distance function so long as it returns a
-correctly-formatted distance matrix. 
+correctly-formatted distance matrix. We also implement an interface to
+string-based metrics like the Levenshtein edit distance \citep{elmagarmid2007}.
 
 Step (3) uses simple nearest neighbor matching with replacement to
 identify the most likely candidate matches from both the initial
@@ -418,17 +419,36 @@ distributions.
 \subsection{Macro-scale amendment visualization}
 \label{sec:macro-scale-vis}
 
-In order to examine overall trends, \texttt{leghist} provides an interface to visualize the macro-scale development of a bill in terms of amendment and topic flow. Implementation occurs via the \texttt{igraph} package for R. Two types of acyclic directed graphs are facilitated:
+Finally, \texttt{leghist} provides an interface to visualize the
+macro-scale development of a bill in terms of amendment and topic
+flow. Amendment flow is treated as a directed acyclic graph, in which
+nodes can be legislative actors, semantic topics, and amendment
+status. Implementation uses the \texttt{igraph} library. Two types of acyclic directed graphs are facilitated:
 
 \begin{enumerate}
-\item The flow of amendments, stemming  from the committees which submitted them, to the topics the amendments were modeled to, and to their final acceptance or rejection into the final bill, is modeled by a three tiered directed acyclic graph.
-Committees are represented by nodes on the bottom tier. Arrows, representing amendments submitted by each committee and modeled to some topic, connect committee nodes to topic nodes in the middle tier. Arrows, representing all amendments modeled to a given topic, connect topic nodes to one of two nodes - Junk or Final - in the top and final tier. Individual arrow widths and node areas correspond to the number of amendments represented by each. Arrow colors represent amendment success, failure, or combination thereof. Underneath each topic node, its set of terms is optionally plotted. 
-\item The failure, or the success and placement (index) in the final bill, of each submitted amendment is modeled by a three tiered directed acyclic graph. Each amendment, represented by an individual node in the bottom tier, is connected to its final destination - either a junk bin in the middle tier of the graph, or the amendment's placement in the final bill, each paragraph of which is represented as an individual node in the top and final tier. Arrow colors represent either an amendment's topic or committee.
+\item The flow of amendments from the committees which originated
+  them, to final status as either accepted or rejected components of
+  legislation (via \texttt{PlotCommitteeTopics}). This is modeled as a tripartite acyclic graph in which
+  nodes are legislative actors, semantic topics, and final
+  status. Edges represent the flow of amendments via topics to final
+  status. Edgewidth corresponds to the volume of amendments by source
+  or destination, and edge color codes for . Node size is proportional
+  to the count of amendments passing originating from or passing
+  through each nodes. For topic nodes, the top $N$ terms for each
+  topic are printed alongside the node itself.
+\item The failure, or the success and placement (index) in the final
+  bill, of each submitted amendment is modeled by a three tiered
+  directed acyclic graph (via \texttt{PlotAmendsSuccess}). Each amendment, represented by an individual node in the bottom tier, is connected to its final destination - either a junk bin in the middle tier of the graph, or the amendment's placement in the final bill, each paragraph of which is represented as an individual node in the top and final tier. Arrow colors represent either an amendment's topic or committee.
 \end{enumerate}
 
-In graph (1), users are able to specify how arrow widths are calculated, the placement of the three layers, the scale of node areas in each tier, node colors, node shapes, how to plot the k terms which apply to each topic, arrow transparency, arrow color, layout, labels, and the title. Arrow widths can be calculated by the absolute number of amendments represented by each arrow, by the relative number of amendments represented given the node an arrow originates from, or by the proportion of successful amendments in the amendments represented by an arrow. Graph (1) is helpful in visualizing how various committees have trended towards submitting amendments regarding certain topics, and how successful those amendments have been. It's also helpful to visualize the scale and success of both committees and topics.
-
-In graph (2) users are able to specify how arrow colors are calculated, the colors used, the scale of arrow widths, the shape of various nodes, the scale of various node sizes, font, font size, labels, the title, and the placement and size of the legend. Arrow colors may either represent the topic a given amendment was assigned to, or alternatively the committee it was submitted by. Graph (2) is helpful in noticing amendment hotspots in the final bill, and visualizing the committees or topics associated with these hotspots.
+The first graph provides for easy macro-scale visualization of the
+flow of amendments. The second provides a rapid way to establish the
+correspondence between topics and bill sections, and to identify the
+distribution of bill modifications as represented in the final
+bill. plotting facilities in \texttt{leghist} provide significant
+flexibility to control the information encoded in the color, size, and
+transparency of nodes and edges in each graph. Examples of each are provided in section
+\ref{sec:content-modeling}. 
 
 
 \section{Vignette: the 2009 European Electricity Market Regulation }
