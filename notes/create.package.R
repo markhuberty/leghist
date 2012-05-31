@@ -2,7 +2,7 @@
 
 # Directions to create a leghist package
 
-# in durkheim R
+# in durkheim 
 ssh -p 2222 sanders@durkheim.berkeley.edu
 # First git pull at ~/.git/leghist if not updated.
 
@@ -11,6 +11,8 @@ package.skeleton("leghist",code_files=c("~/.git/leghist/code/leg_functions.R",
                                     "~/.git/leghist/code/leghist-package.R"), 
                  force=TRUE)
 # Note the the package skelton will be created wherever you currently are in.
+# If you want to say where the package will be create, you can use the
+# path = <filepath> argument. (Default = ".")
 
 library(roxygen2)
 
@@ -60,14 +62,13 @@ install.packages("~/.git/leghist/code/leghist_1.0.tar.gz",repos=NULL,type="sourc
 
 To edit, modify the ~leghist/R .R files and use roxygenise() to update.
 
-Basically everything works as you would think it should. Namespace and Rd. files get properly updated.
+Basically everything works as you think it would. Namespace and Rd. files get properly updated.
 
 One note: if you delete a function in the source code files, it will still show up in the man folder, but you cannot open it, as it will just say "no such fie or directory"
 
 If you want to create a completely new file, you have to delete your 
 directory first, or else even if package.skeleton (force = TRUE) is used, 
-nothing will be overwritten with the new source code. The old source code will be used. If a new file is created, you'll have to create a new "DESCRIPTION" file,
-as well as delete the "Read-and-delete-me file", and the "inst" file.'
+nothing will be overwritten with the new source code. The old source code will be used. If a new file is created, you'll have to create a new "DESCRIPTION" file, as well as delete the "Read-and-delete-me file", and the "inst" file.'
 
 
 
