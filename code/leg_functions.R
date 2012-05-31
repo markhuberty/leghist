@@ -35,6 +35,7 @@
 
 ##' @import tm topicmodels stringr lsa Matrix RWeka gdata catspec
 ##' @import foreach RecordLinkage igraph plyr
+##' @export weightTf weightTfIdf weightBin
 NULL ## terminates the import statement, don't take it out.
 
 ##' Maps the final bill to both the original bill and any proposed
@@ -2784,6 +2785,7 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
 ##' number of amendments represented. (For now)
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
+##' @export
 PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.out,
                                committees,
                                edge.width.scale=1, edge.width = "absolute",
@@ -3105,6 +3107,7 @@ Layout.SAS <- function(x, a, f){
 ##' @param legend.cex size of the legend.
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
+##' @export
 PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.out, committees,
                              color.by="topics", col = NULL,
                              edge.width.scale=1, arrowhead.size=0,
