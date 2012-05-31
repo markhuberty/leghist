@@ -542,7 +542,7 @@ With the document-term matrix, we can now map the final bill to its
 potential matches in the initial bill and amendments. The function
 \texttt{MapBills} takes as input the \texttt{doc.list} object and a
 specification for the distance function. Here, we use
-\texttt{cosine.mat}, a version of the \texttt{cosine} distance
+\texttt{CosineMat}, a version of the cosine distance
 optimized for this use case by using matrix algebra to compute all
 distances simultaneously. However, any function that returns a
 distance matrix of the $N_{final} \times N_{compare}$, where the rows
@@ -551,7 +551,7 @@ potential matches, may be used.
 
 \begin{lstlisting}[language=R, numbers=none]
 map.bills.cos <- MapBills(doc.list,
-                          distance.fun="cosine.mat"
+                          distance.fun="CosineMat"
                           )
 \end{lstlisting}
 
@@ -575,7 +575,7 @@ discussed on section \ref{sec:extens-negot-cont}. To do so, we will
 use a hand-coded set of best matchs. The \texttt{leghist} package
 provides three tools for doing so. First, the user may encode the best
 match from the set of candidates using the same structure used by
-\texttt{MapBills}. The \texttt{run.encoder} routine allows the user to
+\texttt{MapBills}. The \texttt{RunEncoder} routine allows the user to
 encode a randomly-sampled portion of the final bill. It presents the
 user with a set of candidate matches, based on likely matches from
 both the initial bill and amendments. The user provides the index of
@@ -587,7 +587,7 @@ available.\footnote{We note that users who do not want to use the
   representation used by the automated match algorithms, thereby
   reducing the search space for hand-coded matches.} Figure
 \ref{fig:encoder-interface} provides a sample of the 
-\texttt{run.encoder} interface.
+\texttt{RunEncoder} interface.
 
 Based on the encoded sample, we may identify the optimum threshold
 value based on the empirical accuracy of the matching algorithm. To do
@@ -692,7 +692,7 @@ write.side.by.side.cos <-
 We assess the accuracy of the matching algorithm against two different
 standards: a human-matched document and the legislative record of
 adopted amendments. The human-matched document makes use of the
-\texttt{encoder} tools provided in \texttt{leghist}. These tools take
+\texttt{Encoder} tools provided in \texttt{leghist}. These tools take
 as input the same set of documents provided to the matching algorithm,
 generate a set of candidate matches for each section in the final
 bill, and provide a user interface to indicate which of the candidate
@@ -738,7 +738,7 @@ First Reading Report. We note that the bill also underwent review by
 the Council, which made other, non-specified changes. 
 
 This user-encoded bill was then compared to the algorithmic match
-across a range of threshold values, using the \texttt{learn.threshold}
+across a range of threshold values, using the \texttt{LearnThreshold}
 tools. Figure \ref{fig:rese-accuracy-test} shows the results of those
 comparisons. For a threshold value of 0.45, the algorithm correctly
 identified and matched amendments in 84\% of cases. While the rate of
@@ -819,43 +819,43 @@ of committee contributions to each semantic cluster and subcluster.
 ## Define the number of primary topics
 k.main <- 8
 rese.topics.2007 <- 
-   model.amend.hierarchy(doc.list.2007,
-                         rese.composite.2007,
-                         k=c(k.main, rep(5, k.main)),
-                         addl.stopwords=c("article",
-                           "paragraph", "follow", "replace",
-                           "insert",
-                           "ensure", "regulation",
-                           as.character(0:9),
-                           "commission",
-                           "directive", "annex",
-                           "parliament",
-                           "council",
-                           "alia", "whereas",
-                           "january", "december", "july",
-                           "deleted", "added", "amend",
-                           "draft", "http", "mso",
-                           "allowincell", "textbox",
-                           "endiftextbox", "div"),
-                         n.terms=10,
-                         ngram=1,
-                         sampling.method="VEM",
-                         topic.method="CTM",
-                         control=list(
-                           var=list(tol=10^-4),
-                           em=list(tol=10^-3),
-                           seed=2342),
-                         sparseness.probs=c(0.01, 0.999)
-                         )
+   ModelAmendHierarchy(doc.list.2007,
+                       rese.composite.2007,
+                       k=c(k.main, rep(5, k.main)),
+                       addl.stopwords=c("article",
+                         "paragraph", "follow", "replace",
+                         "insert",
+                         "ensure", "regulation",
+                         as.character(0:9),
+                         "commission",
+                         "directive", "annex",
+                         "parliament",
+                         "council",
+                         "alia", "whereas",
+                         "january", "december", "july",
+                         "deleted", "added", "amend",
+                         "draft", "http", "mso",
+                         "allowincell", "textbox",
+                         "endiftextbox", "div"),
+                       n.terms=10,
+                       ngram=1,
+                       sampling.method="VEM",
+                       topic.method="CTM",
+                       control=list(
+                         var=list(tol=10^-4),
+                         em=list(tol=10^-3),
+                         seed=2342),
+                       sparseness.probs=c(0.01, 0.999)
+                       )
 
 
 rese.topic.proportions.2007 <-
-  ctab.amend.hierarchy(rese.topics.2007,
-                       rese.composite.2007,
-                       committees.2007,
-                       doc.list.2007,
-                       tab.idx=2
-                       )
+  CtabAmendHierarchy(rese.topics.2007,
+                     rese.composite.2007,
+                     committees.2007,
+                     doc.list.2007,
+                     tab.idx=2
+                     )
 
 \end{lstlisting}
 
