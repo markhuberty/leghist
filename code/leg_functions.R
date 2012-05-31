@@ -566,7 +566,7 @@ WriteSideBySide <- function(composite.match,
 ##' @param terms the terms represented by the vectors
 ##' @return A list of terms found in vector 1 but not vector 2
 ##' @author Mark Huberty
-GetWordsToHighlight <- function(vector1, vector2, terms){
+GetWordsToHightlight <- function(vector1, vector2, terms){
 
   highlight.words <- setdiff(terms[vector1 > 0],
                              terms[vector2 > 0]
@@ -853,11 +853,6 @@ WriteCompositeFinal <- function(composite.match,
     }
   
   print("Done")
-
-  ## Make sure all sink() connections are shut to enable console to print
-  if(sink.number() > 0)
-    sink()
-
 
 }
 
@@ -2155,8 +2150,7 @@ CtabAmendHierarchy <- function(amend.topic.hierarchy,
     CtabTopics(amend.topic.hierarchy[[1]][[1]]$topics,
                committees,
                composite.bill$match.idx[composite.bill$match.origin=="amendment"],
-               model.amend.idx,
-               tab.idx
+               model.amend.idx
                )
   
   ## Generate subtopic crosstabs
@@ -2167,8 +2161,7 @@ CtabAmendHierarchy <- function(amend.topic.hierarchy,
     CtabTopics(x$topics,
                committees,
                composite.bill$match.idx[composite.bill$match.origin=="amendment"],
-               model.amend.idx,
-               tab.idx
+               model.amend.idx
                )
   })
 
@@ -2186,19 +2179,16 @@ CtabAmendHierarchy <- function(amend.topic.hierarchy,
 ##' @param committees the committee list corresponding to the
 ##' committees responsible for the amendments
 ##' @param master.idx The index of matched amendments in the composite
-##' bill, specifically the match.origin element of a composite.bill
-##' object
+##' bill, specifically the match.origin element of a composite.bill object
 ##' @param this.idx Index of the amendments as they appear in the
 ##' topic model, on the same interval as master.idx. Note that this is
 ##' not the same as the dtm.idx, because of dropped cases due to
 ##' amendment length or different stopwords lists.
-##' @param margin The margin on which to calculate percentages in the crosstab; either
-##' 1 (for columns) or 2 (for rows)
 ##' @return A list of crosstabs: by topic and accepted/rejected
 ##' (count.by.topic.status); by committee and accepted/rejected
 ##' (count.by.committee.status); and proportion by topic status
 ##' @author Mark Huberty
-CtabTopics <- function(topics, committees, master.idx, this.idx, margin){
+CtabTopics <- function(topics, committees, master.idx, this.idx){
 
   labels <- rep(NA, length(this.idx))
   acc.amend.idx <- this.idx %in% master.idx
@@ -2214,7 +2204,7 @@ CtabTopics <- function(topics, committees, master.idx, this.idx, margin){
                                      labels
                                      )
   prop.by.topic.status <- prop.table(count.by.topic.status,
-                                     margin=margin
+                                     margin=1
                                      )
   prop.by.topic.committee.status <-
     my.print.ctab(ctab(factor(topics),
@@ -3039,14 +3029,16 @@ EdgeColorSAS <- function(color.by="topics", col=NULL, coms, tops){
 ##' @param amends.idx 1:a, where a = the number of amendments.
 ##' @param a The number of amendments.
 ##' @param f the number of paragraphs in the final bill.
+##' @param a.lab the number of visible labels on the bottom amendments tier.
+##' @param f.lab the number of visible labels on the top final bill tier.
 ##' @param labels an optional vector of labels which the user may supply.
 ##' @return A vector of labels for a SAS graph.
-MakeLabelsSAS <- function(amends.idx, a, f, labels=NULL){
+MakeLabelsSAS <- function(amends.idx, a, f, a.lab, f.lab, labels=NULL){
   
   if (is.null(labels)) {
     
-    a.labeled <- amends.idx[floor( c( seq(1, a, length=10) ))]
-    f.labeled <- floor(seq(1, f, length=10) )
+    a.labeled <- amends.idx[floor( c( seq(1, a, length=a.lab) ))]
+    f.labeled <- floor(seq(1, f, length=f.lab) )
     
     labels <- rep("", a+f+1)
     
@@ -3056,29 +3048,52 @@ MakeLabelsSAS <- function(amends.idx, a, f, labels=NULL){
   }
   return(labels)
 }
+# end MakeLabelsSAS
 
-
+##' Creates a vector of node (vertex) labels for a PlotAmendsSuccess() graph.
+##' @title MakeShapesSAS
+##' @param a the number of amendments.
+##' @param f the number of paragraphs in the final bill.
+##' @param a.lab the number of visible labels on the bottom amendments tier.
+##' @param f.lab the number of visible labels on the top final bill tier.
+##' @param af.shape the shape of the visible amendment and final bill nodes.
+##' @param junk.shape the shape of the junk node.
+##' @return A vector of labels for a SAS graph.
+MakeShapesSAS <- function(a, f, a.lab, f.lab, af.shape, junk.shape){ 
+  
+  shape <- rep("none", a+f+1)
+    
+  a.visible <- floor( c( seq(1, a, length=a.lab) ))
+  f.visible <- floor(seq(1, f, length=f.lab) ) + a
+  
+  for (i in a.visible) shape[i] <- af.shape
+  for (i in f.visible) shape[i] <- af.shape
+  shape[a+f+1] <- junk.shape
+    
+  return (shape)
+  }
+# end MakeShapesSAS
 
 ##' Creates the "x"th layout coordinates for PlotAmendsSuccess(). This function
 ##' is called inside of PlotAmendsSuccess() to create the layout: coordinates
 ##' for two layers consisting of 1) amendments (a of them), 2) the final bill 
 ##' (all of the paragraphs (or other text chunks) in the final bill, as well as
 ##' a junk bin placed in the middle of the graph.
-##' @title Layout.SAS
+##' @title LayoutSAS
 ##' @param x the index of the coordinates to be created. 
 ##' @param a the number of amendments.
 ##' @param f the number of text chunks (generally, paragraphs) in the final bill.
 ##' @return the xth layout coordinates for PlotAmendsSuccess().
 ##' @author Hillary Sanders
-Layout.SAS <- function(x, a, f){
-  if (x<(a+1)) { cords<- c(x/(1+a), .2)
-               } else {
-                 if (x>(a+f)) { cords <- c(.5, .5)
+LayoutSAS <- function(x, a, f){
+  if (x<=a) { cords <- c(x/(1+a), .2)
+                 } else {
+                   if (x==(a+f+1)) { cords <- c(.5, .5)
                               } else {
                                 cords <- c( ((x-a)/(1+f)), .8) }}
   return (cords)
 }
-                                        # End Layout.SAS
+                                        # End LayoutSAS
 
 
 ##' Creates a three tiered directed acyclic graph to visualize bill evolution.
@@ -3111,6 +3126,10 @@ Layout.SAS <- function(x, a, f){
 ##' paragraph, and the junk bin. If left null, ten (relatively) equidistant
 ##' nodes will be labeled by their paragraph indices for both amendments and 
 ##' the final bill, while the rejected amendments bin will be labeled "Junk".
+##' @param a.lab the number of visible labels on the bottom amendments tier.
+##' default = 10.
+##' @param f.lab the number of visible labels on the top final bill tier.
+##' default = 10.
 ##' @param main The plot title. Default = "Amendments' Destinations".
 ##' @param legend.x X axis placement of the legend.
 ##' @param legend.y Y axis placement of the legend.
@@ -3119,11 +3138,12 @@ Layout.SAS <- function(x, a, f){
 ##' @author Hillary Sanders
 ##' @export
 PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.out, committees,
-                             color.by="topics", col = NULL,
+                             color.by="topics", col=NULL,
                              edge.width.scale=1, arrowhead.size=0,
                              af.shape="none", junk.shape="rectangle",
                              af.scale=1, junk.scale=1,
                              label.font=3,label.cex=.75, labels=NULL,
+                             a.lab=10, f.lab=10,
                              main="Amendments' Destinations",
                              legend.x=-1.25, legend.y=.5, legend.cex=.5
                              ){
@@ -3159,11 +3179,12 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   
   x <- (a+f+1)
   y <- 1:x
-  lay.mat <- t(sapply(y,FUN=Layout.SAS, a=a, f=f))
+  lay.mat <- t(sapply(y,FUN=LayoutSAS, a=a, f=f))
   
-  labels <- MakeLabelsSAS(amends.idx, a, f, labels)
+  labels <- MakeLabelsSAS(amends.idx, a, f, a.lab, f.lab, labels)  
   
-  v.shape <- c(rep(af.shape, a+f),junk.shape)
+  v.shape <- MakeShapesSAS(a, f, a.lab, f.lab, af.shape, junk.shape)
+  
   v.size <- c(rep(15*af.scale, a+f),30*junk.scale)
   
   plot(graph, layout=lay.mat, edge.arrow.width=arrowhead.size,
