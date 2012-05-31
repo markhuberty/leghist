@@ -566,7 +566,7 @@ WriteSideBySide <- function(composite.match,
 ##' @param terms the terms represented by the vectors
 ##' @return A list of terms found in vector 1 but not vector 2
 ##' @author Mark Huberty
-GetWordsToHightlight <- function(vector1, vector2, terms){
+GetWordsToHighlight <- function(vector1, vector2, terms){
 
   highlight.words <- setdiff(terms[vector1 > 0],
                              terms[vector2 > 0]
@@ -853,6 +853,11 @@ WriteCompositeFinal <- function(composite.match,
     }
   
   print("Done")
+
+  ## Make sure all sink() connections are shut to enable console to print
+  if(sink.number() > 0)
+    sink()
+
 
 }
 
@@ -2150,7 +2155,8 @@ CtabAmendHierarchy <- function(amend.topic.hierarchy,
     CtabTopics(amend.topic.hierarchy[[1]][[1]]$topics,
                committees,
                composite.bill$match.idx[composite.bill$match.origin=="amendment"],
-               model.amend.idx
+               model.amend.idx,
+               tab.idx
                )
   
   ## Generate subtopic crosstabs
@@ -2161,7 +2167,8 @@ CtabAmendHierarchy <- function(amend.topic.hierarchy,
     CtabTopics(x$topics,
                committees,
                composite.bill$match.idx[composite.bill$match.origin=="amendment"],
-               model.amend.idx
+               model.amend.idx,
+               tab.idx
                )
   })
 
@@ -2179,16 +2186,19 @@ CtabAmendHierarchy <- function(amend.topic.hierarchy,
 ##' @param committees the committee list corresponding to the
 ##' committees responsible for the amendments
 ##' @param master.idx The index of matched amendments in the composite
-##' bill, specifically the match.origin element of a composite.bill object
+##' bill, specifically the match.origin element of a composite.bill
+##' object
 ##' @param this.idx Index of the amendments as they appear in the
 ##' topic model, on the same interval as master.idx. Note that this is
 ##' not the same as the dtm.idx, because of dropped cases due to
 ##' amendment length or different stopwords lists.
+##' @param margin The margin on which to calculate percentages in the crosstab; either
+##' 1 (for columns) or 2 (for rows)
 ##' @return A list of crosstabs: by topic and accepted/rejected
 ##' (count.by.topic.status); by committee and accepted/rejected
 ##' (count.by.committee.status); and proportion by topic status
 ##' @author Mark Huberty
-CtabTopics <- function(topics, committees, master.idx, this.idx){
+CtabTopics <- function(topics, committees, master.idx, this.idx, margin){
 
   labels <- rep(NA, length(this.idx))
   acc.amend.idx <- this.idx %in% master.idx
@@ -2204,7 +2214,7 @@ CtabTopics <- function(topics, committees, master.idx, this.idx){
                                      labels
                                      )
   prop.by.topic.status <- prop.table(count.by.topic.status,
-                                     margin=1
+                                     margin=margin
                                      )
   prop.by.topic.committee.status <-
     my.print.ctab(ctab(factor(topics),
