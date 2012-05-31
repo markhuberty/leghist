@@ -2228,6 +2228,7 @@ CtabTopics <- function(topics, committees, master.idx, this.idx){
   return(out)
   
 }
+
 ## This is a custom implementation of print.ctab() from the catspec
 ## library. The original version calls all() w/o specifing the NA
 ## handling. However, all()'s NA handling is inconsistent. all(TRUE,
@@ -2481,7 +2482,7 @@ VertexSizes <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
   
   return(cbind(v.size,v.size2))
 }
-                                        # end VertexSizes()
+# end VertexSizes()
 
 
 ##' A function called within PlotCommitteeTopics() to creates vertex 
@@ -2615,7 +2616,7 @@ GetEdgeWidth.Relative <- function(x,A,num.arrows.to.topics){
   
   return (width)
 }
-##End GetEdgeWidth.Relative
+## End GetEdgeWidth.Relative
 
 
 ##' A small function called within PlotCommitteeTopics() if the argument
@@ -2664,7 +2665,7 @@ GetEdgeWidth.Success <- function(x, A, num.arrows.to.topics, num.com, num.top){
   }
   return(width)
 } 
-##End GetEdgeWidth.Sucess
+## End GetEdgeWidth.Sucess
 
 
 ##' A function called within PlotCommitteeTopics() to calculate all edge widths.
@@ -2711,7 +2712,7 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
   
   return(width)
 }
-                                        # end Edge.Width()
+# end Edge.Width()
 
 
 ##' The main graphing function for the legislative bill mapping package. This
@@ -2781,8 +2782,9 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
 ##' @param vertex.label.cex Size of the vertex label font. Vectorized.
 ##' @param vertex.color The color vertex labels are filled with.
 ##' @param vertex.shape The shape of the vertices. Default = "rectangle". Note that
-##' if another shape is passed, area will no longer be (one-to-one) related to the 
-##' number of amendments represented. (For now)
+##' if another shape is passed, area may no longer be (one-to-one) related to the 
+##' number of amendments represented. (For now.) Possible shapes are "circle",
+##' "square", "csquare", "rectange", "crectangle", "vrectangle", and "none".
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
 ##' @export
@@ -2936,7 +2938,8 @@ PlotTopicWords <- function(words.list, layout,
          labels=c(words.list[[i]]), col=col, cex=cex)
   }
 }
-                                        # end PlotTopicWords
+# end PlotTopicWords
+
 
 ##' Takes output from various bill mapping functions and prepares the data 
 ##' for the PlotCommitteeTopics() function.
@@ -3026,18 +3029,17 @@ EdgeColorSAS <- function(color.by="topics", col=NULL, coms, tops){
 
 ##' Creates a vector of node (vertex) labels for a PlotAmendsSuccess() graph.
 ##' @title MakeLabelsSAS
-##' @param amends.idx 1:a, where a = the number of amendments.
 ##' @param a The number of amendments.
 ##' @param f the number of paragraphs in the final bill.
 ##' @param a.lab the number of visible labels on the bottom amendments tier.
 ##' @param f.lab the number of visible labels on the top final bill tier.
 ##' @param labels an optional vector of labels which the user may supply.
 ##' @return A vector of labels for a SAS graph.
-MakeLabelsSAS <- function(amends.idx, a, f, a.lab, f.lab, labels=NULL){
+MakeLabelsSAS <- function(a, f, a.lab, f.lab, labels=NULL){
   
   if (is.null(labels)) {
     
-    a.labeled <- amends.idx[floor( c( seq(1, a, length=a.lab) ))]
+    a.labeled <- floor( c( seq(1, a, length=a.lab) ))
     f.labeled <- floor(seq(1, f, length=f.lab) )
     
     labels <- rep("", a+f+1)
@@ -3116,7 +3118,7 @@ LayoutSAS <- function(x, a, f){
 ##' @param arrowhead.size Size of edge arrowheads. Default = 0.
 ##' @param af.shape The node shape of the amendment and final bill nodes. Possible 
 ##' shapes are "circle", "square", "csquare", "rectange", "crectangle", "vrectangle",
-##' and "none". Default = "none".
+##' and "none". Default = "circle".
 ##' @param junk.shape The shape of the junk bin node. Default = "rectangle"
 ##' @param af.scale Scale the size of the amendment and final nodes.
 ##' @param junk.scale Scale the size of the junk node. 
@@ -3140,7 +3142,7 @@ LayoutSAS <- function(x, a, f){
 PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.out, committees,
                              color.by="topics", col=NULL,
                              edge.width.scale=1, arrowhead.size=0,
-                             af.shape="none", junk.shape="rectangle",
+                             af.shape="circle", junk.shape="rectangle",
                              af.scale=1, junk.scale=1,
                              label.font=3,label.cex=.75, labels=NULL,
                              a.lab=10, f.lab=10,
@@ -3181,7 +3183,7 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   y <- 1:x
   lay.mat <- t(sapply(y,FUN=LayoutSAS, a=a, f=f))
   
-  labels <- MakeLabelsSAS(amends.idx, a, f, a.lab, f.lab, labels)  
+  labels <- MakeLabelsSAS(a, f, a.lab, f.lab, labels)  
   
   v.shape <- MakeShapesSAS(a, f, a.lab, f.lab, af.shape, junk.shape)
   
