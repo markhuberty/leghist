@@ -3026,7 +3026,6 @@ EdgeColorSAS <- function(color.by="topics", col=NULL, coms, tops){
 }
 ## end EdgeColorSAS
 
-
 ##' Creates a vector of node (vertex) labels for a PlotAmendsSuccess() graph.
 ##' @title MakeLabelsSAS
 ##' @param a The number of amendments.
@@ -3205,5 +3204,3 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   
   legend(legend.x,legend.y, leg.text, col, bg="lavenderblush",cex=legend.cex)
 }
-
-
