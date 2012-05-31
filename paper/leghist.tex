@@ -34,7 +34,7 @@
 \lstset{backgroundcolor=\color{LightYellow}}
 \lstset{framextopmargin=6pt, framexbottommargin=6pt, framerule=4pt, rulecolor=\color{White}}
 
-\title{LegHist:\\ Automated legislative history analysis for
+\title{\texttt{leghist}:\\ Automated legislative history analysis for
   R\thanks{Original version: 30 January 2012. Thanks to Adrienne Hosek for discussions on the
   comparative legislative processes for the United States Congress and
 the European Parliament.}}
@@ -52,7 +52,19 @@ California, Berkeley.}}
 %\doublespacing
 
 \begin{abstract}
-  
+  We describe an integrated workflow for automated analysis of
+  legislative history in the R language. Legislative history analysis
+  often requires laborious hand-matching of proposed amendments and
+  their authors to their destination in a final bill. \texttt{leghist}
+  deploys natural language and textual analysis methods to automate
+  matching, estimate match accuracy, model the
+  semantic content of amendments, tabulate the rate of acceptance and
+  rejection of amendments by legislative actor and topic, and visualize the
+  resulting flow of information. We provide a theoretical
+  overview of the workflow and suggest this model could be extended to
+  other analagous forms of legal and political document analysis. We
+  finally provide a vignette based on the European Union's Third
+  Renewable Energy Directive, adopted in 2008. 
 \end{abstract}
 
 \section{Introduction}
@@ -934,39 +946,76 @@ available tools for semantic clustering of text.
 [10,] "rules"        "molecular" "annualised" "priority"    "established" 
 \end{verbatim}
 
-Finally, we create macro scale graphs of amendment flows.
+
+Finally, \texttt{leghist} provides several options for visualizing the
+flow and semantic clustering of amendments. \texttt{PlotAmendsSuccess}
+generates a directed acyclic graph representation of amendment flow
+from its origins with legislative actors, via the topic clustering, to
+either rejection or the final bill. Output for the renewable energy
+legislation is shown in figure \ref{fig:amend-flow}. We observe that
+while the Parliament's 1st reading supplied the majority of
+amendments, the Commission's amendments were far more
+successful. Overall, however, most amendments fail to pass into
+law. As with the cross-tabulations, we can also see that topic six was
+dominated by the Parliament, while the other topics saw equal
+attention from both the Parliament and Commission.
+
 
 \begin{lstlisting}[language=R, numbers=none]
-See.Committee.Topics(rese.topics.2007, rese.composite.2007,
-                                 committees,
-                                 edge.width.scale=1, edge.width = "absolute",
-                                 scale.c=1, scale.t=1, scale.fin=1,
-                                 edge.transparency=75, edge.col=NULL,
-                                 main=NULL, arrowhead.size=0, 
-                                 layout=NULL, mid.layer=.65, 
-                                 plot.terms=TRUE, terms.cex=.5, terms.col="grey20",
-                                 terms.x.offset=0, terms.y.offset=0, 
-                                 terms.spread=1, terms.text.close=1,
-                                 labels=NULL
-                                 )
+PlotCommitteeTopics(rese.topics.2007, rese.composite.2007,
+                    committees,
+                    edge.width.scale=1, edge.width = "absolute",
+                    scale.c=1, scale.t=1, scale.fin=1,
+                    edge.transparency=75, edge.col=NULL,
+                    main=NULL, arrowhead.size=0, 
+                    layout=NULL, mid.layer=.65, 
+                    plot.terms=TRUE, terms.cex=.5, terms.col="grey20",
+                    terms.x.offset=0, terms.y.offset=0, 
+                    terms.spread=1, terms.text.close=1,
+                    labels=NULL
+                    )
 \end{lstlisting}
-
-Output is shown below. We can easily observe that while the Parliament's 1st reading supplied the majority of amendments, the Commission's amendments were far more successful - though overall, most amendments were rejected. Topic six amendments, mostly submitted by the Parliament 1st reading, were mostly unsuccessful, while the rest were relatively equal in their success, Topic four amendments doing slightly better than others.
 
 \begin{lstlisting}[language=R, numbers=none]
-See.Amends.Success(model.amend.hierarchy.out, get.likely.composite.out, committees,
-		       color.by="topics", col = NULL,
-                               edge.width.scale=1, arrowhead.size=0,
-                               af.shape="none", junk.shape="rectangle",
-                               af.scale=1, junk.scale=1,
-                               label.font=3,label.cex=.75, labels=NULL,
-                               main="Amendments' Destinations",
-                               legend.x=-1.25, legend.y=.5, legend.cex=.5
-                               )
+PlotAmendsSuccess(rese.topics.2007,
+                  rese.composite.2007.cos,
+                  committees.2007,
+                  color.by="topics", col = NULL,
+                  edge.width.scale=1, arrowhead.size=0,
+                  af.shape="none", junk.shape="rectangle",
+                  af.scale=1, junk.scale=1,
+                  label.font=3,label.cex=.75, labels=NULL,
+                  main="Amendments' Destinations",
+                  legend.x=-1.25, legend.y=.5, legend.cex=.5
+                  )
 \end{lstlisting}
 
-Output is shown below. This second graph again shows that while the majority of amendments were submitted by the Parliament 1st reading, the Commission was much more successful in their amendment proposals. The Commission's successful amendments focused most on the end of the bill, around paragraph 320.
+Likewise, \texttt{PlotAmendsSuccess} plots amendments by their final
+destination as either accepted or rejected amendments. For accepted
+amendments, they are mapped from the indexed list provided to their
+location in the final bill. Figure \ref{fig:amend-dest} shows the
+result for the renewable energy bill. We immediately notice large
+sections of the final bill that do not have obvious origins in the
+amendments. We can also observe that most amendments cluster by topic
+within the successful bill. This provides visual confirmation of the
+semantic coherence of different bill segments.
 
+\begin{figure}[ht]
+  \centering
+  \includegraphics{plot_committee_topic_flow}
+  \caption{Amendment origin, semantic clustering, and destination for the 2007 European Union renewable energy law. Edges represent amendment flow from sources to destination. Edge width reflects the share of amendments from that source bound for that destination. }
+  \label{fig:amend-flow}
+\end{figure}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics{plot_amendment_destination}
+  \caption{Amendment origin and destination by index. Edges reflect
+    amendment flow from the original indexed list to the final bill or
+  rejection. Colors reflect semantically clustered topics as output by
+\texttt{ModelAmendHierarchy}.}
+  \label{fig:amend-dest}
+\end{figure}
 
 \section{Conclusions}
 \label{sec:conclusions}
