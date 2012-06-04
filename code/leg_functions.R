@@ -283,7 +283,7 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
         (length(doc.final) + length(doc.initial) + 1):vs.all$dtm$nrow
       
     }
-
+  
   ## Convert the dtm to a sparse matrix so I can do math on it later.
   ## Note that this is much faster than the SparseToDtm code
   vs.out <- sparseMatrix(i=vs.all$dtm$i,
@@ -1278,7 +1278,10 @@ ModelDocSet <- function(doc.list,
 ##' corresponding to the weighting used to construct dtm. Note that at
 ##' present only weightTf is supported.
 ##' @param control a set of control parameters appropriate for
-##' topic.method. See the topicmodels package documentation for details.
+##' topic.method. See the topicmodels package documentation for
+##' details.
+##' @param na.rm Should documents of length 0 after stopword removal
+##' be dropped (TRUE) or kept and assigned topic NA (FALSE)
 ##' @param ... other arguments as passed to the LDA or CTM methods
 ##' @return A list containing the topic model, the top N terms by topic, and the topic
 ##' assignments for each document indicated by idx.
@@ -1286,7 +1289,9 @@ ModelDocSet <- function(doc.list,
 ##' @author Mark Huberty
 ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
                         sampling.method, addl.stopwords=NULL,
-                        n.terms, weighting=weightTf,control=control){
+                        n.terms, weighting=weightTf,
+                        control=control,
+                        na.rm=TRUE){
 
   if (!is.null(addl.stopwords))
     {
@@ -1307,16 +1312,18 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
       dtm <- dtm[, !remove.vec]
       
     }
-
+  print(dim(dtm))
   dtm.sub <- dtm[idx, ]
-  print(dim(dtm.sub))
+  ## print(dim(dtm.sub))
+  ## print(class(dtm.sub))
   ## Check to ensure that all rows have at least one term
   has.terms <- rowSums(dtm.sub) > 0
   dtm.sub <- dtm.sub[has.terms, ]
   idx <- idx[has.terms]
 
+  print(dim(dtm.sub))
   this.dtm <- SparseToDtm(dtm.sub, weighting=weighting)
-                                        #print(dim(this.dtm))
+  print(dim(this.dtm))
   
   ## If no K provided, ensure that each topic has on average 10 documents
   if (is.null(k))
@@ -1328,7 +1335,20 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
 
   terms.out <- terms(out, n.terms)
   topics.out <- topics(out)
+  if (!na.rm){
+    all.idx <- 1:nrow(dtm)
+    topics.out <- sapply(all.idx, function(x){
+      if(x %in% idx)
+        topics.out[which(idx == x)]
+      else
+        NA
+    })
+    topics.out <- unlist(topics.out)
+    idx <- all.idx
+  }
+
   list.out <- list(out, terms.out, topics.out, idx)
+      
   names(list.out) <- c("topic.model", "terms", "topics", "dtm.idx")
   return(list.out)
 
