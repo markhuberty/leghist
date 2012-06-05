@@ -2346,6 +2346,7 @@ OutToInSCT <- function(model.amend.hierarchy.out,
 ##' @title IsRGB
 ##' @param x a character vector
 ##' @return logical, does x start with a "#" sign?
+##' @author Hillary Sanders
 IsRGB <- function(x){
   y <- grepl("^#",x)
   return(y)
@@ -2359,6 +2360,7 @@ IsRGB <- function(x){
 ##' @title CheckAndFixRGB
 ##' @param x Presumably an RGB code or a character vector representing a color.
 ##' @return the input, but in RGB form, if possible.
+##" @author Hillary Sanders
 CheckAndFixRGB <- function (x) {
   
   if (!IsRGB (x)){
@@ -2383,6 +2385,7 @@ CheckAndFixRGB <- function (x) {
 ##' @param edge.transparency Optional integer in 10:99 designating level of 
 ##' transparency
 ##' @return A vector of edge widths for each arrow to be drawn
+##' @author Hillary Sanders
 EdgeColorSCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=NULL){ 
   if (is.null(edge.col)){
     colors <- c("#FFB90F","#6495ED")
@@ -2442,6 +2445,7 @@ EdgeColorSCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=N
 ##' @return A matrix of dimension a by 2. The first column is a vector of node sizes 
 ##' for each vertex in the graph., the second is a vector of second node sizes (e.g.
 ##' for rectanges).
+##' @author Hillary Sanders
 VertexSizes <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
   
   vertex.size <- rep(0,(num.com+num.top+2))
@@ -2495,6 +2499,7 @@ VertexSizes <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
 ##' model.amend.hierarchy.out[[1]][[1]][[2]]
 ##' @return a vector of labels for each node in a PlotCommitteeTopics()
 ##' graph.
+##' @author Hillary Sanders
 VertexLabels <- function(labels, merged, topics.matrix) {
   
   if (is.null(labels)) {
@@ -2685,6 +2690,7 @@ GetEdgeWidth.Success <- function(x, A, num.arrows.to.topics, num.com, num.top){
 ##' amendments each edge is carrying).
 ##' @param edge.width.scale Default = 1. Thicker edges = bigger number.
 ##' @return A vector of edge widths for each arrow to be drawn. 
+##' @author Hillary Sanders
 EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.scale=1){
   
   arrows.mat <- rbind( unique( A[, 2:3] ), unique(A[, 3:4]) )
@@ -2784,7 +2790,7 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
 ##' @param vertex.shape The shape of the vertices. Default = "rectangle". Note that
 ##' if another shape is passed, area may no longer be (one-to-one) related to the 
 ##' number of amendments represented. (For now.) Possible shapes are "circle",
-##' "square", "csquare", "rectange", "crectangle", "vrectangle", and "none".
+##' "square", "csquare", "rectangle", "crectangle", "vrectangle", and "none".
 ##' @return A hopefully pretty graph!
 ##' @author Hillary Sanders
 ##' @export
@@ -2952,6 +2958,7 @@ PlotTopicWords <- function(words.list, layout,
 ##' @return A four column matrix, consiting of amendment index, topic index,
 ##' committee, and a final destinations column: either a final bill index or
 ##' 0, for rejected amenments.
+##' @author Hillary Sanders
 OutToInSAS <- function(model.amend.hierarchy.out,
                        get.likely.composite.out,
                        committees){
@@ -2986,17 +2993,17 @@ OutToInSAS <- function(model.amend.hierarchy.out,
   ## However, amendments that were discarded still need to be removed:
   ## Use amend.top.index, as it only shows non-discarded amendments, and has topic info:
   merged <- merge(amend.top.index,joined,by=1)
-  colnames(merged) <- c("amendment.idx","topic.idx","committee","final.idx/junk")
+  colnames(merged) <- c("amendment.idx","topic.idx","committee","final.idx.or.junk")
 
   return(merged)
 }
-## end OutToInSCT()
+## end OutToInSAS()
 
 
 ##' Called within PlotCommitteeTopics to calculate a vector of colors for the graph's
-##' edges based on the "color.by" argument chosen.
+##' edges based on the "edge.color.by" argument chosen.
 ##' @title EdgeColorSAS
-##' @param color.by Either "topics" ("t") or "committees" ("c") may be chosen by the user.
+##' @param edge.color.by Either "topics" ("t") or "committees" ("c") may be chosen by the user.
 ##' If "topics", edge color will be based on the topic each amendment pertains to. If
 ##' "committees", edge color will be based on the committee each amendment was submitted
 ##' by.
@@ -3004,27 +3011,30 @@ OutToInSAS <- function(model.amend.hierarchy.out,
 ##' number of either topics or committees being represented.
 ##' @param coms A vector of committees corresponding to each amendment i.
 ##' @param tops A vector of topics corresponding to each amendment i.
-EdgeColorSAS <- function(color.by="topics", col=NULL, coms, tops){
+##' @author Hillary Sanders
+EdgeColorSAS <- function(edge.color.by ="topics", coms, tops, edge.col=NULL){
   
-  if (color.by == "topics" | color.by == "t"){
-    if (is.null(col)) {
+
+  if (edge.color.by == "topics" | edge.color.by == "t"){
+    if (is.null(edge.col)) {
       num.tops <- length (unique(tops))
-      col <- colors()[seq(425,600,length=num.tops)]
+      edge.col <- colors()[seq(425,600,length=num.tops)]
     }
-    edge.color <- col[tops] 
+    edge.color <- edge.col[tops] 
   }
   
-  if (color.by == "committees" | color.by == "c"){
-    if (is.null(col)){
+  if (edge.color.by == "committees" | edge.color.by == "c"){
+    if (is.null(edge.col)){
       num.coms <- length(unique(coms))
-      col <- colors()[seq(425,600,length=num.coms)]
+      edge.col.possible <- colors()[seq(425,600,length=num.coms)]
     }
-    edge.color <- col[as.numeric(factor(coms))]
+    edge.color <- edge.col[as.numeric(factor(coms))]
   }
   
-  return(list(edge.color,col))
+  return(list(edge.color,edge.col))
 }
 ## end EdgeColorSAS
+
 
 ##' Creates a vector of node (vertex) labels for a PlotAmendsSuccess() graph.
 ##' @title MakeLabelsSAS
@@ -3034,6 +3044,7 @@ EdgeColorSAS <- function(color.by="topics", col=NULL, coms, tops){
 ##' @param f.lab the number of visible labels on the top final bill tier.
 ##' @param labels an optional vector of labels which the user may supply.
 ##' @return A vector of labels for a SAS graph.
+##' @author Hillary Sanders
 MakeLabelsSAS <- function(a, f, a.lab, f.lab, labels=NULL){
   
   if (is.null(labels)) {
@@ -3051,29 +3062,111 @@ MakeLabelsSAS <- function(a, f, a.lab, f.lab, labels=NULL){
 }
 # end MakeLabelsSAS
 
-##' Creates a vector of node (vertex) labels for a PlotAmendsSuccess() graph.
+##' Creates a vector of node (vertex) shapes for a PlotAmendsSuccess() graph.
 ##' @title MakeShapesSAS
 ##' @param a the number of amendments.
 ##' @param f the number of paragraphs in the final bill.
-##' @param a.lab the number of visible labels on the bottom amendments tier.
-##' @param f.lab the number of visible labels on the top final bill tier.
-##' @param af.shape the shape of the visible amendment and final bill nodes.
 ##' @param junk.shape the shape of the junk node.
-##' @return A vector of labels for a SAS graph.
-MakeShapesSAS <- function(a, f, a.lab, f.lab, af.shape, junk.shape){ 
+##' @return A vector of shapes for a SAS graph.
+##' author Hillary Sanders
+MakeShapesSAS <- function(a, f, junk.shape){ 
   
-  shape <- rep("none", a+f+1)
+  shape.a <- rep("rectangle", a)
+  
+  shape.f <- rep("rectangle", f)
     
-  a.visible <- floor( c( seq(1, a, length=a.lab) ))
-  f.visible <- floor(seq(1, f, length=f.lab) ) + a
-  
-  for (i in a.visible) shape[i] <- af.shape
-  for (i in f.visible) shape[i] <- af.shape
-  shape[a+f+1] <- junk.shape
+  shape <- c(shape.a, shape.f, junk.shape)
     
   return (shape)
   }
 # end MakeShapesSAS
+
+
+##' Creates a vector of node (vertex) sizes for a PlotAmendsSuccess() graph.
+##' @title MakeAmendsSizes
+##' @param a the number of amendments.
+##' @param f the number of paragraphs in the final bill.
+##' @param junk.shape the shape of the junk node.
+##' @return A vector of sizes for a SAS graph.
+##' author Hillary Sanders
+MakeAmendsSizes <- function(a, f, junk.scale){
+
+  size.a <- rep(2/a, a)
+  size.f <- rep(2/f, f)
+  size.junk <- 30*junk.scale
+  
+  vertex.sizes <- c(size.a, size.f, size.junk)
+  
+  return(vertex.sizes)
+  }
+# end vertex.sizes
+
+
+##' A function called within PlotAmendsSuccess(). Creates vertex colors
+##' based on either the committee related to each node, or the topics
+##' related to each node, as chosen by the user.
+##' @title MakeVertexColors
+##' @param a number of amendments.
+##' @param f number of paragraphs in the final bill.
+##' @param merged
+##' @param vertex.color.by
+##' @param vertex.col
+##' @author Hillary Sanders
+##' @export
+MakeVertexColors <- function(a, f, merged,
+                             vertex.color.by="c", vertex.col=NULL,
+                             vertex.junk.color){
+                             	
+    
+  succeeded <- merged[merged$final.idx.or.junk != 0,2:4]
+    
+  final.order <- order(succeeded[,3])
+    
+  succeeded.ordered <- succeeded[final.order,]
+  colnames(succeeded.ordered) <- c("topic","committee","final.idx")
+  
+  final.idx <- data.frame(1:f)
+  colnames(final.idx) <- "final.idx"
+  
+  final <- join (final.idx, succeeded.ordered)
+          
+  if(vertex.color.by == "c" | vertex.color.by == "committees"){
+    
+    coms.amends <- as.numeric(factor(merged$committee))
+    
+    coms.final <- as.numeric(factor(final$committee))
+    
+    coms.final[is.na(coms.final)] <- max(coms.final, na.rm=TRUE) + 1
+    
+    if(is.null(vertex.col)){ 
+      vertex.col <- colors()[seq(500,650,length=10)]
+    }
+    
+    vertex.col.short <- c(vertex.col[1:max(coms.final, na.rm=TRUE)-1],"white")
+    
+    vertex.color <- c(vertex.col.short[c(coms.amends,coms.final)],vertex.junk.color)
+  }
+  
+  if(vertex.color.by == "t" | vertex.color.by == "topics"){
+    
+    tops.amends <- merged$topic.idx
+    
+    tops.final <- final$topic
+    
+    tops.final[is.na(tops.final)] <- max(tops.final,na.rm=TRUE) + 1
+    
+    if(is.null(vertex.col)){ 
+      vertex.col <- colors()[seq(500,650,length=10)]
+    }
+    
+    vertex.col <- c(vertex.col[1:max(tops.final, na.rm=TRUE)-1], "white")
+    
+    vertex.color <- c(vertex.col[c(coms.amends,coms.final)],"cornflowerblue")
+    }
+  
+  return(vertex.color)
+}
+
 
 ##' Creates the "x"th layout coordinates for PlotAmendsSuccess(). This function
 ##' is called inside of PlotAmendsSuccess() to create the layout: coordinates
@@ -3087,14 +3180,14 @@ MakeShapesSAS <- function(a, f, a.lab, f.lab, af.shape, junk.shape){
 ##' @return the xth layout coordinates for PlotAmendsSuccess().
 ##' @author Hillary Sanders
 LayoutSAS <- function(x, a, f){
-  if (x<=a) { cords <- c(x/(1+a), .5)
+  if (x<=a) { cords <- c(x/(1+a), .4)
                  } else {
                    if (x==(a+f+1)) { cords <- c(.5, .2)
                               } else {
                                 cords <- c( ((x-a)/(1+f)), .8) }}
   return (cords)
 }
-                                        # End LayoutSAS
+# End LayoutSAS
 
 
 ##' Creates a three tiered directed acyclic graph to visualize bill evolution.
@@ -3107,7 +3200,7 @@ LayoutSAS <- function(x, a, f){
 ##' @param committees the object "committees", used in other parts of this
 ##' package, consisting of a vector of committee names for each ith 
 ##' amendment (accepted, rejected, and discarded amendments).
-##' @param color.by Either "topics" ("t") or "committees" ("c") may be chosen by the user.
+##' @param edge.color.by Either "topics" ("t") or "committees" ("c") may be chosen by the user.
 ##' If "topics", edge color will be based on the topic each amendment pertains to. If
 ##' "committees", edge color will be based on the committee each amendment was submitted
 ##' by.
@@ -3115,16 +3208,15 @@ LayoutSAS <- function(x, a, f){
 ##' number of either topics or committees being represented.
 ##' @param edge.width.scale Scale edge widths. Default = 1
 ##' @param arrowhead.size Size of edge arrowheads. Default = 0.
-##' @param af.shape The node shape of the amendment and final bill nodes. Possible 
-##' shapes are "circle", "square", "csquare", "rectange", "crectangle", "vrectangle",
+##' @param junk.shape The node shape of the junk node. Possible 
+##' shapes are "circle", "square", "csquare", "rectangle", "crectangle", "vrectangle",
 ##' and "none". Default = "none".
-##' @param junk.shape The shape of the junk bin node. Default = "rectangle"
 ##' @param af.scale Scale the size of the amendment and final nodes.
-##' @param junk.scale Scale the size of the junk node. 
+##' @param junk.scale Scale the size of the junk node.
 ##' @param label.font Font type for the labels. Default = 3.
 ##' @param label.cex Font size for the labels. Default = .75.
 ##' @param labels Vector of labels for each amendments, each final bill 
-##' paragraph, and the junk bin. If left null, ten (relatively) equidistant
+##' paragraph, and the junk bin. If left NULL, ten (relatively) equidistant
 ##' nodes will be labeled by their paragraph indices for both amendments and 
 ##' the final bill, while the rejected amendments bin will be labeled "Junk".
 ##' @param a.lab the number of visible labels on the bottom amendments tier.
@@ -3139,21 +3231,22 @@ LayoutSAS <- function(x, a, f){
 ##' @author Hillary Sanders
 ##' @export
 PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.out, committees,
-                             color.by="topics", col=NULL,
+                             edge.color.by="topics", edge.col=NULL,
                              edge.width.scale=1, arrowhead.size=0,
                              af.shape="none", junk.shape="rectangle",
                              af.scale=1, junk.scale=1,
                              label.font=3,label.cex=.75, labels=NULL,
-                             a.lab=10, f.lab=10,
+                             a.lab=10, f.lab=10, vertex.color.by="c",
+                             vertex.col=NULL, vertex.junk.color="cornflowerblue",
                              main="Amendments' Destinations",
-                             legend.x=-1.25, legend.y=.5, legend.cex=.5
+                             legend.x=-1.25, legend.y=.75, legend.cex=.5
                              ){
   
   merged <- OutToInSAS (model.amend.hierarchy.out, get.likely.composite.out, committees)
   amends.idx <- merged[,1]
-  tops <- merged[,2]
-  coms <- merged[,3]
-  destinations <- merged[,4]
+  tops <- merged$topic.idx
+  coms <- merged$committee
+  destinations <- merged$final.idx.or.junk
 
   ## number of paragraphs in final bill.
   f <- nrow(get.likely.composite.out) 
@@ -3162,7 +3255,8 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   amends.plot.idx <- 1:a
   final.idx <- 1:f
   
-  colors <- EdgeColorSAS(color.by, col, coms, tops)
+  
+  colors <- EdgeColorSAS(edge.color.by, coms, tops, edge.col=NULL)
   edge.color <- colors[[1]]
   col <- colors[[2]]
   
@@ -3184,21 +3278,27 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   
   labels <- MakeLabelsSAS(a, f, a.lab, f.lab, labels)  
   
-  v.shape <- MakeShapesSAS(a, f, a.lab, f.lab, af.shape, junk.shape)
+  v.shape <- MakeShapesSAS(a, f, junk.shape)
   
-  v.size <- c(rep(15*af.scale, a+f),30*junk.scale)
+  vertex.size <- MakeAmendsSizes(a, f, junk.scale)
   
+  vertex.color <- MakeVertexColors(a, f, merged, vertex.color.by,
+                                   vertex.col, vertex.junk.color)
+  
+  vertex.frame.color <- vertex.color
+
   plot(graph, layout=lay.mat, edge.arrow.width=arrowhead.size,
-       edge.width=edge.width.scale, edge.color=edge.color, vertex.shape=v.shape,
-       vertex.size=v.size, vertex.label=labels, vertex.label.font=label.font,
-       vertex.label.cex=label.cex, main=main)
+       edge.width=edge.width.scale, edge.color=edge.color, vertex.color=vertex.color,
+       vertex.frame.color = vertex.frame.color, vertex.shape=v.shape, vertex.size=vertex.size,
+       vertex.label=labels, vertex.label.font=label.font, vertex.label.cex=label.cex,
+       main=main)
 
 
-  if (color.by == "topics" | color.by == "t"){
+  if (edge.color.by == "topics" | edge.color.by == "t"){
     leg.text <- paste("Topic",1:length(unique(tops)), sep=" ")
   }
   
-  if (color.by == "committees" | color.by =="c"){
+  if (edge.color.by == "committees" | edge.color.by =="c"){
     leg.text <- levels(factor(committees))
   }
   
