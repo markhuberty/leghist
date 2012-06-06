@@ -1152,6 +1152,8 @@ LevenshteinDist <- function(dtm, idx.query, idx.compare, idx.collection){
 ##' present.
 ##' @param control a list of control statements appropriate for
 ##' topic.method. See the topicmodels documentation for more detail.
+##' @param na.rm Should documents of length 0 be discarded in the
+##' output? See ModelTopics for detail. Defaults to TRUE.
 ##' @param ... other arguments as required; see ModelTopics.
 ##' @return a ModelTopics object, and additionally an index of
 ##' of the documents as it points to the text inputs, rather than the
@@ -1168,6 +1170,7 @@ ModelDocSet <- function(doc.list,
                         addl.stopwords="NULL",
                         weighting=weightTf,
                         control,
+                        na.rm=TRUE
                         ...){
 
   stopifnot(type %in% c("incl.amend", "rej.amend",
@@ -1249,7 +1252,8 @@ ModelDocSet <- function(doc.list,
                            n.terms=n.terms,
                            addl.stopwords,
                            weighting=weighting,
-                           control=control
+                           control=control,
+                           na.rm=na.rm
                            )
   ## Provide an index to the text (1:N) rather than the dtm
   model.out$txt.idx <- model.out$dtm.idx - min(dtm.idx) + 1
@@ -1965,10 +1969,14 @@ RunEncoder <- function(target.text=NULL,
 ##' @param addl.stopwords Any additional stopwords that should be
 ##' removed prior to modeling
 ##' @param weighting One of weightTf, weightTfIdf, or weightBin
-##' @param ngram 
-##' @param sparseness.probs 
+##' @param ngram What n-gram should be used for topic modeling?
+##' Important if doc.list uses a range of ngrams.
+##' @param sparseness.probs Quantile range values to use in removing
+##' very sparse and very common terms. Defaults to c(0.01, 0.99). 
 ##' @param control A vector of control parameters for the topic model
 ##' function; see the topicmodels documentation for more detail.
+##' @param na.rm Boolean, should documents of length 0 be discarded?
+##' See ModelTopics for detail. Defaults to TRUE.
 ##' @param ... 
 ##' @return A list of of length 2. The first element in the list is a
 ##' list of all models (both the top-level model and each of the
@@ -1991,6 +1999,7 @@ ModelAmendHierarchy <- function(doc.list,
                                 ngram=2,
                                 sparseness.probs=c(0.01, 0.99),
                                 control=control,
+                                na.rm=TRUE,
                                 ...
                                 ){
 
@@ -2032,6 +2041,7 @@ ModelAmendHierarchy <- function(doc.list,
                            k=k.all[1],
                            n.terms=n.terms,
                            control=control,
+                           na.rm=na.rm,
                            ...
                            )
 
@@ -2059,6 +2069,7 @@ ModelAmendHierarchy <- function(doc.list,
                              k=k.all[x+1],
                              n.terms=n.terms,
                              control=control,
+                             na.rm=na.rm,
                              ...
                              )
   })
@@ -2300,6 +2311,234 @@ my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
   return(out)
 }
 
+##' Collates the topic model for the entire corpus of document
+##' sections, the assigned status of each section based on the composite
+##' match, and the origin of each document section. 
+##' @title CollateTopicDtm 
+##' @param composite Output of GetLikelyComposite
+##' @param topic.model Output of ModelTopics for the document-term
+##' in doc.list. Its recommended that topic.model be created with
+##' ModelTopics(..., na.rm=TRUE)
+##' @param doc.list Output of CreateAllVectorSpaces
+##' @param committees Committees list responsible for amendments in
+##' the doc.list object
+##' @return A list with two objects. The doc.topic object lists each
+##' document section in the order provided in doc.list, mapped to their
+##' committee, status, and assigned topic from the topic model. The "composite" object
+##' contains an extended version of the output of GetLikelyComposite,
+##' providing the topics for both the final document section and its
+##' best match. 
+##' @author Mark Huberty
+CollateTopicDtm <- function(composite,
+                            topic.model,
+                            doc.list,
+                            committees){
+  all.sources <- c(rep("doc.final", length(doc.list$idx.final)),
+                   rep("doc.initial", length(doc.list$idx.initial)),
+                   rep("amendment", length(doc.list$idx.amendment))
+                   )
+  all.idx <- c(doc.list$idx.final,
+               doc.list$idx.initial,
+               doc.list$idx.amendment
+               )
+
+  doc.topic <- MapTopicDtm(topic.model,
+                           doc.list,
+                           composite,
+                           committees,
+                           all.sources,
+                           all.idx
+                           ) 
+
+  composite.topic <- MapTopicComposite(topic.model, composite,
+                                       doc.list, doc.topic)
+
+  out <- list(doc.topic, composite.topic)
+  names(out) <- c("doc.topic", "composite.topic")
+  return(out)
+  
+}
+
+
+##' Maps the topics from a model of the entire document-section corpus
+##' onto the composite bill. Returns an augmented composite object
+##' with the assigned topics of both the final sections and their matches.
+##' @title MapTopicComposite 
+##' @param topic.model the output of ModelTopics for the entire corpus
+##' of document sections as output from CreateAllVectorSpaces. Note
+##' that it's recommended the topic.model be created with na.rm=TRUE in ModelTopics.
+##' @param composite the output of GetLikelyComposite
+##' @param doc.topic the output of MapTopicDtm for this composite bill
+##' and vector space
+##' @return An augmented composite bill object containing extra
+##' columns mapping the final bill section and its match to the topics
+##' assigned to them in the topic model.
+##' @author Mark Huberty
+MapTopicComposite <- function(topic.model, composite, doc.list, doc.topic){
+
+  composite.final.topics <-
+    sapply(composite$doc.final.idx, function(x){
+      topic.idx <- which(doc.topic$source == "doc.final" &
+                         doc.topic$idx == x
+                         )
+      doc.topic$topic[topic.idx]
+    })
+  
+  composite.match.topics <-
+    sapply(1:length(composite$match.idx), function(x){
+      if (composite$match.origin[x] == "amendment"){
+
+        this.idx <-
+          composite$match.idx[x] +
+            length(doc.list$final.idx) +
+              length(doc.list$initial.idx)
+
+        topic.idx <- which(doc.topic$source == "amendment" &
+                           doc.topic$idx == this.idx
+                           )
+        
+      }else if (composite$match.origin[x] == "doc.initial"){
+
+        this.idx <- composite$match.idx[x] + length(doc.list$final.idx)
+        topic.idx <- which(doc.topic$source == "doc.initial" &
+                           doc.topic$idx == this.idx
+                           )
+      }else{
+        this.idx <- composite$match.idx[x]
+        topic.idx <- which(doc.topic$source == "doc.final" &
+                           doc.topic$idx == this.idx
+                           )
+      }
+
+      doc.topic$topic[topic.idx]
+      
+    }
+           )
+  composite$final.topic <- composite.final.topics
+  composite$match.topic <- composite.match.topics
+
+  return(composite)
+
+}
+
+MapTopicDtm <- function(topic.model,
+                        doc.list,
+                        composite,
+                        committees,
+                        sources,
+                        all.idx){
+
+  ret <-
+    foreach(x=1:length(topic.model$dtm.idx), .combine=rbind) %do% {
+      
+      this.source <- sources[topic.model$dtm.idx[x]]
+      this.committee <- committees[topic.model$dtm.idx[x]]
+      if(this.source == "amendment")
+        {
+          this.idx <- all.idx[topic.model$dtm.idx[x]] -
+            length(doc.list$idx.final) -
+              length(doc.list$idx.initial)
+          
+        }else if(this.source=="doc.initial"){
+          this.idx <- all.idx[topic.model$dtm.idx[x]] -
+            length(doc.list$idx.final)
+        }else{
+          this.idx <- all.idx[topic.model$dtm.idx[x]]
+        }
+      
+      composite.sub <- composite[composite$match.origin == this.source,]
+      if(this.idx %in% composite.sub$match.idx)
+        {
+          status <- "acc"
+        }else{
+          status <- "rej"
+        }
+      if(this.source != "amendment" & status == "rej")
+        status <- "redund"
+      out <- c(this.source, this.committee, this.idx, status,
+               topic.model$topics[x])
+      out <- unlist(out)
+      return(out)
+    }
+
+  ret <- data.frame(ret)
+  names(ret) <- c("source", "committee","idx", "status", "topic")
+  return(ret)
+
+}
+
+##' Given a composite bill and a topic model for the entire legislative
+##' corpus, EstimateSourceImpact assigns attribution of 
+##' topics--those found in the final but not initial legislation--by
+##' committee origin.
+##' @title EstimateSourceImpact
+##' @param tab.topic.status.out output from CollateTopicDtm containing the topic
+##' and status attributes of all documents in the corpus, and the
+##' mapping of topics to sections in the final bill.  
+##' @param prop.margin Specifies whether the proportion table should
+##' use row (1) or column (2) percentages.
+##' @return A list containing the topic distribution for the final
+##' bill, the cross-tabulation of topic counts by committee for the
+##' synthetic bill, and the proportion cross-tab of topic counts by
+##' committee for the final bill.
+##' @author Mark Huberty
+EstimateSourceImpact <- function(tab.topic.status.out,
+                                 prop.margin=1,
+                                 dist.quantiles=seq(0, 1, 0.2)){
+  idx <- tab.topic.status.out$doc.topic
+  composite <- tab.topic.status.out$composite.topic
+
+  ## Tabulate and determine which topics weren't in the original bill
+  tab.overall <- table(idx$source, idx$topic, useNA="always")
+  idx.new <-
+    which(tab.overall[rownames(tab.overall)=="doc.final" &
+                      !is.na(rownames(tab.overall)), ] > 0 &
+          tab.overall[rownames(tab.overall)=="doc.initial" &
+                      !is.na(rownames(tab.overall)), ] == 0
+          )
+  final.totals <- tab.overall[rownames(tab.overall) == "doc.final"  &
+                              !is.na(rownames(tab.overall)),
+                              idx.new
+                              ]
+
+  new.topics <- as.integer(colnames(tab.overall))[idx.new]
+  
+  ## Subset the composite to only "new" topics and
+  ## count amendments
+  composite.sub <-
+    composite[composite$final.topic %in% new.topics, ]
+
+  tab.dist <- table(composite.sub$alt.origin,
+                    cut(composite.sub$match.dist,
+                        quantile(composite.sub$match.dist,
+                                 probs=dist.quantiles,
+                                 NA.rm=TRUE
+                                 )
+                        )
+                    )
+  tab.pct <- prop.table(tab.dist, margin=prop.margin)
+  
+  tab.sub <- table(composite.sub$alt.origin,
+                   composite.sub$final.topic
+                   )
+  tab.sub <- tab.sub[, idx.new]
+  tab.pct.sub <- prop.table(tab.sub, margin=prop.margin)
+
+  ## Determine percent contribution by each sources
+  pct.contrib <- sapply(1:length(final.totals), function(x){
+    tab.sub[,x] / final.totals[x]
+  })
+
+  out <- list(final.totals, tab.sub, tab.pct.sub, tab.dist, tab.pct)
+  names(out) <- c("ctab.final.topic",
+                  "ctab.origin.topic",
+                  "prop.origin.topic",
+                  "ctab.quantile.dist",
+                  "prop.quantile.dist"
+                  )
+  return(out)
+
+}
 
 #################################################################
 ## BEGIN VISUALIZATION CODE FOR AMENDMENT AND TOPIC FLOW
