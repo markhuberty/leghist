@@ -8,9 +8,9 @@
 ## a bill, through the amendment process, until finalization.
 
 ## leghist provides five core pieces of functionality:
-## 1. Mapping of sections between editions of bills
 ## 2. Mapping of amendments to their location in bills
 ## 3. Identification of discarded material
+## 1. Mapping of sections between editions of bills
 ## 4. Modeling of the content of added and discarded material
 ## 5. Visualization of the flow of bill content, by subject matter
 ##    area, from the initial to final bill.
@@ -2302,6 +2302,7 @@ my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
 ##' column is the amendment indices, the second is the topic assignments, 
 ##' the third is the committees, and the fourth is a logical vector for 
 ##' amendment success (made it into the final bill) or failure.
+##' @author Hillary Sanders
 OutToInSCT <- function(model.amend.hierarchy.out,
                        get.likely.composite.out,
                        committees){
@@ -2374,16 +2375,17 @@ CheckAndFixRGB <- function (x) {
 
 
 ##' A function called within PlotCommitteeTopics() to calculate edge colors.
-##' @title EdgeColorSCT
+##' @title EdgeColorSCT.
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
 ##' of 1:t), and its final destination (junk or final bill: 0 or 1). See
 ##' PlotCommitteeTopics() for more details. 
-##' @param num.com number of committees
-##' @param num.top number of topics
-##' @param edge.col optional vector of colors (length 2).
+##' @param num.com number of committees.
+##' @param num.top number of topics.
+##' @param edge.col optional vector of colors (length 2, for amendment failure and 
+##' success).
 ##' @param edge.transparency Optional integer in 10:99 designating level of 
-##' transparency
+##' transparency.
 ##' @return A vector of edge widths for each arrow to be drawn
 ##' @author Hillary Sanders
 EdgeColorSCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=NULL){ 
@@ -2436,15 +2438,15 @@ EdgeColorSCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=N
 ##' A function called within PlotCommitteeTopics() to calculate vertex (node) 
 ##' sizes.
 ##' @title VertexSizes
-##' @param A ax4 information matrix
-##' @param num.com number of committees
-##' @param num.top number of topics
+##' @param A An ax4 information matrix.
+##' @param num.com number of committees.
+##' @param num.top number of topics.
 ##' @param scale.c Size scale for committee nodes.
 ##' @param scale.t Size scale for topic nodes.
 ##' @param scale.fin Size scale for final destination nodes: "Final" and "Junk".
 ##' @return A matrix of dimension a by 2. The first column is a vector of node sizes 
 ##' for each vertex in the graph., the second is a vector of second node sizes (e.g.
-##' for rectanges).
+##' for rectangles).
 ##' @author Hillary Sanders
 VertexSizes <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
   
@@ -2527,11 +2529,11 @@ VertexLabels <- function(labels, merged, topics.matrix) {
 ##' @param num.top the number of topics (number of nodes wanted in the middle
 ##' layer of the graph).
 ##' @param mid.layer The y-axis placement of the middle layer on the graph. 
-##' Defaults to .6. Note that the bottom and top layers are at 0 and 1. 
+##' Defaults to .65. Note that the bottom and top layers are at 0 and 1. 
 ##' @return the xth pair of coordinates for the default layout of 
 ##' PlotCommitteeTopics().
 ##' @author Hillary Sanders
-LayoutSCT <- function(x,num.com,num.top,mid.layer=.6){
+LayoutSCT <- function(x,num.com,num.top,mid.layer=.65){
   
   if (x<(num.com+1)) {
     cords <- c(x/(1+num.com),0)
@@ -2565,7 +2567,7 @@ LayoutSCT <- function(x,num.com,num.top,mid.layer=.6){
 ##' @return the width of the x[3]th edge (arrow) according to the absolute number of
 ##' amendments represented by the given edge.
 ##' @author Hillary Sanders
-GetEdgeWidth <- function(x,A,num.arrows.to.topics){
+GetEdgeWidth <- function(x, A, num.arrows.to.topics){
   
   if (x[3]< num.arrows.to.topics+1){
     width <- sum(
@@ -2603,7 +2605,7 @@ GetEdgeWidth <- function(x,A,num.arrows.to.topics){
 ##' number of amendments coming from the edge's source (either a committee or topic
 ##' node).
 ##' @author Hillary Sanders
-GetEdgeWidth.Relative <- function(x,A,num.arrows.to.topics){
+GetEdgeWidth.Relative <- function(x, A, num.arrows.to.topics){
   if (x[3]< num.arrows.to.topics+1){
     
     width <- sum(
@@ -2932,8 +2934,9 @@ PlotTopicWords <- function(words.list, layout,
   num.top <- length(words.list)
   x.axis <- ( (layout[ ( layout[,2] == unique (layout[, 2])[2]), 1] # the 2nd level
                )*2.8*spread) - 1.4*spread
-                                        # The constants 2.8 and -4/25 help to make the more-user-friendly defaults of 1
-                                        # look good on a graph plotting a reasonably sized bill.
+# The constants 2.8 and -4/25 help to make the more-user-friendly defaults of 1
+# look good on a graph plotting a reasonably sized bill.
+
   y.axis <- seq(.1,
                 by=(-4/25)*cex*text.close,length=length(words.list[[1]])) +
                   y.offset
@@ -2955,9 +2958,9 @@ PlotTopicWords <- function(words.list, layout,
 ##' @param committees the object "committees", used in other parts of this
 ##' package, consisting of a vector of committee names for each ith 
 ##' amendment (accepted, rejected, and discarded amendments).
-##' @return A four column matrix, consiting of amendment index, topic index,
+##' @return A four column dataframe, consiting of amendment index, topic index,
 ##' committee, and a final destinations column: either a final bill index or
-##' 0, for rejected amenments.
+##' 0, for rejected amendments.
 ##' @author Hillary Sanders
 OutToInSAS <- function(model.amend.hierarchy.out,
                        get.likely.composite.out,
@@ -3009,26 +3012,30 @@ OutToInSAS <- function(model.amend.hierarchy.out,
 ##' by.
 ##' @param col An optional vector of colors, the length of which should be equal to the
 ##' number of either topics or committees being represented.
-##' @param coms A vector of committees corresponding to each amendment i.
-##' @param tops A vector of topics corresponding to each amendment i.
+##' @param merged Output of OutToInSAS
+##' @return 
 ##' @author Hillary Sanders
-EdgeColorSAS <- function(edge.color.by ="topics", coms, tops, edge.col=NULL){
+EdgeColorSAS <- function(edge.color.by ="topics", merged, edge.col=NULL){
   
 
   if (edge.color.by == "topics" | edge.color.by == "t"){
     if (is.null(edge.col)) {
-      num.tops <- length (unique(tops))
-      edge.col <- colors()[seq(425,600,length=num.tops)]
+      num.tops <- length (unique(merged$topic.idx))
+      edge.col <- c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854",
+                    "#FFD92F", "#E5C494", "#B3B3B3")[1:num.tops]
+
     }
-    edge.color <- edge.col[tops] 
+    edge.color <- edge.col[merged$topic.idx] 
   }
   
   if (edge.color.by == "committees" | edge.color.by == "c"){
     if (is.null(edge.col)){
-      num.coms <- length(unique(coms))
-      edge.col.possible <- colors()[seq(425,600,length=num.coms)]
+      num.coms <- length(unique(merged$committee))
+      edge.col <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
+                    "#FFFF33", "#A65628", "#F781BF", "#999999")[1:num.coms]
+
     }
-    edge.color <- edge.col[as.numeric(factor(coms))]
+    edge.color <- edge.col[as.numeric(factor(merged$committee))]
   }
   
   return(list(edge.color,edge.col))
@@ -3139,10 +3146,13 @@ MakeVertexColors <- function(a, f, merged,
     coms.final[is.na(coms.final)] <- max(coms.final, na.rm=TRUE) + 1
     
     if(is.null(vertex.col)){ 
-      vertex.col <- colors()[seq(500,650,length=10)]
+      
+      num.coms <- length(unique(coms.amends))
+      vertex.col <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
+                    "#FFFF33", "#A65628", "#F781BF", "#999999")[1:num.coms]
     }
     
-    vertex.col.short <- c(vertex.col[1:max(coms.final, na.rm=TRUE)-1],"white")
+    vertex.col.short <- c(vertex.col[1:(max(coms.final, na.rm=TRUE)-1)],"white")
     
     vertex.color <- c(vertex.col.short[c(coms.amends,coms.final)],vertex.junk.color)
   }
@@ -3156,12 +3166,14 @@ MakeVertexColors <- function(a, f, merged,
     tops.final[is.na(tops.final)] <- max(tops.final,na.rm=TRUE) + 1
     
     if(is.null(vertex.col)){ 
-      vertex.col <- colors()[seq(500,650,length=10)]
-    }
+      num.tops <- length(unique(tops.amends))
+      vertex.col <- c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854",
+                    "#FFD92F", "#E5C494", "#B3B3B3")[1:num.tops]
+      }
     
     vertex.col <- c(vertex.col[1:max(tops.final, na.rm=TRUE)-1], "white")
     
-    vertex.color <- c(vertex.col[c(coms.amends,coms.final)],"cornflowerblue")
+    vertex.color <- c(vertex.col[c(tops.amends,tops.final)],"cornflowerblue")
     }
   
   return(vertex.color)
@@ -3231,23 +3243,21 @@ LayoutSAS <- function(x, a, f){
 ##' @author Hillary Sanders
 ##' @export
 PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.out, committees,
-                             edge.color.by="topics", edge.col=NULL,
+                             edge.color.by="t", edge.col=NULL,
                              edge.width.scale=1, arrowhead.size=0,
-                             af.shape="none", junk.shape="rectangle",
+                             junk.shape="rectangle",
                              af.scale=1, junk.scale=1,
                              label.font=3,label.cex=.75, labels=NULL,
                              a.lab=10, f.lab=10, vertex.color.by="c",
                              vertex.col=NULL, vertex.junk.color="cornflowerblue",
-                             main="Amendments' Destinations",
+                             main=NULL,
                              legend.x=-1.25, legend.y=.75, legend.cex=.5
                              ){
   
   merged <- OutToInSAS (model.amend.hierarchy.out,
                         get.likely.composite.out,
                         committees)
-  amends.idx <- merged[,1]
-  tops <- merged$topic.idx
-  coms <- merged$committee
+
   destinations <- merged$final.idx.or.junk
 
   ## number of paragraphs in final bill.
@@ -3258,7 +3268,7 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   final.idx <- 1:f
   
   
-  colors <- EdgeColorSAS(edge.color.by, coms, tops, edge.col=NULL)
+  colors <- EdgeColorSAS(edge.color.by, merged, edge.col=NULL)
   edge.color <- colors[[1]]
   col <- colors[[2]]
   
@@ -3297,11 +3307,11 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
 
 
   if (edge.color.by == "topics" | edge.color.by == "t"){
-    leg.text <- paste("Topic",1:length(unique(tops)), sep=" ")
+    leg.text <- paste("Topic",1:length(unique(merged$topic.idx)), sep=" ")
   }
   
   if (edge.color.by == "committees" | edge.color.by =="c"){
-    leg.text <- levels(factor(committees))
+    leg.text <- levels(factor(merged$committee))
   }
   
   legend(legend.x,legend.y, leg.text, col, bg="lavenderblush",cex=legend.cex)
