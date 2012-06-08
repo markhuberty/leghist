@@ -2550,7 +2550,7 @@ EstimateSourceImpact <- function(tab.topic.status.out,
 ##' A function called within PlotCommitteeTopics() to take the output of
 ##' various bill mapping functions and create an easily usable matrix 
 ##' carrying the information PlotCommitteeTopics() needs.
-##' @title OutToInSCT
+##' @title OutToInPCT
 ##' @param model.amend.hierarchy.out the output of ModelAmendHierarchy()
 ##' @param get.likely.composite.out the output of get.likely.composite()
 ##' @param committees the object "committees", used in other parts of this
@@ -2562,7 +2562,7 @@ EstimateSourceImpact <- function(tab.topic.status.out,
 ##' the third is the committees, and the fourth is a logical vector for 
 ##' amendment success (made it into the final bill) or failure.
 ##' @author Hillary Sanders
-OutToInSCT <- function(model.amend.hierarchy.out,
+OutToInPCT <- function(model.amend.hierarchy.out,
                        get.likely.composite.out,
                        committees){
   
@@ -2598,10 +2598,10 @@ OutToInSCT <- function(model.amend.hierarchy.out,
 
   return(merged)
 }
-## end OutToInSCT()
+## end OutToInPCT()
 
 
-##' Is x an RGB code? Called within CheckAndFixRGB, which is called within EdgeColorSCT(),
+##' Is x an RGB code? Called within CheckAndFixRGB, which is called within EdgeColorPCT(),
 ##' which is called within PlotCommitteeTopics().
 ##' @title IsRGB
 ##' @param x a character vector
@@ -2616,7 +2616,7 @@ IsRGB <- function(x){
 
 ##' If the passed vector doesn't look like an RGB code, CheckAndFixRGB assumes the
 ##' input is a color and tries to extract the RGB code so transparency can be added.
-##' Called within EdgeColorSCT(), which is called within PlotCommitteeTopics().
+##' Called within EdgeColorPCT(), which is called within PlotCommitteeTopics().
 ##' @title CheckAndFixRGB
 ##' @param x Presumably an RGB code or a character vector representing a color.
 ##' @return the input, but in RGB form, if possible.
@@ -2634,7 +2634,7 @@ CheckAndFixRGB <- function (x) {
 
 
 ##' A function called within PlotCommitteeTopics() to calculate edge colors.
-##' @title EdgeColorSCT.
+##' @title EdgeColorPCT.
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
 ##' of 1:t), and its final destination (junk or final bill: 0 or 1). See
@@ -2647,7 +2647,7 @@ CheckAndFixRGB <- function (x) {
 ##' transparency.
 ##' @return A vector of edge widths for each arrow to be drawn
 ##' @author Hillary Sanders
-EdgeColorSCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=NULL){ 
+EdgeColorPCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=NULL){ 
   if (is.null(edge.col)){
     colors <- c("#FFB90F","#6495ED")
     ## "darkgoldenrod1", "cornflowerblue" : (Failure, Success)
@@ -2696,7 +2696,7 @@ EdgeColorSCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=N
 
 ##' A function called within PlotCommitteeTopics() to calculate vertex (node) 
 ##' sizes.
-##' @title VertexSizes
+##' @title VertexSizesPCT
 ##' @param A An ax4 information matrix.
 ##' @param num.com number of committees.
 ##' @param num.top number of topics.
@@ -2707,7 +2707,7 @@ EdgeColorSCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=N
 ##' for each vertex in the graph., the second is a vector of second node sizes (e.g.
 ##' for rectangles).
 ##' @author Hillary Sanders
-VertexSizes <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
+VertexSizesPCT <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
   
   vertex.size <- rep(0,(num.com+num.top+2))
   
@@ -2747,41 +2747,41 @@ VertexSizes <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
   
   return(cbind(v.size,v.size2))
 }
-# end VertexSizes()
+# end VertexSizesPCT()
 
 
 ##' A function called within PlotCommitteeTopics() to creates vertex 
 ##' (node) labels.
-##' @title VertexLabels
-##' @param labels An optional vector of labels, usually NULL. If not NULL,
+##' @title VertexLabelsPCT
+##' @param vertex.label An optional vector of labels, usually NULL. If not NULL,
 ##' the function will only output this same object.
-##' @param merged Output of OutToInSCT
+##' @param merged Output of OutToInPCT
 ##' @param topics.matrix An object defined inside PlotCommitteeTopics(): 
 ##' model.amend.hierarchy.out[[1]][[1]][[2]]
 ##' @return a vector of labels for each node in a PlotCommitteeTopics()
 ##' graph.
 ##' @author Hillary Sanders
-VertexLabels <- function(labels, merged, topics.matrix) {
+VertexLabelsPCT <- function(vertex.label, merged, topics.matrix) {
   
-  if (is.null(labels)) {
+  if (is.null(vertex.label)) {
     
     com <- levels(merged[,3])
     top <- paste( "Topic", 1:ncol(topics.matrix))
     final <- c("Junk", "Final")  
     
-    labels <- c(com, top, final)
+    vertex.label <- c(com, top, final)
   }
 
-  return(labels)
+  return(vertex.label)
 }
-## end VertexLabels()
+## end VertexLabelsPCT()
 
 
 ##' Creates the "x"th layout coordinates for PlotCommitteeTopics(). This function
 ##' is called inside of PlotCommitteeTopics() to create the layout: three layers 
 ##' consisting of 1) committees (c of them), 2) topics (t of them), and the final
 ##' destinations of the amendments (junk and final). 
-##' @title LayoutSCT
+##' @title LayoutPCT
 ##' @param x the index of the coordinates to be created.
 ##' @param num.com the number of committees (number of nodes wanted in the bottom
 ##' layer of the graph).
@@ -2792,7 +2792,7 @@ VertexLabels <- function(labels, merged, topics.matrix) {
 ##' @return the xth pair of coordinates for the default layout of 
 ##' PlotCommitteeTopics().
 ##' @author Hillary Sanders
-LayoutSCT <- function(x,num.com,num.top,mid.layer=.65){
+LayoutPCT <- function(x,num.com,num.top,mid.layer=.65){
   
   if (x<(num.com+1)) {
     cords <- c(x/(1+num.com),0)
@@ -2808,13 +2808,13 @@ LayoutSCT <- function(x,num.com,num.top,mid.layer=.65){
   }
   return (cords)
 }
-## end LayoutSCT
+## end LayoutPCT
 
 
 ##' A small function called within PlotCommitteeTopics() to calculate edge widths
 ##' (arrow widths) for PlotCommitteeTopics(), where the edge.width argument is set
 ##' to "absolute" (default). Similar to GetEdgeWidth.Relative and GetEdgeWidth.Success.
-##' @title GetEdgeWidth
+##' @title GetEdgeWidth.Absolute
 ##' @param x A vector of length three, for the ith edge, indicating which node the
 ##' edge came from, where it is going, and its index.
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
@@ -2826,7 +2826,7 @@ LayoutSCT <- function(x,num.com,num.top,mid.layer=.65){
 ##' @return the width of the x[3]th edge (arrow) according to the absolute number of
 ##' amendments represented by the given edge.
 ##' @author Hillary Sanders
-GetEdgeWidth <- function(x, A, num.arrows.to.topics){
+GetEdgeWidth.Absolute <- function(x, A, num.arrows.to.topics){
   
   if (x[3]< num.arrows.to.topics+1){
     width <- sum(
@@ -2843,12 +2843,12 @@ GetEdgeWidth <- function(x, A, num.arrows.to.topics){
   }
   return (width)
 }
-## End GetEdgeWidth
+## End GetEdgeWidth.Absolute
 
 
 ##' A small function called within PlotCommitteeTopics() if the argument
 ##' edge.width is set to "relative". This function creates edge (arrow) widths for 
-##' PlotCommitteeTopics() relative to an edge's origin. Similar to GetEdgeWidth() and
+##' PlotCommitteeTopics() relative to an edge's origin. Similar to GetEdgeWidth.Absolute() and
 ##' GetEdgeWidth.Success().
 ##' @title GetEdgeWidth.Relative
 ##' @param x A vector of length three, for the ith edge, indicating which node the
@@ -2899,8 +2899,8 @@ GetEdgeWidth.Relative <- function(x, A, num.arrows.to.topics){
 ##' PlotCommitteeTopics() for more details.
 ##' @param num.arrows.to.topics The number of distinct edges (arrows) that are
 ##' going to topic nodes (the middle layer) in the PlotCommitteeTopics() plot.
-##' @param num.com The number of committees in the SCT graph to be plotted.
-##' @param num.top The number of topics in the SCT graph to be plotted.
+##' @param num.com The number of committees in the PCT graph to be plotted.
+##' @param num.top The number of topics in the PCT graph to be plotted.
 ##' @return the width of the x[3]th edge (arrow), according to the % of
 ##' successful amendments the edge carries (with respect to all of the amendments
 ##' it carries).
@@ -2935,13 +2935,13 @@ GetEdgeWidth.Success <- function(x, A, num.arrows.to.topics, num.com, num.top){
 
 
 ##' A function called within PlotCommitteeTopics() to calculate all edge widths.
-##' @title EdgeWidths
+##' @title EdgeWidthsPCT
 ##' @param A A matrix (created inside PlotCommitteeTopics()) of dimensions a by 4,
 ##' where a = the number of amendments. The columns 1:4 respectively indicate 
 ##' amendment index, committee, topic, and logical success or failure. Each row
 ##' corresponds to one non-discarded (so rejected and accepted) amendment.
-##' @param num.com The number of committees in the SCT graph to be plotted.
-##' @param num.top The number of topics in the SCT graph to be plotted.
+##' @param num.com The number of committees in the PCT graph to be plotted.
+##' @param num.top The number of topics in the PCT graph to be plotted.
 ##' @param edge.width The method used to calculate edge widths. The default, "absolute",
 ##' means that edge widths will correspond to the absolute number of amendments they
 ##' represent. "relative" means that edge widths will correspond to the % of
@@ -2952,7 +2952,7 @@ GetEdgeWidth.Success <- function(x, A, num.arrows.to.topics, num.com, num.top){
 ##' @param edge.width.scale Default = 1. Thicker edges = bigger number.
 ##' @return A vector of edge widths for each arrow to be drawn. 
 ##' @author Hillary Sanders
-EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.scale=1){
+EdgeWidthsPCT <- function(A, num.com, num.top, edge.width="absolute", edge.width.scale=1){
   
   arrows.mat <- rbind( unique( A[, 2:3] ), unique(A[, 3:4]) )
   num.arrows.to.topics <- nrow(unique( A[, 2:3]))
@@ -2960,7 +2960,7 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
   num.arrows <- nrow(arrows.mat) # the total number of arrows to be drawn
   
   if ((edge.width == "absolute") | (edge.width == "a")){
-    width <- apply(cbind(arrows.mat,1:num.arrows), 1, GetEdgeWidth,
+    width <- apply(cbind(arrows.mat,1:num.arrows), 1, GetEdgeWidth.Absolute,
                    A, num.arrows.to.topics)
   }
   
@@ -3041,7 +3041,7 @@ EdgeWidths <- function(A, num.com, num.top, edge.width="absolute", edge.width.sc
 ##' @param terms.spread Measure of horizontal spread between the plotted topic
 ##' @param terms.text.close Measure of vertical spread between the plotted 
 ##' topic terms.
-##' @param labels An optional character vector representing the node names for each 
+##' @param vertex.label An optional character vector representing the node names for each 
 ##' node (vertex). If NULL, the committee nodes (bottom layer) will be named with 
 ##' their full names, each ith topic node will be named Topic i, and the two final
 ##' bins will be labeled "Final" and "Junk" (for accepted and rejected amendments).
@@ -3065,11 +3065,11 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
                                plot.terms=TRUE, terms.cex=.5, terms.col="grey30",
                                terms.x.offset=0, terms.y.offset=-.05, 
                                terms.spread=1, terms.text.close=1,
-                               labels=NULL, vertex.label.font=3, vertex.label.cex=.75,
+                               vertex.label=NULL, vertex.label.font=3, vertex.label.cex=.75,
                                vertex.color="cornflowerblue", vertex.shape = "rectangle"
                                ) {
   
-  merged <- OutToInSCT(model.amend.hierarchy.out,get.likely.composite.out,committees)
+  merged <- OutToInPCT(model.amend.hierarchy.out,get.likely.composite.out,committees)
   
   committees <- merged[,3]
   ## Need to make the committees column numeric.
@@ -3102,20 +3102,20 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
   arrows.mat <- rbind( unique( A[,2:3] ), unique(A[,3:4]) )
   
   ## Calculate edge widths
-  width <- EdgeWidths(A, num.com, num.top, edge.width, edge.width.scale)
+  width <- EdgeWidthsPCT(A, num.com, num.top, edge.width, edge.width.scale)
   
   ## Calculate edge colors
-  edge.color <- EdgeColorSCT(A, num.com, num.top, edge.col, edge.transparency)  
+  edge.color <- EdgeColorPCT(A, num.com, num.top, edge.col, edge.transparency)  
 
   ## Calculate vertex sizes
-  size <- VertexSizes(A, num.com, num.top, scale.c, scale.t, scale.fin)
+  size <- VertexSizesPCT(A, num.com, num.top, scale.c, scale.t, scale.fin)
   v.size <- size[,1]
   v.size2 <- size[,2]
   
   topics.matrix <- model.amend.hierarchy.out[[1]][[1]][[2]]
 
   ## Calculate vertex labels
-  labels <- VertexLabels(labels,merged,topics.matrix)
+  vertex.label <- VertexLabelsPCT(vertex.label,merged,topics.matrix)
   
   ## The actual object to be graphed:
   g. <- arrows.mat-min(arrows.mat)
@@ -3127,7 +3127,7 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
   
   if (is.null(layout)){
     x <- 1:(num.com+num.top+2)
-    lay.mat <- t(sapply(x,FUN=LayoutSCT,num.com=num.com,num.top=num.top,
+    lay.mat <- t(sapply(x,FUN=LayoutPCT,num.com=num.com,num.top=num.top,
                         mid.layer=mid.layer))
     ## So currently the graph is plotted on a (0,0),(1,1) screen, more or less.
   } else {
@@ -3142,7 +3142,7 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
        edge.arrow.width = arrowhead.size,
        edge.width = width,
        edge.color = edge.color,
-       vertex.label = labels,
+       vertex.label = vertex.label,
        vertex.shape = vertex.shape,
        vertex.size = v.size,
        vertex.size2 = v.size2,
@@ -3211,7 +3211,7 @@ PlotTopicWords <- function(words.list, layout,
 
 ##' Takes output from various bill mapping functions and prepares the data 
 ##' for the PlotCommitteeTopics() function.
-##' @title OutToInSAS
+##' @title OutToInPAS
 ##' @param model.amend.hierarchy.out the output of ModelAmendHierarchy().
 ##' @param get.likely.composite.out the output of get.likely.composite().
 ##' @param committees the object "committees", used in other parts of this
@@ -3221,7 +3221,7 @@ PlotTopicWords <- function(words.list, layout,
 ##' committee, and a final destinations column: either a final bill index or
 ##' 0, for rejected amendments.
 ##' @author Hillary Sanders
-OutToInSAS <- function(model.amend.hierarchy.out,
+OutToInPAS <- function(model.amend.hierarchy.out,
                        get.likely.composite.out,
                        committees){
   
@@ -3259,22 +3259,22 @@ OutToInSAS <- function(model.amend.hierarchy.out,
 
   return(merged)
 }
-## end OutToInSAS()
+## end OutToInPAS()
 
 
 ##' Called within PlotCommitteeTopics to calculate a vector of colors for the graph's
 ##' edges based on the "edge.color.by" argument chosen.
-##' @title EdgeColorSAS
+##' @title EdgeColorPAS
 ##' @param edge.color.by Either "topics" ("t") or "committees" ("c") may be chosen by the user.
 ##' If "topics", edge color will be based on the topic each amendment pertains to. If
 ##' "committees", edge color will be based on the committee each amendment was submitted
 ##' by.
 ##' @param col An optional vector of colors, the length of which should be equal to the
 ##' number of either topics or committees being represented.
-##' @param merged Output of OutToInSAS
+##' @param merged Output of OutToInPAS
 ##' @return 
 ##' @author Hillary Sanders
-EdgeColorSAS <- function(edge.color.by ="topics", merged, edge.col=NULL){
+EdgeColorPAS <- function(edge.color.by ="topics", merged, edge.col=NULL){
   
 
   if (edge.color.by == "topics" | edge.color.by == "t"){
@@ -3299,43 +3299,43 @@ EdgeColorSAS <- function(edge.color.by ="topics", merged, edge.col=NULL){
   
   return(list(edge.color,edge.col))
 }
-## end EdgeColorSAS
+## end EdgeColorPAS
 
 
 ##' Creates a vector of node (vertex) labels for a PlotAmendsSuccess() graph.
-##' @title MakeLabelsSAS
+##' @title VertexLabelsPAS
 ##' @param a The number of amendments.
 ##' @param f the number of paragraphs in the final bill.
 ##' @param a.lab the number of visible labels on the bottom amendments tier.
 ##' @param f.lab the number of visible labels on the top final bill tier.
-##' @param labels an optional vector of labels which the user may supply.
-##' @return A vector of labels for a SAS graph.
+##' @param vertex.label an optional vector of labels which the user may supply.
+##' @return A vector of labels for a PAS graph.
 ##' @author Hillary Sanders
-MakeLabelsSAS <- function(a, f, a.lab, f.lab, labels=NULL){
+VertexLabelsPAS <- function(a, f, a.lab, f.lab, vertex.label=NULL){
   
-  if (is.null(labels)) {
+  if (is.null(vertex.label)) {
     
     a.labeled <- floor( c( seq(1, a, length=a.lab) ))
     f.labeled <- floor(seq(1, f, length=f.lab) )
     
-    labels <- rep("", a+f+1)
+    vertex.label <- rep("", a+f+1)
     
-    for (i in a.labeled) labels[i] <- i
-    for (i in f.labeled) labels[a+i] <- i
-    labels[a+f+1] <- "Junk"
+    for (i in a.labeled) vertex.label[i] <- i
+    for (i in f.labeled) vertex.label[a+i] <- i
+    vertex.label[a+f+1] <- "Junk"
   }
-  return(labels)
+  return(vertex.label)
 }
-# end MakeLabelsSAS
+# end VertexLabelsPAS
 
 ##' Creates a vector of node (vertex) shapes for a PlotAmendsSuccess() graph.
-##' @title MakeShapesSAS
+##' @title MakeShapesPAS
 ##' @param a the number of amendments.
 ##' @param f the number of paragraphs in the final bill.
 ##' @param junk.shape the shape of the junk node.
-##' @return A vector of shapes for a SAS graph.
+##' @return A vector of shapes for a PAS graph.
 ##' author Hillary Sanders
-MakeShapesSAS <- function(a, f, junk.shape){ 
+MakeShapesPAS <- function(a, f, junk.shape){ 
   
   shape.a <- rep("rectangle", a)
   
@@ -3345,17 +3345,17 @@ MakeShapesSAS <- function(a, f, junk.shape){
     
   return (shape)
   }
-# end MakeShapesSAS
+# end MakeShapesPAS
 
 
 ##' Creates a vector of node (vertex) sizes for a PlotAmendsSuccess() graph.
-##' @title MakeAmendsSizes
+##' @title VertexSizesPAS
 ##' @param a the number of amendments.
 ##' @param f the number of paragraphs in the final bill.
 ##' @param junk.shape the shape of the junk node.
-##' @return A vector of sizes for a SAS graph.
+##' @return A vector of sizes for a PAS graph.
 ##' author Hillary Sanders
-MakeAmendsSizes <- function(a, f, junk.scale){
+VertexSizesPAS <- function(a, f, junk.scale){
 
   size.a <- rep(2/a, a)
   size.f <- rep(2/f, f)
@@ -3371,7 +3371,7 @@ MakeAmendsSizes <- function(a, f, junk.scale){
 ##' A function called within PlotAmendsSuccess(). Creates vertex colors
 ##' based on either the committee related to each node, or the topics
 ##' related to each node, as chosen by the user.
-##' @title MakeVertexColors
+##' @title VertexColorsPAS
 ##' @param a number of amendments.
 ##' @param f number of paragraphs in the final bill.
 ##' @param merged
@@ -3379,7 +3379,7 @@ MakeAmendsSizes <- function(a, f, junk.scale){
 ##' @param vertex.col
 ##' @author Hillary Sanders
 ##' @export
-MakeVertexColors <- function(a, f, merged,
+VertexColorsPAS <- function(a, f, merged,
                              vertex.color.by="c", vertex.col=NULL,
                              vertex.junk.color){
                              	
@@ -3444,13 +3444,13 @@ MakeVertexColors <- function(a, f, merged,
 ##' for two layers consisting of 1) amendments (a of them), 2) the final bill 
 ##' (all of the paragraphs (or other text chunks) in the final bill, as well as
 ##' a junk bin placed in the middle of the graph.
-##' @title LayoutSAS
+##' @title LayoutPAS
 ##' @param x the index of the coordinates to be created. 
 ##' @param a the number of amendments.
 ##' @param f the number of text chunks (generally, paragraphs) in the final bill.
 ##' @return the xth layout coordinates for PlotAmendsSuccess().
 ##' @author Hillary Sanders
-LayoutSAS <- function(x, a, f){
+LayoutPAS <- function(x, a, f){
   if (x<=a) { cords <- c(x/(1+a), .4)
                  } else {
                    if (x==(a+f+1)) { cords <- c(.5, .2)
@@ -3458,7 +3458,7 @@ LayoutSAS <- function(x, a, f){
                                 cords <- c( ((x-a)/(1+f)), .8) }}
   return (cords)
 }
-# End LayoutSAS
+# End LayoutPAS
 
 
 ##' Creates a three tiered directed acyclic graph to visualize bill evolution.
@@ -3486,7 +3486,7 @@ LayoutSAS <- function(x, a, f){
 ##' @param junk.scale Scale the size of the junk node.
 ##' @param label.font Font type for the labels. Default = 3.
 ##' @param label.cex Font size for the labels. Default = .75.
-##' @param labels Vector of labels for each amendments, each final bill 
+##' @param vertex.label Vector of labels for each amendments, each final bill 
 ##' paragraph, and the junk bin. If left NULL, ten (relatively) equidistant
 ##' nodes will be labeled by their paragraph indices for both amendments and 
 ##' the final bill, while the rejected amendments bin will be labeled "Junk".
@@ -3506,14 +3506,14 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
                              edge.width.scale=1, arrowhead.size=0,
                              junk.shape="rectangle",
                              af.scale=1, junk.scale=1,
-                             label.font=3,label.cex=.75, labels=NULL,
+                             label.font=3,label.cex=.75, vertex.label=NULL,
                              a.lab=10, f.lab=10, vertex.color.by="c",
                              vertex.col=NULL, vertex.junk.color="cornflowerblue",
                              main=NULL,
                              legend.x=-1.25, legend.y=.75, legend.cex=.5
                              ){
   
-  merged <- OutToInSAS (model.amend.hierarchy.out,
+  merged <- OutToInPAS (model.amend.hierarchy.out,
                         get.likely.composite.out,
                         committees)
 
@@ -3527,7 +3527,7 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   final.idx <- 1:f
   
   
-  colors <- EdgeColorSAS(edge.color.by, merged, edge.col=NULL)
+  colors <- EdgeColorPAS(edge.color.by, merged, edge.col=NULL)
   edge.color <- colors[[1]]
   col <- colors[[2]]
   
@@ -3545,23 +3545,23 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   
   x <- (a+f+1)
   y <- 1:x
-  lay.mat <- t(sapply(y,FUN=LayoutSAS, a=a, f=f))
+  lay.mat <- t(sapply(y,FUN=LayoutPAS, a=a, f=f))
   
-  labels <- MakeLabelsSAS(a, f, a.lab, f.lab, labels)  
+  vertex.label <- VertexLabelsPAS(a, f, a.lab, f.lab, vertex.label)  
   
-  v.shape <- MakeShapesSAS(a, f, junk.shape)
+  v.shape <- MakeShapesPAS(a, f, junk.shape)
   
-  vertex.size <- MakeAmendsSizes(a, f, junk.scale)
+  vertex.size <- VertexSizesPAS(a, f, junk.scale)
   
-  vertex.color <- MakeVertexColors(a, f, merged, vertex.color.by,
+  vertex.color <- VertexColorsPAS(a, f, merged, vertex.color.by,
                                    vertex.col, vertex.junk.color)
   
   vertex.frame.color <- vertex.color
 
   plot(graph, layout=lay.mat, edge.arrow.width=arrowhead.size,
        edge.width=edge.width.scale, edge.color=edge.color, vertex.color=vertex.color,
-       vertex.frame.color = vertex.frame.color, vertex.shape=v.shape, vertex.size=vertex.size,
-       vertex.label=labels, vertex.label.font=label.font, vertex.label.cex=label.cex,
+       vertex.frame.color=vertex.frame.color, vertex.shape=v.shape, vertex.size=vertex.size,
+       vertex.label=vertex.label, vertex.label.font=label.font, vertex.label.cex=label.cex,
        main=main)
 
 
