@@ -1170,7 +1170,7 @@ ModelDocSet <- function(doc.list,
                         addl.stopwords="NULL",
                         weighting=weightTf,
                         control,
-                        na.rm=TRUE
+                        na.rm=TRUE,
                         ...){
 
   stopifnot(type %in% c("incl.amend", "rej.amend",
@@ -3178,7 +3178,7 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
 ##' @param cex Text size, default = .5.
 ##' @param col Text color, default = "grey30".
 ##' @param x.offset Adjust the x axis placement of the terms. Default = 0.
-##' @param y.offset Adjust the y axis placement of the terms. Default = 0.
+##' @param y.offset Adjust the y axis placement of the terms. Default = -.05.
 ##' @param spread Adjust the breadth of the terms to be plotted. Default = 1.
 ##' @param text.close How close should each term for a given topic be? Default = 1.
 ##' @return Text on plotted onto a PlotCommitteeTopics() graph (with default 
@@ -3269,7 +3269,7 @@ OutToInPAS <- function(model.amend.hierarchy.out,
 ##' If "topics", edge color will be based on the topic each amendment pertains to. If
 ##' "committees", edge color will be based on the committee each amendment was submitted
 ##' by.
-##' @param col An optional vector of colors, the length of which should be equal to the
+##' @param edge.co An optional vector of colors, the length of which should be equal to the
 ##' number of either topics or committees being represented.
 ##' @param merged Output of OutToInPAS
 ##' @return 
@@ -3280,21 +3280,32 @@ EdgeColorPAS <- function(edge.color.by ="topics", merged, edge.col=NULL){
   if (edge.color.by == "topics" | edge.color.by == "t"){
     if (is.null(edge.col)) {
       num.tops <- length (unique(merged$topic.idx))
-      edge.col <- c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854",
-                    "#FFD92F", "#E5C494", "#B3B3B3")[1:num.tops]
+      edge.col <- rep(c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854",
+                    "#FFD92F", "#E5C494", "#B3B3B3"), ceiling(num.tops/8))[1:num.tops]
 
     }
     edge.color <- edge.col[merged$topic.idx] 
+    
+    if (length(edge.col) < num.tops){
+    warning("length(edge.col) is too small, length(edge.col) should be  ≥ number-of-topics.
+            Colors will be recycled!")
+  }
   }
   
   if (edge.color.by == "committees" | edge.color.by == "c"){
     if (is.null(edge.col)){
       num.coms <- length(unique(merged$committee))
-      edge.col <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
-                    "#FFFF33", "#A65628", "#F781BF", "#999999")[1:num.coms]
+      edge.col <- rep(c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
+                    "#FFFF33", "#A65628", "#999999"),
+                    ceiling(num.coms/8))[1:num.coms]
 
     }
     edge.color <- edge.col[as.numeric(factor(merged$committee))]
+
+     if (length(edge.col) < num.coms){
+    warning("length(edge.col) is too small, length(edge.col) should be ≥ number-of-committees.
+            Colors will be recycled!")
+  }
   }
   
   return(list(edge.color,edge.col))
@@ -3374,14 +3385,14 @@ VertexSizesPAS <- function(a, f, junk.scale){
 ##' @title VertexColorsPAS
 ##' @param a number of amendments.
 ##' @param f number of paragraphs in the final bill.
-##' @param merged
-##' @param vertex.color.by
-##' @param vertex.col
+##' @param merged output of OutToInPAS
+##' @param vertex.color.by 
+##' @param vertex.col Optional vector of colors.
 ##' @author Hillary Sanders
 ##' @export
 VertexColorsPAS <- function(a, f, merged,
-                             vertex.color.by="c", vertex.col=NULL,
-                             vertex.junk.color){
+                             vertex.color.by="c", vertex.junk.color,
+                             vertex.col=NULL){
                              	
     
   succeeded <- merged[merged$final.idx.or.junk != 0,2:4]
@@ -3404,16 +3415,24 @@ VertexColorsPAS <- function(a, f, merged,
     
     coms.final[is.na(coms.final)] <- max(coms.final, na.rm=TRUE) + 1
     
+    num.coms <- length(unique(coms.amends))
+
     if(is.null(vertex.col)){ 
       
-      num.coms <- length(unique(coms.amends))
-      vertex.col <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
-                    "#FFFF33", "#A65628", "#F781BF", "#999999")[1:num.coms]
+      vertex.col <- rep(c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
+                    "#FFFF33", "#A65628", "#999999"),
+                     ceiling(num.coms/8))[1:num.coms]
     }
     
     vertex.col.short <- c(vertex.col[1:(max(coms.final, na.rm=TRUE)-1)],"white")
     
     vertex.color <- c(vertex.col.short[c(coms.amends,coms.final)],vertex.junk.color)
+    
+ if (length(vertex.col) < num.coms){
+    warning("length(vertex.col) is too small, length(vertex.col) should be ≥ number-of-committees.
+            Colors will be recycled!")
+  }
+
   }
   
   if(vertex.color.by == "t" | vertex.color.by == "topics"){
@@ -3424,19 +3443,26 @@ VertexColorsPAS <- function(a, f, merged,
     
     tops.final[is.na(tops.final)] <- max(tops.final,na.rm=TRUE) + 1
     
+    num.tops <- length(unique(tops.amends))
+
     if(is.null(vertex.col)){ 
-      num.tops <- length(unique(tops.amends))
-      vertex.col <- c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854",
-                    "#FFD92F", "#E5C494", "#B3B3B3")[1:num.tops]
+      vertex.col <- rep(c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854",
+                    "#FFD92F", "#E5C494", "#B3B3B3"), ceiling(num.tops/8))[1:num.tops]
       }
     
+    if (length(vertex.col) < vertex.tops){
+    warning("length(vertex.col) is too small, length(vertex.col) should be ≥ number-of-topics.
+            Colors will be recycled!")
+    }
+  }
+
     vertex.col <- c(vertex.col[1:max(tops.final, na.rm=TRUE)-1], "white")
     
     vertex.color <- c(vertex.col[c(tops.amends,tops.final)],"cornflowerblue")
-    }
-  
+    
   return(vertex.color)
-}
+  
+  }
 
 
 ##' Creates the "x"th layout coordinates for PlotAmendsSuccess(). This function
@@ -3475,8 +3501,11 @@ LayoutPAS <- function(x, a, f){
 ##' If "topics", edge color will be based on the topic each amendment pertains to. If
 ##' "committees", edge color will be based on the committee each amendment was submitted
 ##' by.
-##' @param col An optional vector of colors, the length of which should be equal to the
-##' number of either topics or committees being represented.
+##' @param edge.col An optional vector of colors, the length of which should be equal to the
+##' number of either topics or committees being represented. If NULL, colors from RColorBrewer
+##' will be used. NOTE that if c or t (whichever matters in your case) is greater than 8,
+##' colors will be recycled! If c or t > 8, users should pass their
+##' own color vectors of length c or t.
 ##' @param edge.width.scale Scale edge widths. Default = 1
 ##' @param arrowhead.size Size of edge arrowheads. Default = 0.
 ##' @param junk.shape The node shape of the junk node. Possible 
@@ -3494,6 +3523,19 @@ LayoutPAS <- function(x, a, f){
 ##' default = 10.
 ##' @param f.lab the number of visible labels on the top final bill tier.
 ##' default = 10.
+##' @param vertex.color.by the method used to calculate vertex.colors.
+##' Either "topics" ("t") or "committees" ("c") may be passed.
+##' If "topics", vertex colors will be based on the topic each amendment pertains to.
+##' "committees", vertex colors will be based on the committee each amendment was submitted
+##' by. 
+##' @param vertex.col A vector of colors, of length x where x is the number of topics if
+##' vertex.color.by = "t" or where x is the number of committees if vertex.color.by = "c".
+##' If NULL, colors from RColorBrewer will be used. NOTE that if c or t (whichever 
+##' matters in your case) is greater that 8, colors will be recycled!
+##' If c or t > 8, users should pass their own color vectors, of length > 8 one
+##' color for each committee or topic.
+##' Those paragraphs in the final bill which did come come from an amendment 
+##' stay white.
 ##' @param main The plot title. Default = "Amendments' Destinations".
 ##' @param legend.x X axis placement of the legend.
 ##' @param legend.y Y axis placement of the legend.
@@ -3574,4 +3616,6 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   }
   
   legend(legend.x,legend.y, leg.text, col, bg="lavenderblush",cex=legend.cex)
+  
 }
+  
