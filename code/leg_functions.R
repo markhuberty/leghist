@@ -3278,35 +3278,44 @@ EdgeColorPAS <- function(edge.color.by ="topics", merged, edge.col=NULL){
   
 
   if (edge.color.by == "topics" | edge.color.by == "t"){
-    if (is.null(edge.col)) {
-      num.tops <- length (unique(merged$topic.idx))
-      edge.col <- rep(c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854",
-                    "#FFD92F", "#E5C494", "#B3B3B3"), ceiling(num.tops/8))[1:num.tops]
+    
+    num.tops <- length (unique(merged$topic.idx))
 
-    }
-    edge.color <- edge.col[merged$topic.idx] 
+    if (is.null(edge.col)) {
+      edge.col <- c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854",
+                    "#FFD92F", "#E5C494", "#B3B3B3")
+      }
     
     if (length(edge.col) < num.tops){
-    warning("length(edge.col) is too small, length(edge.col) should be  ≥ number-of-topics.
-            Colors will be recycled!")
+    warning("length(edge.col) is too small, length(edge.col) should
+            be  ≥ number-of-topics. Colors will be recycled!")
   }
+    # if there are not enough colors, colors will be recycled:
+    edge.col <- rep(edge.col, ceiling(num.tops/8))[1:num.tops]
+    
+    edge.color <- edge.col[merged$topic.idx] 
+
   }
   
   if (edge.color.by == "committees" | edge.color.by == "c"){
+  
+    num.coms <- length(unique(merged$committee))
+    
     if (is.null(edge.col)){
-      num.coms <- length(unique(merged$committee))
-      edge.col <- rep(c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
-                    "#FFFF33", "#A65628", "#999999"),
-                    ceiling(num.coms/8))[1:num.coms]
-
+      
+      edge.col <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
+                    "#FFFF33", "#A65628", "#999999")
     }
-    edge.color <- edge.col[as.numeric(factor(merged$committee))]
-
+      
      if (length(edge.col) < num.coms){
-    warning("length(edge.col) is too small, length(edge.col) should be ≥ number-of-committees.
-            Colors will be recycled!")
-  }
-  }
+    warning("length(edge.col) is too small, length(edge.col) should 
+            be ≥ number-of-committees. Colors will be recycled!")
+     }
+ 
+    edge.col <- rep(edge.col, ceiling(num.coms/8))
+    
+    edge.color <- edge.col[as.numeric(factor(merged$committee))]
+    }
   
   return(list(edge.color,edge.col))
 }
@@ -3419,19 +3428,19 @@ VertexColorsPAS <- function(a, f, merged,
 
     if(is.null(vertex.col)){ 
       
-      vertex.col <- rep(c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
-                    "#FFFF33", "#A65628", "#999999"),
-                     ceiling(num.coms/8))[1:num.coms]
+       vertex.col <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
+                    "#FFFF33", "#A65628", "#999999")
     }
+    
+    if (length(vertex.col) < num.coms){
+      warning("length(vertex.col) is too small, length(vertex.col) should
+              be ≥ number-of-committees. Colors will be recycled!")
+  }
+      vertex.col <- rep(vertex.col, ceiling(num.coms/8))
     
     vertex.col.short <- c(vertex.col[1:(max(coms.final, na.rm=TRUE)-1)],"white")
     
     vertex.color <- c(vertex.col.short[c(coms.amends,coms.final)],vertex.junk.color)
-    
- if (length(vertex.col) < num.coms){
-    warning("length(vertex.col) is too small, length(vertex.col) should be ≥ number-of-committees.
-            Colors will be recycled!")
-  }
 
   }
   
@@ -3446,20 +3455,23 @@ VertexColorsPAS <- function(a, f, merged,
     num.tops <- length(unique(tops.amends))
 
     if(is.null(vertex.col)){ 
-      vertex.col <- rep(c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854",
-                    "#FFD92F", "#E5C494", "#B3B3B3"), ceiling(num.tops/8))[1:num.tops]
+      vertex.col <- c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854",
+                    "#FFD92F", "#E5C494", "#B3B3B3")
       }
     
-    if (length(vertex.col) < vertex.tops){
-    warning("length(vertex.col) is too small, length(vertex.col) should be ≥ number-of-topics.
-            Colors will be recycled!")
+    if (length(vertex.col) < num.tops){
+    warning("length(vertex.col) is too small, length(vertex.col) should 
+            be ≥ number-of-topics. Colors will be recycled!")
     }
-  }
+    
+    vertex.col <- rep(vertex.col, ceiling(num.tops/8))
 
-    vertex.col <- c(vertex.col[1:max(tops.final, na.rm=TRUE)-1], "white")
+    tops.final <- c(vertex.col[1:max(tops.final, na.rm=TRUE)-1], "white")
+    tops.amends <- c(vertex.col[1:max(tops.amends, na.rm=TRUE)])
     
-    vertex.color <- c(vertex.col[c(tops.amends,tops.final)],"cornflowerblue")
-    
+    vertex.color <- c(tops.amends,tops.final,vertex.junk.color)  
+    }
+  
   return(vertex.color)
   
   }
