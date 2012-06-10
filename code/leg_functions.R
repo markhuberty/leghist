@@ -3465,7 +3465,7 @@ VertexColorsPAS <- function(a, f, merged,
     
     vertex.color <- c(vertex.col.short[c(coms.amends,coms.final)],vertex.junk.color)
     
-    colors.used.in.vertices <- vertex.col[1:num.tops]
+    colors.used.in.vertices <- vertex.col[1:num.coms]
 
   }
   
