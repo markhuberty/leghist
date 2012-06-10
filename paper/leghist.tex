@@ -262,6 +262,30 @@ matching algorithm. We provide the capability to estimate the optimal
 $T$ based on both overall accuracy and the tradeoff of Type 1 and Type
 2 errors. 
 
+\subsection{Extensions: influence estimates}
+\label{sec:extens-infl-estim}
+
+\cite{tsebelis2001legislative} suggest two measures of actor influence
+in the legislative process. \textit{Semantic impact} measures whether
+the actors are successful at introducing substantively new content to
+bills (as opposed to simply tweaking existing content. An example here
+would be expanding an argiculture subsidy bill to cover humane
+treatment of animals. \textit{Semantic completeness} measures whether
+proposed amendments were adopted in whole or only in part. 
+
+\textit{Semantic impact} can be treated as a cluster analysis
+problem. We treat the entire corpus of bills and amendments (a corpus
+of length $D_1 + D_2 + A_J$) as representing $K$ latent topics. Each
+section $d_i, a_j$ can be assigned to one of these $K$
+topics. Substantively new content is thus a set of topics $K^* \in
+D_2, K^* \not \in D_1$. Given a composite bill, we can assign
+responsibility for introducing new topics based on the originator of
+each matched section and the topic assigned to that section. 
+
+\textit{Semantic completeness} can be derived directly from the
+similarity or distance metric of the match itself. Higher similarity
+metric values indicate amendments adopted almost verbatim; lower
+values suggest partially-adopted amendments. 
 
 \section{The technical implementation}
 \label{sec:legisl-sect-match}

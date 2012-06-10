@@ -2329,6 +2329,7 @@ my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
 ##' providing the topics for both the final document section and its
 ##' best match. 
 ##' @author Mark Huberty
+##' @export
 CollateTopicDtm <- function(composite,
                             topic.model,
                             doc.list,
@@ -2421,6 +2422,24 @@ MapTopicComposite <- function(topic.model, composite, doc.list, doc.topic){
 
 }
 
+
+##' Maps topics from a topic model run on the full document corpus, to
+##the indices, sources, and final status in a composite bill. Only
+##called within CollateTopicDtm
+##' @title MapTopicDtm
+##' @param topic.model A topic model as output from ModelTopics 
+##' @param doc.list A document-term matrix object as output from CreateAllVectorSpaces
+##' @param composite The composite bill, using doc.list and output
+##' from GetLikelyComposite
+##' @param committees Committees that originated the amendments in the
+##' composite bill
+##' @param sources Formal (system-assigned) sources of each row in the
+##' document-term matrix
+##' @param all.idx Index (1:N) of each row in the document-term matrix
+##' @return A matrix mapping the source, committee, index, status, and
+##' topic of each row in the document-term matrix used to construct
+##' the composite bill.
+##' @author Mark Huberty
 MapTopicDtm <- function(topic.model,
                         doc.list,
                         composite,
@@ -2482,6 +2501,7 @@ MapTopicDtm <- function(topic.model,
 ##' synthetic bill, and the proportion cross-tab of topic counts by
 ##' committee for the final bill.
 ##' @author Mark Huberty
+##' @export
 EstimateSourceImpact <- function(tab.topic.status.out,
                                  prop.margin=1,
                                  dist.quantiles=seq(0, 1, 0.2)){
@@ -3272,7 +3292,7 @@ OutToInPAS <- function(model.amend.hierarchy.out,
 ##' @param merged Output of OutToInPAS
 ##' @param edge.col An optional vector of colors, the length of which should be equal to the
 ##' number of either topics or committees being represented.
-##' @return 
+##' @return the character and numeric color vectors
 ##' @author Hillary Sanders
 EdgeColorPAS <- function(merged, edge.color.by ="topics", edge.col=NULL){
   
