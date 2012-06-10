@@ -3269,12 +3269,12 @@ OutToInPAS <- function(model.amend.hierarchy.out,
 ##' If "topics", edge color will be based on the topic each amendment pertains to. If
 ##' "committees", edge color will be based on the committee each amendment was submitted
 ##' by.
-##' @param edge.co An optional vector of colors, the length of which should be equal to the
-##' number of either topics or committees being represented.
 ##' @param merged Output of OutToInPAS
+##' @param edge.col An optional vector of colors, the length of which should be equal to the
+##' number of either topics or committees being represented.
 ##' @return 
 ##' @author Hillary Sanders
-EdgeColorPAS <- function(edge.color.by ="topics", merged, edge.col=NULL){
+EdgeColorPAS <- function(merged, edge.color.by ="topics", edge.col=NULL){
   
 
   if (edge.color.by == "topics" | edge.color.by == "t"){
@@ -3287,7 +3287,7 @@ EdgeColorPAS <- function(edge.color.by ="topics", merged, edge.col=NULL){
       }
     
     if (length(edge.col) < num.tops){
-    warning("length(edge.col) is too small, length(edge.col) should
+      warning("length(edge.col) is too small, length(edge.col) should
             be  ≥ number-of-topics. Colors will be recycled!")
   }
     # if there are not enough colors, colors will be recycled:
@@ -3312,7 +3312,7 @@ EdgeColorPAS <- function(edge.color.by ="topics", merged, edge.col=NULL){
             be ≥ number-of-committees. Colors will be recycled!")
      }
  
-    edge.col <- rep(edge.col, ceiling(num.coms/8))
+    edge.col <- rep(edge.col, ceiling(num.coms/8))[1:num.coms]
     
     edge.color <- edge.col[as.numeric(factor(merged$committee))]
     }
@@ -3395,21 +3395,24 @@ VertexSizesPAS <- function(a, f, junk.scale){
 ##' @param a number of amendments.
 ##' @param f number of paragraphs in the final bill.
 ##' @param merged output of OutToInPAS
-##' @param vertex.color.by 
+##' @param vertex.color.by Should vertex colors be decided by an amendment's topic
+##' assigment or committee? "t", "topics", or "c", "committees".
 ##' @param vertex.col Optional vector of colors.
+##' @return A list of length two, consisting of: 1) a vector of all vertices' colors,
+##' and 2) a (shorter) vector of the individual colors used.
 ##' @author Hillary Sanders
 ##' @export
 VertexColorsPAS <- function(a, f, merged,
-                             vertex.color.by="c", vertex.junk.color,
+                             vertex.color.by, vertex.junk.color,
                              vertex.col=NULL){
                              	
     
-  succeeded <- merged[merged$final.idx.or.junk != 0,2:4]
+  succeeded <- merged[merged$final.idx.or.junk != 0, 2:4]
     
-  final.order <- order(succeeded[,3])
+  final.order <- order(succeeded[, 3])
     
-  succeeded.ordered <- succeeded[final.order,]
-  colnames(succeeded.ordered) <- c("topic","committee","final.idx")
+  succeeded.ordered <- succeeded[final.order, ]
+  colnames(succeeded.ordered) <- c("topic", "committee", "final.idx")
   
   final.idx <- data.frame(1:f)
   colnames(final.idx) <- "final.idx"
@@ -3438,9 +3441,11 @@ VertexColorsPAS <- function(a, f, merged,
   }
       vertex.col <- rep(vertex.col, ceiling(num.coms/8))
     
-    vertex.col.short <- c(vertex.col[1:(max(coms.final, na.rm=TRUE)-1)],"white")
+    vertex.col.short <- c(vertex.col[1:(max(coms.amends))],"white")
     
     vertex.color <- c(vertex.col.short[c(coms.amends,coms.final)],vertex.junk.color)
+    
+    colors.used.in.vertices <- vertex.col[1:num.tops]
 
   }
   
@@ -3466,15 +3471,18 @@ VertexColorsPAS <- function(a, f, merged,
     
     vertex.col <- rep(vertex.col, ceiling(num.tops/8))
 
-    tops.final <- c(vertex.col[1:max(tops.final, na.rm=TRUE)-1], "white")
-    tops.amends <- c(vertex.col[1:max(tops.amends, na.rm=TRUE)])
+    tops.final <- vertex.col[tops.final]
+    tops.amends <- vertex.col[tops.amends]
     
     vertex.color <- c(tops.amends,tops.final,vertex.junk.color)  
+    
+    colors.used.in.vertices <- vertex.col[1:num.tops]
     }
   
-  return(vertex.color)
+  return(list(vertex.color, colors.used.in.vertices))
   
   }
+# end VertexColorsPAS
 
 
 ##' Creates the "x"th layout coordinates for PlotAmendsSuccess(). This function
@@ -3581,9 +3589,9 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   final.idx <- 1:f
   
   
-  colors <- EdgeColorPAS(edge.color.by, merged, edge.col=NULL)
-  edge.color <- colors[[1]]
-  col <- colors[[2]]
+  edge.colors <- EdgeColorPAS(merged, edge.color.by, edge.col)
+  edge.color <- edge.colors[[1]]
+  colors.used.in.edges <- edge.colors[[2]]
   
   destinations[destinations==0] <- f+1
   ## So that each amendment destined for the junk bin will go to that last,
@@ -3607,27 +3615,48 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   
   vertex.size <- VertexSizesPAS(a, f, junk.scale)
   
-  vertex.color <- VertexColorsPAS(a, f, merged, vertex.color.by,
-                                   vertex.col, vertex.junk.color)
+  vertex.colors <- VertexColorsPAS(a, f, merged, vertex.color.by,
+                                   vertex.junk.color, vertex.col)
+  vertex.color <- vertex.colors[[1]]
+  colors.used.in.vertices <- vertex.colors[[2]]
   
-  vertex.frame.color <- vertex.color
-
   plot(graph, layout=lay.mat, edge.arrow.width=arrowhead.size,
        edge.width=edge.width.scale, edge.color=edge.color, vertex.color=vertex.color,
-       vertex.frame.color=vertex.frame.color, vertex.shape=v.shape, vertex.size=vertex.size,
+       vertex.frame.color=vertex.color, vertex.shape=v.shape, vertex.size=vertex.size,
        vertex.label=vertex.label, vertex.label.font=label.font, vertex.label.cex=label.cex,
        main=main)
 
 
   if (edge.color.by == "topics" | edge.color.by == "t"){
     leg.text <- paste("Topic",1:length(unique(merged$topic.idx)), sep=" ")
-  }
+    
+    col <- colors.used.in.edges
+    
+    if(vertex.color.by == "committees" | vertex.color.by == "c"){
+      
+      more.leg.text <- levels(factor(merged$committee))
+      leg.text <- c(leg.text, more.leg.text)
+      
+      col <- c(col, colors.used.in.vertices)
+      }
+    }
   
   if (edge.color.by == "committees" | edge.color.by =="c"){
     leg.text <- levels(factor(merged$committee))
-  }
+    
+    col <- colors.used.in.edges
+  
+    if (vertex.color.by == "topics" | vertex.color.by == "t"){
+      
+      more.leg.text <- paste("Topic", 1:length(unique(merged$topic.idx)), sep=" ")
+      leg.text <- c(leg.text, more.leg.text)
+      
+      col <- c(col, colors.used.in.vertices)    
+      }
+    }
   
   legend(legend.x,legend.y, leg.text, col, bg="lavenderblush",cex=legend.cex)
   
-}
+  }
+# Ends PlotAmendsSuccess
   
