@@ -3311,7 +3311,7 @@ EdgeColorPAS <- function(merged, edge.color.by ="topics", edge.col=NULL){
             be  ≥ number-of-topics. Colors will be recycled!")
   }
     # if there are not enough colors, colors will be recycled:
-    edge.col <- rep(edge.col, ceiling(num.tops/8))[1:num.tops]
+    edge.col <- rep(edge.col, ceiling(num.tops/length(edge.col)))[1:num.tops]
     
     edge.color <- edge.col[merged$topic.idx] 
 
@@ -3332,7 +3332,7 @@ EdgeColorPAS <- function(merged, edge.color.by ="topics", edge.col=NULL){
             be ≥ number-of-committees. Colors will be recycled!")
      }
  
-    edge.col <- rep(edge.col, ceiling(num.coms/8))[1:num.coms]
+    edge.col <- rep(edge.col, ceiling(num.coms/length(edge.col)))[1:num.coms]
     
     edge.color <- edge.col[as.numeric(factor(merged$committee))]
     }
@@ -3459,7 +3459,7 @@ VertexColorsPAS <- function(a, f, merged,
       warning("length(vertex.col) is too small, length(vertex.col) should
               be ≥ number-of-committees. Colors will be recycled!")
   }
-      vertex.col <- rep(vertex.col, ceiling(num.coms/8))
+      vertex.col <- rep(vertex.col, ceiling(num.coms/length(vertex.col)))
     
     vertex.col.short <- c(vertex.col[1:(max(coms.amends))],"white")
     
@@ -3489,7 +3489,7 @@ VertexColorsPAS <- function(a, f, merged,
             be ≥ number-of-topics. Colors will be recycled!")
     }
     
-    vertex.col <- rep(vertex.col, ceiling(num.tops/8))
+    vertex.col <- rep(vertex.col, ceiling(num.tops/length(vertex.col)))
 
     tops.final <- vertex.col[tops.final]
     tops.amends <- vertex.col[tops.amends]
