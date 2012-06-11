@@ -19,7 +19,7 @@
 \usepackage{longtable} %% Allows the use of the longtable format produced by xl2latex.rb
 \usepackage{lscape} %% Allows landscape orientation of tables
 \usepackage{appendix} %% Allows customization of the appendix properties
-\setcounter{tocdepth}{1} %% Restricts the table of contents to the section header level entries only
+\setcounter{tocdepth}{2} %% Restricts the table of contents to the section header level entries only
 
 \usepackage{geometry}
 \geometry{letterpaper}
@@ -62,11 +62,12 @@ California, Berkeley.}}
   rejection of amendments by legislative actor and topic, and visualize the
   resulting flow of information. We provide a theoretical
   overview of the workflow and suggest this model could be extended to
-  other analagous forms of legal and political document analysis. We
+  other analogous forms of legal and political document analysis. We
   finally provide a vignette based on the European Union's Third
   Renewable Energy Directive, adopted in 2008. 
 \end{abstract}
 
+\tableofcontents 
 \section{Introduction}
 \label{sec:introduction}
 
@@ -89,7 +90,7 @@ methods used here generate valid matches at a high degree of accuracy
 in terms of both human-identified textual similarity and evidence from
 the formal legislative record. Finally, we emphasize that the tools
 provided here should work for other document history processes
-analagous to the legislative history model we present below.
+analogous to the legislative history model we present below.
 
 \section{How a bill becomes a law: a model}
 \label{sec:how-bill-becomes}
@@ -116,7 +117,7 @@ the history of a bill as it evolves through a legislative process:
   particular topics within the policy domain)?
 \item Were there aspects of the final bill that have no good match,
   suggesting changes made behind the scenes (i.e., in the
-  reconcilliation process between the House and Senate in the United States Congress)
+  reconciliation process between the House and Senate in the United States Congress)
 \end{itemize}
 
 
@@ -132,7 +133,7 @@ J$ are adopted. For $D_1, D_2,$ and $A_J$, we assume that the sections
 $d_{1,i}, d_{2,i}$, and $a_j$ are all at the same level of
 disaggregation. The tools presented here are agnostic to that level of
 disaggregation, but for the rest of this paper we assume that sections
-are analagous to paragraphs. This is consistent with the structure of
+are analogous to paragraphs. This is consistent with the structure of
 amendments for the European Parliamentary bills considered in section
 \ref{sec:vign-2009-europ}.
 
@@ -145,7 +146,7 @@ of the original bill and the amendments that comprise the final
 bill. 
 
 We can thus define a similarity measure $S$ to permit comparison
-between the final bill and its potential origins. For simiplicity, we
+between the final bill and its potential origins. For simplicity, we
 assume that $S \in [0,1]$. For each final section $d_{2,i}$ we
 construct a similarity vector $s_i$ between all possible matches in
 $D_1, A_J$. The best match is thus $d \in arg \max_{s_i} S(D_1,
@@ -191,7 +192,7 @@ the final section of a bill (left) and the initial section of a bill
     to develop renewable energies to meet the commitment of the Com-
     munity to using 20\% renewable energies by 2020, as well as to
     develop other technologies contributing to the transition to a
-    safe and sustainable low-carbon economy and to help meet the commitment of the Community to increase energy effciency by 20\% by
+    safe and sustainable low-carbon economy and to help meet the commitment of the Community to increase energy efficiency by 20\% by
     2020;
   \end{minipage}
   \begin{minipage}[h]{0.08\linewidth}
@@ -199,7 +200,7 @@ the final section of a bill (left) and the initial section of a bill
   \begin{minipage}[t]{0.45\linewidth}
     to develop renewable energies to meet the commitment of the Com-
     munity to using 20\% renewable energies by 2020, and to meet the
-    commitment of the Community to increase energy effciency by 20\%
+    commitment of the Community to increase energy efficiency by 20\%
     by 2020;
   \end{minipage}
 \end{quote}
@@ -211,7 +212,7 @@ well-ordered similarity vector, the match will return the correct value.
 
 It is important to note one situation in which this matching process
 breaks down. Introduction of the same amendment by multiple
-legislative actors will produce more than one match, since the
+legislative actors, or at multiple stages of the legislative process, will produce more than one match, since the
 similarity vector is no longer well-ordered. Absent additional
 information, it is impossible to determine which is the ``correct''
 match from this set. Thus the algorithm may return the correct
@@ -223,11 +224,10 @@ supervised processes.
 \label{sec:extens-negot-cont}
 
 Finally, some legislative processes may not require that all changes
-to a bill be introduced as formal amendments. This is particularly
-true where negotiated outcomes are common. Examples here include the
+to a bill be introduced as formal amendments. Examples here include the
 reconciliation process in the United States Congress, and the
-co-decision process between the European Parliament and Council. In
-this case, substantial changes to a bill may occur without any
+co-decision negotiation process between the European Parliament and Council. In
+this case, substantive changes to a bill may occur without any
 matching record in either the original bill or the proposed
 amendments. 
 
@@ -240,60 +240,65 @@ match and instead match the section to itself. This ``false'' match
 can aid the identification of elements in a bill that
 came out of negotiated rather than formal amendment processes. 
 
-The use of a similarity threshold raises the question of how to set
-that threshold. Too high a threshold will correctly identify all ``unsourced'' bill
-sections, but throw out accurate matches. Likewise, too low a threshold
-will reduce match quality and lead to potentially incorrect
-inferences. This leads to two different measures of match accuracy,
-which we refer to as Type 1 and Type 2 measures for their analogues in
-Type 1 and Type 2 errors. Type 1 accuracy measures the share of
-correctly attributed actual matches, while Type 2 measures the share
-of correctly attributed ``false'' matches. Raising the threshold value
-$T$ will increase Type 2 accuracy while harming Type 1
-accuracy.  
-
-We propose that balancing the Type 1 / Type 2 tradeoff can be treated
-as a supervised learning problem
-in which the optimal $T$ is derived from a set of user-coded data. We
-provide tools to automate the hand-matching of a random subset of the
-final bill to its potential sources. Based on that hand coding, the
-proper threshold value can be chosen to maximize the accuracy of the
-matching algorithm. We provide the capability to estimate the optimal
-$T$ based on both overall accuracy and the tradeoff of Type 1 and Type
-2 errors. 
+Setting the threshold poses the precision/recall trade-off. A low
+threshold level will match 100\% of the actual matches (high
+precision), while returning many false positives (low recall). A low
+threshold level will do the reverse. In \texttt{leghist} we treat this
+trade-off as a supervised learning problem in which the optimal $T$ is
+derived from a set of user-coded data. We provide tools to automate
+the hand-matching of a random subset of the final bill to its
+potential sources. Based on that hand coding, the proper threshold
+value can be chosen to maximize the accuracy of the matching
+algorithm. We provide the capability to estimate the optimal $T$ based
+on both overall accuracy and the precision/recall trade-off.
 
 \subsection{Extensions: influence estimates}
 \label{sec:extens-infl-estim}
 
 \cite{tsebelis2001legislative} suggest two measures of actor influence
-in the legislative process. \textit{Semantic impact} measures whether
-the actors are successful at introducing substantively new content to
-bills (as opposed to simply tweaking existing content. An example here
-would be expanding an argiculture subsidy bill to cover humane
-treatment of animals. \textit{Semantic completeness} measures whether
-proposed amendments were adopted in whole or only in part. 
+in the legislative process. We can describe these as:
+
+\begin{enumerate}
+\item \textit{Semantic impact} measures whether the actors are
+  successful at introducing substantively new content to bills (as
+  opposed to simply tweaking existing content). An example here would
+  be expanding an agriculture subsidy bill to cover humane treatment
+  of animals.
+\item \textit{Semantic completeness} measures whether proposed
+  amendments were adopted in whole or only in part, regardless of
+  whether they introduced new substance or modified existing content.
+\end{enumerate}
 
 \textit{Semantic impact} can be treated as a cluster analysis
 problem. We treat the entire corpus of bills and amendments (a corpus
 of length $D_1 + D_2 + A_J$) as representing $K$ latent topics. Each
 section $d_i, a_j$ can be assigned to one of these $K$
 topics. Substantively new content is thus a set of topics $K^* \in
-D_2, K^* \not \in D_1$. Given a composite bill, we can assign
-responsibility for introducing new topics based on the originator of
-each matched section and the topic assigned to that section. 
+D_2, K^* \not \in D_1$. Legislative actors whose contributions
+constitute a higher proportion of $K^*$ are identified as having
+greater substantive impact on outcomes. 
 
 \textit{Semantic completeness} can be derived directly from the
-similarity or distance metric of the match itself. Higher similarity
+distribution of the similarity or distance measures for the accepted
+amendments from each legislative actor. Higher similarity
 metric values indicate amendments adopted almost verbatim; lower
 values suggest partially-adopted amendments. 
+
 
 \section{The technical implementation}
 \label{sec:legisl-sect-match}
 
+In \texttt{leghist}, we implement this model in five stages:
+\begin{enumerate}
+\item Nearest-neighbor matching of the final bill to candidate origins
+\item Semi-supervised learning of the right threshold values
+\item Synthetic bill construction
+\item Semantic clustering and impact analysis
+\item Visualization and presentation
+\end{enumerate}
 
-
-\subsection{Matching and visual comparison}
-\label{sec:match-visu-comp}
+\subsection{Distance matching and estimation}
+\label{sec:dist-match-estim}
 
 Given the model presented in section \ref{sec:how-bill-becomes}, the
 analytic problem thus becomes identifying which amendments and
@@ -354,38 +359,23 @@ assumption that the similarity metric is consistent and well-ordered, we can the
 this pair of potential matches to determine the best potential match
 from all candidate matches. 
 
-Based on the pairwise matches between sections in the final bill and
-the set of potential sources for the final version of those sections,
-we can construct a synthetic bill for comparison purposes. The package
-provides tools to construct a side-by-side comparison of the final
-bill sections to their candidate matches. If the user supplies a
-non-zero threshold value as described in section
-\ref{sec:extens-negot-cont}, that
-value is used to determine whether the actual match
-should be used. If the threshold value is not met, then the final
-document section is matched to itself. 
 
-Finally, \texttt{leghist} provides an interface to output the matched
-document as a two-column \LaTeX\ document, which can be directly
-compiled into a PDF. Within that document, each paragraph of the final
-bill is shown side-by-side with its match. Words differences between
-the paragraphs are highlighted as colored text. 
+\subsection{Learning the distance threshold}
+\label{sec:learn-dist-thresh}
 
-\subsection{Semi-supervised learning of the optimal threshold value}
-\label{sec:superv-learn-optim}
-
-Selection of an optimum threshold value will depend on the specifics
+Given the distance matrix, construction of the composite matched bill
+requires a threshold value for accepting or rejecting matches. Selection of an optimum threshold value will depend on the specifics
 of the legislative process behind each bill. For instance, the right
 threshold value for a bill that was modified only via the amendment
 process may be much lower than a threshold value valid for a bill that
-went through a negotiation or reconcilliation process. While our experiments
+went through a negotiation or reconciliation process. While our experiments
 suggest that values on the order of 0.3 perform reasonably well, we
 recommend that users base threshold selection on the performance of
 the matching algorithm in their particular case. For instance,
 legislative procedures known to have significant negotiated content
 may benefit from a higher threshold value, while those with very
 little negotiated content might require a threshold value close to
-0. To facilitate identification of context-specific thrshold values, we provide tools that allow the user to
+0. To facilitate identification of context-specific threshold values, we provide tools that allow the user to
 hand-code a subset of a given bill and derive the optimum threshold
 value based on the algorithm's performance against that hand-coded
 data. In practice, coding of 30\% of a bill appears sufficient to
@@ -398,12 +388,13 @@ the final bill was hand-matched to the most semantically appropriate
 sources in either the original draft of the bill or
 subsequently-proposed amendments. Based on this sub-sample, we
 established the optimum threshold based on both overall accuracy and
-the tradeoff between Type 1 and Type 2 errors. In all cases, the
-optimum threshold lay between 0.3-0.45. The variation in the optimum
-threshold setting appears to derive from two primary sources: the
-degree of negotiation (as opposed to formal amendment) in the
-legislative process itself; and the amount of structural change that
-occurred when amendments were incorporated into formal legislative language.
+the precision-recall trade off between Type 1 (precision) and Type 2
+(recall) errors. In all cases, the optimum threshold lay between
+0.3-0.45. The variation in the optimum threshold setting appears to
+derive from two primary sources: the degree of negotiation (as opposed
+to formal amendment) in the legislative process itself; and the amount
+of structural change that occurred when amendments were incorporated
+into formal legislative language.
 
 \begin{figure}[ht]
   \centering
@@ -418,8 +409,23 @@ occurred when amendments were incorporated into formal legislative language.
   \label{fig:bill-accuracy-curves}
 \end{figure}
 
-\subsection{Amendment content analysis and clustering}
-\label{sec:amendm-cont-analys}
+\subsection{Bill synthesis}
+\label{sec:bill-synthesis}
+
+Based on the pairwise matches between sections in the final bill and
+the set of potential sources for the final version of those sections,
+we can construct a synthetic bill for comparison purposes. The package
+provides tools to construct a side-by-side comparison of the final
+bill sections to their candidate matches. If the user supplies a
+non-zero threshold value as described in section
+\ref{sec:extens-negot-cont}, that
+value is used to determine whether the actual match
+should be used. If the threshold value is not met, then the final
+document section is matched to itself. 
+
+
+\subsection{Semantic clustering and impact analysis}
+\label{sec:semant-clust-impact}
 
 Finally, the legislative process rarely amends bills at
 random. Rather, specific sections or issue areas within bills will
@@ -440,19 +446,32 @@ for inferring topics from empirical word distributions, and assigning
 documents to those topics on the basis of document-specific
 distributions. 
 
-\subsection{Macro-scale amendment visualization}
-\label{sec:macro-scale-vis}
+\subsection{Visualization}
+\label{sec:visualization}
 
-Finally, \texttt{leghist} provides an interface to visualize the
-macro-scale development of a bill in terms of amendment and topic
-flow. Amendment flow is treated as a directed acyclic graph, in which
-nodes can be legislative actors, semantic topics, and amendment
-status. Implementation uses the \texttt{igraph} library. Two types of acyclic directed graphs are facilitated:
+Finally, \texttt{leghist} provides two different visualization
+capabilities. The first, via the \texttt{WriteSideBySide}
+functionality,provides for side-by-side comparison of the actual final
+bill and its synthetic match in a two-column \LaTeX\ document, which
+can be directly compiled into a PDF. Within that document, each
+paragraph of the final bill is shown side-by-side with its
+match. Words differences between the paragraphs are highlighted as
+colored text. Margin notes indicate the origin of the matched segment
+and its similarity or distance measure compared with the section to
+which it is matched.
+
+The second capability displays the macro-scale development of a bill
+as a flow of potential amendments to their final status via their
+semantic clusters. . Amendment flow is treated as a directed acyclic
+graph, in which nodes can be legislative actors, semantic topics, and
+amendment status. Implementation uses the \texttt{igraph} library. Two
+types of acyclic directed graphs are facilitated:
 
 \begin{enumerate}
 \item The flow of amendments from the committees which originated
   them, to final status as either accepted or rejected components of
-  legislation (via \texttt{PlotCommitteeTopics}). This is modeled as a tripartite acyclic graph in which
+  legislation (via \texttt{PlotCommitteeTopics}). This is modeled as a
+  tripartite acyclic graph in which
   nodes are legislative actors, semantic topics, and final
   status. Edges represent the flow of amendments via topics to final
   status. Edgewidth corresponds to the volume of amendments by source
@@ -462,7 +481,7 @@ status. Implementation uses the \texttt{igraph} library. Two types of acyclic di
   topic are printed alongside the node itself.
 \item The failure, or the success and placement (index) in the final
   bill, of each submitted amendment is modeled by a three tiered
-  directed acyclic graph (via \texttt{PlotAmendsSuccess}). Each amendment, represented by an individual node in the bottom tier, is connected to its final destination - either a junk bin in the middle tier of the graph, or the amendment's placement in the final bill, each paragraph of which is represented as an individual node in the top and final tier. Arrow colors represent either an amendment's topic or committee.
+  directed acyclic graph (via \texttt{PlotAmendsSuccess}). 
 \end{enumerate}
 
 The first graph provides for easy macro-scale visualization of the
@@ -471,109 +490,103 @@ correspondence between topics and bill sections, and to identify the
 distribution of bill modifications as represented in the final
 bill. plotting facilities in \texttt{leghist} provide significant
 flexibility to control the information encoded in the color, size, and
-transparency of nodes and edges in each graph. Examples of each are provided in section
-\ref{sec:content-modeling}. 
+transparency of nodes and edges in each graph. Examples of each are
+provided in section \ref{sec:visu-proc-flow}. 
 
 
-\section{Vignette: the 2009 European Electricity Market Regulation }
+\section{Vignette: the 2009 European Renewable Energy law }
 \label{sec:vign-2009-europ}
 
 To illustrate each of these tools and their technical underpinnings,
 we now provide a vignette based on actual legislation as passed by the
-European Parliament. In 2008, the European Commission proposed a new round of reforms to
-the regulation of European electricity markets. This reform followed
-on the first (1996) and second (2003) internal market directives. Each
-aimed to break up the vertically integrated utilities that dominated
-national electricity markets, facilitate cross-border market
-integration, and support greater consumer choice over energy
-suppliers. The reforms also played a facilitating role for the
-incorporation of greater amounts of renewable energy into Europe's
-electricity supply. 
+European Parliament. In 2008, the European Commission proposed a new
+round of reforms to renewable energy policy. This reform followed
+on the 2001 Renewable Energy Directive. This series of legislation set
+Europe-wide and country targets for renewable energy adoption and
+established a European framework for renewable energy investment and
+subsidy. The reforms also played an important role in the multi-part
+bargain on energy and climate change introduced in the Third Climate
+and Energy Package.
 
-The original bill in this case was a package of amendments to the 2003
+The original bill in this case was a package of amendments to the 2001
 legislation proposed by the European Commission as Commission document
-COM 2007 (528). Based on this document, the European Parliament
-introduced a first round of amendments through its First Reading. On
-the basis of that document, the European Council subsequently
-negotiated a Common Position. This replaced the Commission's
-legislative proposal as a complete bill. The Parliament subsequently
-amended this further, in a Second Reading. The final bill was
-adoped as Directive 2009 (72).\footnote{A full procedural record can
+COM 2008 0019. Based on this document, the European Parliament
+submitted a range of amendments in the report tabled for the plenary
+session in Strasbourg. Subsequently, the Parliament and the Council
+agreed on a final bill, which passed both bodies. The Commission did
+not contest any of the agreed-upon changes. The final bill was
+adoped as Directive 2009 (28).\footnote{A full procedural record can
   be found at
-  \url{http://www.europarl.europa.eu/oeil/popups/ficheprocedure.do?reference=2007/0195(COD)&lg=fr}. Referenced
-12 February 2012.} 
+  \url{http://www.europarl.europa.eu/oeil/popups/ficheprocedure.do?reference=2008/0016(COD)&l=en}. Referenced
+10 June 2012.} 
 
 This section demonstrates the operation of the \texttt{leghist}
 package in analyzing the amendment process for this legislation. We
-treat the initial bill as the 2003 legislation which the Commission
+treat the initial bill as the 2001 legislation which the Commission
 proposed to change. Amendments then constitute the Commission proposal
-and the amendments contained in the First and Second Reading
-Reports. We do not treat the Council Common Position as a set of
-amendments, as it was released as a complete bill with no indication
-of where the Council had amended it. Instead, we use this as a feature
-to demonstrate the ability of the \texttt{leghist} package to reveal
-changes not represented in formal amendments. 
+and the amendments contained in the First Reading
+Report. 
 
 We begin by reading in the bills and amendments as plain text. In each
 case, the bills had been parsed from original documents available from
-the European Legislative Observatory. We note that neither the bills
-nor the amendments were
-not available in easily machine-readable format. We provide more
-detail on how the available electronic records were parsed into
-machine-readable plain text in appendix (). 
+the European Legislative Observatory. 
 
 \begin{lstlisting}[language=R, numbers=none]
-ep.first.reading <- 
-  read.csv("./2007/txt/ep_first_reading_report.txt",
-           header=TRUE,
-           stringsAsFactors=FALSE
-           )
-ep.second.reading <-
-  read.csv("./2007/txt/ep_second_reading_report.txt",
-           header=TRUE,
-           stringsAsFactors=FALSE
-           )
+ep.first.2007 <- read.csv("./2007/txt/ep_first_reading_report.csv",
+                          header=TRUE,
+                          stringsAsFactors=FALSE
+                          )
 
-initial.bill <- readLines("./2003/txt/directive_2003_54_ec.txt")
-commission.proposal <- readLines("./2007/txt/com_2007_528_final.txt")
-council.common.position <- readLines("./2007/txt/council_common_position.txt")
-final.bill <- readLines("./2007/txt/directive_2009_72_ec.txt")
+bill.initial.2007 <- readLines("./2001/orig/directive_2001_77_ec.txt")
+commission.proposal.2007 <- readLines("./2007/txt/com_2008_0019.txt")
+bill.final.2007 <- readLines("./2007/txt/directive_2009_28_ec.txt")
+
+committees.2007 <- c(rep("Parliament 1st reading",
+                         nrow(ep.first.2007)),
+                     rep("Commission",
+                         length(commission.proposal.2007))
+                     )
+
 \end{lstlisting}
 
-We then transform this set of documents into a single document-term
-matrix containing a vector space bag-of-words representation of each
-section of the bills and proposed amendments. Each row of the matrix represents one section of one document,
-while the columns represent unique terms in those documents, and
-matrix entries the term frequencies for those terms in each
-document. In this case, we do not stem the terms, but do remove
+
+\subsection{Distance estimation and matching}
+\label{sec:dist-estim-match}
+
+
+The documents are then transformed into a single document-term
+matrix containing a bag-of-words representation of each
+section of the bills and proposed amendments. Each row of the matrix
+represents one section of one document. Columns represent unique terms
+in those documents as term frequencies for those terms in each
+document section. In this case, we do not stem the terms, but do remove
 English stopwords, excess whitespace, and punctuation. We also use
-bigrams, on the supposition that the added semantic content of unique
-2-consecutive-word combinations may give greater resolution.
+a range of n-grams, to preserve the semantic resolution of
+consecutive-word combinations.
 
 \begin{lstlisting}[language=R, numbers=none]
-doc.list <- CreateAllVectorSpaces(initial.bill,
-                                  final.bill,
-                                  c(ep.first.reading$text,
-                                    ep.second.reading$text,
-                                    commission.proposal
-                                    ),
-                                  ngram.min=1,
-                                  ngram.max=3,
-                                  stem=FALSE,
-                                  rm.stopwords=TRUE,
-                                  rm.whitespace=TRUE,
-                                  rm.punctuation=TRUE,
-                                  filter=NULL,
-                                  filter.thres=NULL
-                                  )
+doc.list.2007 <- CreateAllVectorSpaces(bill.initial.2007,
+                                       bill.final.2007,
+                                       c(ep.first.2007$text,
+                                         commission.proposal.2007
+                                         ),
+                                       ngram.min=1,
+                                       ngram.max=3,
+                                       stem=FALSE,
+                                       rm.stopwords=TRUE,
+                                       rm.whitespace=TRUE,
+                                       rm.punctuation=TRUE,
+                                       filter=NULL,
+                                       filter.thres=NULL,
+                                       weighting=weightTf
+                                       )
 
 \end{lstlisting}
 
-The \texttt{doc.list} object takes the form of a list containing four
-objects:
+The \texttt{doc.list.2007} is a R \texttt{list} containing four components::
 \begin{itemize}
 \item \texttt{vs.out}, the document-term matrix represented as a
-  sparse \texttt{dgCMatrix} object
+  sparse \texttt{dgCMatrix} object \citep{Bates2012}
 \item \texttt{idx.final}, an integer vector of row indices
   representing documents in the final bill
 \item \texttt{idx.initial}, an integer vector of row indices
@@ -582,21 +595,19 @@ objects:
   representing documents from the proposed amendments
 \end{itemize} 
 
-With the document-term matrix, we can now map the final bill to its
-potential matches in the initial bill and amendments. The function
-\texttt{MapBills} takes as input the \texttt{doc.list} object and a
-specification for the distance function. Here, we use
-\texttt{CosineMat}, a version of the cosine distance
+Using the document-term matrix, the \texttt{MapBills} function
+generates a distance or similarity matrix between all sections of the
+final bill and their candidate origins in the initial bill and
+proposed amendments. Here, we use
+\texttt{CosineMat}, a version of the cosine similarity
 optimized for this use case by using matrix algebra to compute all
-distances simultaneously. However, any function that returns a
-distance matrix of the $N_{final} \times N_{compare}$, where the rows
-are the sections of the final bill and columns the sections of the
-potential matches, may be used. 
+distances simultaneously. However, \texttt{MapBills} will accept any function that returns a
+distance matrix of the $N_{final} \times N_{compare}$.
 
 \begin{lstlisting}[language=R, numbers=none]
-map.bills.cos <- MapBills(doc.list,
-                          distance.fun="CosineMat"
-                          )
+map.bills.2007.cos <- MapBills(doc.list.2007,
+                               distance.fun="CosineMat"
+                               )
 \end{lstlisting}
 
 \texttt{MapBills} returns an R data frame with five columns: the
@@ -606,20 +617,20 @@ can see a sample of that data frame here:
 
 \begin{verbatim}
   bill2.idx bill1.idx bill1.dist amend.idx amend.dist
-2         2         6  0.2377064       980  0.7196255
-3         3         3  0.7177070       980  0.3880453
-4         4         4  0.5805601       981  0.6782620
+1         1         1        NaN         1        NaN
+2         2         6  0.2377064       981  0.7376436
+3         3         3  0.7177070      1082  0.3880453
+4         4         4  0.5805601      1083  0.6782620
 5         5        24  0.1116871        94  0.8236878
-6         6         4  0.1034507        95  0.9701425
 \end{verbatim}
 
-Before we identify the most likely set of matches based on these
-distance metrics, we want to pick the optimum threshold value as
-discussed on section \ref{sec:extens-negot-cont}. To do so, we will
-use a hand-coded set of best matchs. The \texttt{leghist} package
-provides three tools for doing so. First, the user may encode the best
-match from the set of candidates using the same structure used by
-\texttt{MapBills}. The \texttt{RunEncoder} routine allows the user to
+
+\subsection{Learning the similarity threshold}
+\label{sec:learn-simil-thresh}
+
+To select the optimum threshold value as discussed in section
+\ref{sec:learn-dist-thresh}, \texttt{leghist} 
+provides a 2-step workflow. First, the \texttt{RunEncoder} routine allows the user to
 encode a randomly-sampled portion of the final bill. It presents the
 user with a set of candidate matches, based on likely matches from
 both the initial bill and amendments. The user provides the index of
@@ -633,217 +644,193 @@ available.\footnote{We note that users who do not want to use the
 \ref{fig:encoder-interface} provides a sample of the 
 \texttt{RunEncoder} interface.
 
-Based on the encoded sample, we may identify the optimum threshold
-value based on the empirical accuracy of the matching algorithm. To do
-so, we provide the \texttt{learn.threshold} interface. This takes as
-one of its arguments a sequence of potential threshold values. It then
-computes the accuracy of synthetic bill based on the output from \texttt{MapBills},
-for each threshold value, and returns the optimum threshold value from
-the sequence. The optimum
-threshold value may be identified in two ways based on the
-\texttt{type} argument. With \texttt{type=overall},
-the aggregate accuracy of the matched pairs is estimated, and the
-threshold value corresponding to the highest accuracy returned. With
-\texttt{type=tradeoff}, the Type 1/2 error tradeoff (rate of correct
-matches to amendments, versus rate of correct findings of ``no match'') is estimated and
-the threshold value at the intersection of the type 1 and type 2 error
-curves is returned. We recommend that the threshold sequence be
-specified at a fairly granular level, such as \texttt{seq(0, 0.5, 0.005)}.
+Second, based on the output of \texttt{RunEncoder},
+\texttt{LearnThreshold} computes accuracy measures for a synthetic
+bill based on a vector of threshold values. Based on those accuracy
+measures, \texttt{LearnThreshold} returns optimum threshold values
+from the sequence. We recommend that the
+threshold sequence be specified at a fairly granular level, such as
+\texttt{seq(0, 0.5, 0.005)}. The optimum threshold value may be identified in
+two ways based on the \texttt{type} argument to
+\texttt{LearnThreshold}. With \texttt{type=overall}, the aggregate
+accuracy of the matched pairs is estimated, and the threshold value
+corresponding to the highest accuracy returned. With
+\texttt{type=tradeoff}, the threshold value at the intersection of the
+the precision/recall tradeoff curves. 
 
 Figure \ref{fig:learn-threshold-output} shows the
-output of both versions of this function as trained on a 30\% sample
-of the bill in question. We can see that the optimum choice of
-threshold value is about 0.3, such that any matches with simliarity
-values $s < 0.3$ should be treated as ``no match''.
+output of \texttt{LearnThreshold} for both \texttt{overall} and
+\texttt{tradeoff} settings.We can see that the optimum choice of
+threshold value is about 0.45.
 
 \begin{figure}[ht]
   \centering
-  \includegraphics[width=0.75\textwidth]{intl_2007_accuracy_curves.pdf}
-  \caption{Accuracy curves as returned from the \texttt{learn.threshold} function. Notice that the optimum threshold value is closer to the accuracy curve than the type 1/2 tradeoff curve intersection, owing to the relative flatness of the tradeoff curves.}
+  \includegraphics[width=0.75\textwidth]{rese_2007_accuracy_curves.pdf}
+  \caption{Accuracy curves as returned from the \texttt{LearnThreshold} function. Notice that the optimum threshold value is closer to the accuracy curve than the type 1/2 tradeoff curve intersection, owing to the relative flatness of the tradeoff curves.}
   \label{fig:learn-threshold-output}
 \end{figure}
 
-With an optimum threshold in mind, we can now build the most likely
-composite on the basis of the matched
-bill. \texttt{GetLikelyComposite} provides functionality for doing
-so. As we can see, this takes a series of arguments: the output from
-MapBills, the plain text used to create the original \texttt{doc.list}
-object, and a series of labels that indicate from where the
-amendments came (in this case, the Parliamentary committees from the
-first reading, the Parliamentary second reading, and the European
-Commission). The argument \texttt{dist.threshold} represents the decision threshold $T$ described in section
-\ref{sec:extens-negot-cont}. If the program is unable to find a ``best match'' whose
-distance to the target section of the final document exceeds that
-value, it will insert the same section of the "final" bill as the best
+\subsection{Generating and visualizing the synthetic bill}
+\label{sec:gener-synth-bill}
+
+\texttt{GetLikelyComposite} provides functionality for building up the
+match to the final bill from the output of \texttt{MapBills} and the
+learned distance threshold. It takes a series of arguments: the output
+from MapBills, the plain text used to create the original
+\texttt{doc.list} object, and labels that indicate who originated the
+amendments (in this case, the Parliament at First Reading, and the
+European Commission). For any section of the final bill,
+\texttt{GetLikelyComposite} will return the best match if the
+similarity threshold exceeds \texttt{dist.threshold}; otherwise, it
+will insert the same section of the "final" bill as the best
 match. This can be used to identify sections of the bill with
 uncertain origins, which perhaps arose outside of the formal amendment
-process. 
+process.
 
 
 \begin{lstlisting}
-  composite.bill.cos <- 
-    GetLikelyComposite(map.bills.cos,
-                       initial.bill,
-                       final.bill,
-                       c(ep.first.reading$text,
-                       ep.second.reading$text,
-                       commission.proposal
-                       ),
-                       c(ep.first.reading$committee,
-                       rep("Parliament 2nd Reading", 
-                            nrow(ep.second.reading)
-                          ),
-                       rep("Commission 2007",
-                       length(commission.proposal)
-                       )
-                       ),
-                       filter="max",
-                       dist.threshold=0.2
-                       )
+rese.composite.2007.cos <- GetLikelyComposite(map.bills.2007.cos,
+                                              bill.initial.2007,
+                                              bill.final.2007,
+                                              c(ep.first.2007$text,
+                                                commission.proposal.2007
+                                                ),
+                                              committees.2007,
+                                              filter="max",
+                                              dist.threshold=0.45
+                                              )
                        
 \end{lstlisting}
 
-Finally, we may wish to write out a side-by-side comparison of the
-actual final bill with the ``best match'' synthetic version returned
-by \texttt{GetLikelyComposite}. The 
-\texttt{WriteSideBySide} function provides an interface for building a
-2-columna \LaTeX document with that comparison. Margin notes indicate the source of the
-matched paragraph, its index number, and the distance or similarity
-measure for its match to the target paragraph in the final
-bill. Sample PDF output is shown in figure \ref{fig:pdf-output}.
 
-\begin{lstlisting}[language=R]
-write.side.by.side.cos <- 
-   WriteSideBySide(composite.bill.cos,
-                   final.bill,
-                   cavs.out=doc.list,
-                   file.out="ep_2007_intl_mkt_sbs_cos.tex",
-                   dir.out="./2007/tex/",
-                   pdflatex=TRUE
-                   )
-\end{lstlisting}
+\subsection{Impact analysis}
+\label{sec:semant-impact-analys}
 
-\begin{figure}[ht]
-  \centering
-  \includegraphics[width=0.75\textwidth]{sample_pdf_output}
-  \label{fig:pdf-output}
-  \caption{Sample PDF output from the \texttt{WriteSideBySide} function, for the 2009 European energy market reform legislation.}
-\end{figure}
-
-\section{Accuracy trials}
-\label{sec:accuracy-trials}
-
-We assess the accuracy of the matching algorithm against two different
-standards: a human-matched document and the legislative record of
-adopted amendments. The human-matched document makes use of the
-\texttt{Encoder} tools provided in \texttt{leghist}. These tools take
-as input the same set of documents provided to the matching algorithm,
-generate a set of candidate matches for each section in the final
-bill, and provide a user interface to indicate which of the candidate
-matches is in fact the best match. A sample of the user interface,
-running in the R console, is show in figure \ref{fig:encoder-interface}.
-
-\begin{figure}[ht]
-  \centering
-  \includegraphics[width=\textwidth]{encoder}
-  \caption{Sample of the \texttt{Encoder} interface, running in the R console. }
-  \label{fig:encoder-interface}
-\end{figure}
-
-For the legislative record, we used the record of European
-Parliamentary debate for the 2009 renewable energy law reform reform. The EU process
-provides a particularly interesting test of the tools given its
-somewhat convoluted process. After the Commission proposes legislation
-to the Parliament, one or more committees can propose amendments,
-which are numbered $1:N$ for each committee. Some subset of those
-amendments are adopted, but the final adoption record does not
-explicitly number the amendments or provide a mapping from the new
-legislative document to the amendments. The Commission then indicates
-which amendments it considers acceptable. The revised legislation and
-the Commission's comment document are then taken up by the Council,
-which can also amend the document. The Council, however, provides no
-record of its internal proceedings and does not indicate, in the
-version of the legislation it produces, which sections it
-changed. Finally, the Parliament can conduct a second reading, where
-it can again propose amendments. Those amendments may represent
-agreed-upon changes to the bill arrived at through negotiation with
-the Council, or new amendments. The final bill, ultimately, provides
-no indication of which, if any, of these amendments were
-adopted. Furthermore, subtle changes in language may occur to any
-section of the bill, or to accepted amendments, during the legislative
-process. 
-
-For testing against the human-matched document, a user coded matches
-for all 380 paragraphs of the final bill, using the interface shown in
-figure \ref{fig:encoder-interface}. Possible origins for the final
-bill included the 2001 renewable energy law which was being amended;
-the Commission proposal for amendment; and the European Parliament's
-First Reading Report. We note that the bill also underwent review by
-the Council, which made other, non-specified changes. 
-
-This user-encoded bill was then compared to the algorithmic match
-across a range of threshold values, using the \texttt{LearnThreshold}
-tools. Figure \ref{fig:rese-accuracy-test} shows the results of those
-comparisons. For a threshold value of 0.45, the algorithm correctly
-identified and matched amendments in 84\% of cases. While the rate of
-correct source + index matching was lower, examination of the matches
-shows that this discrepancy is due to two phenomena: first, some
-amendments were offered multiple times with the same language; and
-second, in some cases post hoc examination of human and algorithmic
-matches showed that the algorithm found a closer match than the human
-coder.
-
-\begin{figure}[ht]
-  \centering
-  \includegraphics[width=0.75\textwidth]{rese_2007_accuracy_curves_full}
-  \caption{Algorithm accuracy as a function of the similarity threshold value. Baseline for comparison is a fully human-encoded bill. Source accuracy indicates where the algorithm identified the same source (amendment, original bill, or final bill) as the human coder. Source + index accuracy indicates where the algorithm found both the same source and the same index value (e.g. Amendment 24) as identified by the human coder.  }
-  \label{fig:rese-accuracy-test}
-\end{figure}
-
-\section{Content modeling}
-\label{sec:content-modeling}
-
-Finally, given the number of potential changes, we may wish to
-summarize the content of those changes. This may not, of course,
-capture subtle changes to wording that make large differences to the
-impact of legislation. But it can help identify issue areas or policy
-domains in which the legislative process made or failed to make
-broader changes. It can also help identify areas of contention within
-the broader domain of legislation. 
-
-The \texttt{leghist} package provides the \texttt{ModelDocSet}
-function as an interface to topic model capabilities in the
+To identify the semantic and substantive influence of the EU
+legislative actors, we make use of the topic modeling capabilities in the
 \texttt{topicmodels} package \citep{grun2011topicmodels}. These, in
 turn, provide R interfaces to the Latent Dirichelet Allocation methods
-implemented by \cite{blei2003latent} and
+implemented in \cite{blei2003latent} and
 \cite{blei2006correlated}. These methods infer a set of topics from
 the term distributions over a set of documents, on the assumption that
 topics are differentiated by different distributions over a set of
-terms. \texttt{ModelDocSet} provides the ability to feed one of five
-subsets of documents to these models: the included or rejected
-amendments (\texttt{incl.amend}, \texttt{rej.amend}); the surviving or rejected portions of the original
-bill (\texttt{incl.orig}, \texttt{rej.orig}); and the portions that
-were determined to have no valid match (\texttt{final}). 
+terms.  The \texttt{leghist} package
+provides a structured interface to cluster legislative text using
+these tools and tabulate the output.
+
+We first identify new substantive areas introduced into the final bill
+during the legislative process. The \texttt{ModelTopics} function
+provides a means for modeling the topic distribution for the entire
+corpus. We recommend that users select the optimum $k$ value on the basis of
+both formal model selection criteria and substantive topic
+coherence. \cite{wallach2009evaluation} provide a range of formal
+methods; \texttt{topicmodels} also implements log-likelihood and
+perplexity measures. 
 
 \begin{lstlisting}[language=R, numbers=none]
-model.incl.amend <- ModelDocSet(doc.list,
-                                composite.bill.cos,
-                                type="incl.amend",
-                                k=5,
-                                control=list(seed=2342)
-                                )
-model.rej.amend <- ModelDocSet(doc.list,
-                               composite.bill.cos,
-                               type="rej.amend",
-                               k=5,
-                               control=list(seed=2342)
-                               )
+## Subset the columns to include only 1-grams
+addl.stopwords <- c("december", "paragraph", "article", "january",
+                    "march", "june", "commission", "parliament", "community"
+                    )
+idx.to.keep <- leghist:::GetNgramIdx(colnames(doc.list.2007$vs.out),
+                                     1
+                                     )
+rese.1gram.2007 <- doc.list.2007$vs.out[,idx.to.keep]
+
+## Here k was chosen to maximize the log-likelihood of 
+## the model on a held-out 10% sample of the full 
+## document-term matrix
+rese.full.model <- ModelTopics(rese.1gram.2007,
+                         idx=c(doc.list.2007$idx.final,
+                           doc.list.2007$idx.initial,
+                           doc.list.2007$idx.amendments),
+                         k=26,
+                         sampling.method="VEM",
+                         topic.method="LDA",
+                         control=list(
+                           var=list(tol=10^-4),
+                           em=list(tol=10^-3)
+                           ),
+                         n.terms=10,
+                         addl.stopwords=addl.stopwords,
+                         na.rm=FALSE
+                         )  
 \end{lstlisting}
 
-We also provide a hierarchical interface, first clusters document
+
+
+With the full model, we can now match topics to individual document
+sections, their status as accepted or rejected in the final bill, and
+the legislative actor that proposed them.
+
+\begin{lstlisting}
+rese.topics.2007 <- CollateTopicDtm(rese.composite.2007.cos,
+                                    rese.full.model,
+                                    doc.list.2007,
+                                    committees.2007
+                                    )
+
+impact <- EstimateSourceImpact(rese.topics.2007)
+\end{lstlisting}
+
+\texttt{CollateTopicDtm} returns two matrices with topic and status
+information. The first, \texttt{doc.topic} maps the entire document-term matrix to the
+committee that originated each row, the status of that document
+section, and the topic assigned by the model. The second,
+\texttt{composite.topic}, is a matrix of the same form as
+\texttt{GetLikelyComposite}, augmented with the topic assigned to both
+the final bill section and its assigned match in the original bill or
+amendments. Sample output is shown below.
+
+\begin{verbatim}
+> rese.topics.2007$doc.topic[1:5,]
+            source              committee idx status topic
+result.1 doc.final Parliament 1st reading   1    acc  <NA>
+result.2 doc.final Parliament 1st reading   2 redund    22
+result.3 doc.final Parliament 1st reading   3 redund    20
+result.4 doc.final Parliament 1st reading   4 redund    22
+result.5 doc.final Parliament 1st reading   5 redund    18
+\end{verbatim}
+
+\texttt{EstimateSourceImpact} then operates on these results to return
+tables identifying semantic additions to the original proposed
+legislation. It identifies which topics in the final bill are not
+present in the initial, and tabulates documents assigned to those
+topics by legislative actor. It also breaks down the quality of the
+match, estimated by the similarity metric, as a measure of how well
+For the 2007 renewable energy bill, we can easily see that the
+Parliament had substantially more influence over topics 1, 7, and
+11. Looking at the terms returned from \texttt{ModelTopics}, it's
+clear that the Parliament's influence cam largely in amendments
+governing national renewable energy action plans, the impact of
+biofuels on third countries and food production, and regulatory
+compliance procedures. 
+
+\begin{verbatim}
+> round(impact$prop.origin.topic, 2)
+                        Topic
+Source                      1   11   12   16   19    2 5    7
+  Commission             0.27 0.33 0.65 0.25 0.53 0.56 1 0.27
+  Final                  0.23 0.17 0.20 0.38 0.33 0.19 0 0.27
+  Parliament 1st reading 0.50 0.50 0.15 0.38 0.13 0.25 0 0.45
+
+      Topic 1     Topic 7      Topic 11    
+ [1,] "energy"    "countries"  "regulatory"
+ [2,] "renewable" "third"      "adopted"   
+ [3,] "national"  "impact"     "procedure" 
+ [4,] "systems"   "country"    "accordance"
+ [5,] "action"    "biofuel"    "referred"  
+ [6,] "measures"  "biofuels"   "elements"  
+ [7,] "promote"   "convention" "scrutiny"  
+ [8,] "equipment" "increased"  "directive" 
+ [9,] "plans"     "food"       "designed"  
+[10,] "regional"  "concerning" "essential" 
+\end{verbatim}
+
+We also provide a hierarchical interface, which first clusters document
 sections into semantically-related groups, and then clusters the
 documents inside each cluster into semantic sub-groups. This
-functionality implements the following intution: consider a group of
+functionality implements the following intuition: consider a group of
 amendments and bill sections classified as "procedural" and identified
 because of the predominance of terms like "audit", "budget",
 "monitor", and "oversight". We would expect that, within that cluster,
@@ -857,7 +844,7 @@ We also provide a means of tabulating the committee contributions by
 both primary and secondary topic areas. The
 \texttt{ctab.amend.hierarchy} function takes the output from
 \texttt{model.amend.hierarchy} and returns the nested cross-tabulation
-of committee contributions to each semantic cluster and subcluster. 
+of committee contributions to each semantic cluster and sub-cluster. 
 
 \begin{lstlisting}[language=R, numbers=none]
 ## Define the number of primary topics
@@ -976,7 +963,7 @@ available tools for semantic clustering of text.
  [1] "operators"    "table"        "grid"         "carbon"       "require"     
  [6] "distribution" "procedures"   "transmission" "producers"    "rules"       
 
-[[7]]$terms.secondary
+[[7]]$terms.secondary%$
       Topic 1        Topic 2     Topic 3      Topic 4       Topic 5         
  [1,] "operators"    "table"     "procedures" "carbon"      "administrative"
  [2,] "grid"         "filled"    "equipment"  "wind"        "certification" 
@@ -990,12 +977,48 @@ available tools for semantic clustering of text.
 [10,] "rules"        "molecular" "annualised" "priority"    "established" 
 \end{verbatim}
 
+\subsection{Visualizing process flow and impact}
+\label{sec:visu-proc-flow}
 
-Finally, \texttt{leghist} provides several options for visualizing the
-flow and semantic clustering of amendments. \texttt{PlotAmendsSuccess}
-generates a directed acyclic graph representation of amendment flow
-from its origins with legislative actors, via the topic clustering, to
-either rejection or the final bill. Output for the renewable energy
+\texttt{leghist} provides two visualization frameworks for assessing
+the quality of the composite bill and the flow of text from
+legislative actors to final status. Based on the
+\texttt{GetLikelyComposite} output, \texttt{WriteSideBySide} provides
+an interface for building a 2-column \LaTeX\ document showing the final
+bill and its matched origins. Margin notes indicate the source of the
+matched paragraph, its index number, and the distance or similarity
+measure for its match to the target paragraph in the final
+bill. Sample PDF output is shown in figure \ref{fig:pdf-output}.
+
+\begin{lstlisting}[language=R]
+rese.sbs.2007 <- WriteSideBySide(rese.composite.2007.cos,
+                                 bill.final.2007,
+                                 cavs.out=doc.list.2007,
+                                 file.out="ep_2007_rese_cos.tex",
+                                 dir.out="./2007/tex/",
+                                 pdflatex=TRUE
+                                 )
+\end{lstlisting}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.75\textwidth]{sample_pdf_output}
+  \label{fig:pdf-output}
+  \caption{Sample PDF output from the \texttt{WriteSideBySide} function, for the 2009 European energy market reform legislation.}
+\end{figure}
+
+ 
+Second, analysts may wish to observe how content moved from
+legislative actors to either acceptance or rejection, based on the
+semantic topic. For instance, we may hypothesize that some substantive
+areas of legislation were proposed but rejected; or that one actor had
+more influence over a particular policy domain than another. For
+visualizing the flow of content by topic area, \texttt{leghist}
+provides several options for visualizing the flow and semantic
+clustering of amendments. \texttt{PlotCommitteeTopics} generates a
+directed acyclic graph representation of amendment flow from its
+origins with legislative actors, via the topic clustering, to either
+rejection or the final bill. Output for the renewable energy
 legislation is shown in figure \ref{fig:amend-flow}. We observe that
 while the Parliament's 1st reading supplied the majority of
 amendments, the Commission's amendments were far more
@@ -1003,7 +1026,6 @@ successful. Overall, however, most amendments fail to pass into
 law. As with the cross-tabulations, we can also see that topic six was
 dominated by the Parliament, while the other topics saw equal
 attention from both the Parliament and Commission.
-
 
 \begin{lstlisting}[language=R, numbers=none]
 PlotCommitteeTopics(rese.topics.2007, rese.composite.2007,
@@ -1020,30 +1042,6 @@ PlotCommitteeTopics(rese.topics.2007, rese.composite.2007,
                     )
 \end{lstlisting}
 
-\begin{lstlisting}[language=R, numbers=none]
-PlotAmendsSuccess(rese.topics.2007,
-                  rese.composite.2007.cos,
-                  committees.2007,
-                  color.by="topics", col = NULL,
-                  edge.width.scale=1, arrowhead.size=0,
-                  af.shape="none", junk.shape="rectangle",
-                  af.scale=1, junk.scale=1,
-                  label.font=3,label.cex=.75, labels=NULL,
-                  main="Amendments' Destinations",
-                  legend.x=-1.25, legend.y=.5, legend.cex=.5
-                  )
-\end{lstlisting}
-
-Likewise, \texttt{PlotAmendsSuccess} plots amendments by their final
-destination as either accepted or rejected amendments. For accepted
-amendments, they are mapped from the indexed list provided to their
-location in the final bill. Figure \ref{fig:amend-dest} shows the
-result for the renewable energy bill. We immediately notice large
-sections of the final bill that do not have obvious origins in the
-amendments. We can also observe that most amendments cluster by topic
-within the successful bill. This provides visual confirmation of the
-semantic coherence of different bill segments.
-
 \begin{figure}[ht]
   \centering
   \includegraphics{plot_committee_topic_flow}
@@ -1051,15 +1049,43 @@ semantic coherence of different bill segments.
   \label{fig:amend-flow}
 \end{figure}
 
+
+\section{Accuracy trials}
+\label{sec:accuracy-trials}
+
+The analyses that leghist makes available are only as good as the
+quality of the matches. We assess the accuracy of the matching
+algorithm against a human-matched version of the same bill. Using the 
+\texttt{RunEncoder} interface provided in \texttt{leghist} and shown
+in figure \ref{fig:encoder-interface}, we had-coded matches for all
+380 sections in the final bill. We then compared the algorithmic match
+to the manual match using the \texttt{LearnThreshold}
+tools. Figure \ref{fig:rese-accuracy-test} shows the results of those
+comparisons. For a threshold value of 0.45, the algorithm correctly
+identified and matched amendments in 84\% of cases. The rate of
+correct source + index matching was lower. The discrepancy between
+identifying something as an amendment, versus \textit{which}
+amendment, is largely due to the presence of ties. If
+more than one committee submits an amendment with identical language,
+the algorithm breaks ties based on order in the amendment data. Manual
+matching may return the same substantive match, but a different
+index.
+
+
 \begin{figure}[ht]
   \centering
-  \includegraphics{plot_amendment_destination}
-  \caption{Amendment origin and destination by index. Edges reflect
-    amendment flow from the original indexed list to the final bill or
-  rejection. Colors reflect semantically clustered topics as output by
-\texttt{ModelAmendHierarchy}.}
-  \label{fig:amend-dest}
+  \includegraphics[width=\textwidth]{encoder}
+  \caption{Sample of the \texttt{RunEncoder} interface, running in the R console. }
+  \label{fig:encoder-interface}
 \end{figure}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.75\textwidth]{rese_2007_accuracy_curves_full}
+  \caption{Algorithm accuracy as a function of the similarity threshold value. Baseline for comparison is a fully human-encoded bill. Source accuracy indicates where the algorithm identified the same source (amendment, original bill, or final bill) as the human coder. Source + index accuracy indicates where the algorithm found both the same source and the same index value (e.g. Amendment 24) as identified by the human coder.  }
+  \label{fig:rese-accuracy-test}
+\end{figure}
+
 
 \section{Conclusions}
 \label{sec:conclusions}
