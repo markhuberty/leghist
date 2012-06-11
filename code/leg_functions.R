@@ -2657,7 +2657,7 @@ CheckAndFixRGB <- function (x) {
 ##' @title EdgeColorPCT.
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
-##' of 1:t), and its final destination (junk or final bill: 0 or 1). See
+##' of 1:t), and its final destination (rejected or final bill: 0 or 1). See
 ##' PlotCommitteeTopics() for more details. 
 ##' @param num.com number of committees.
 ##' @param num.top number of topics.
@@ -2677,14 +2677,14 @@ EdgeColorPCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=N
     colors <- as.character (sapply(colors, CheckAndFixRGB))
   }
   
-  ## The final destination (1 or 2: junk or final) of each unique edge (arrow):
+  ## The final destination (1 or 2: rejected or final) of each unique edge (arrow):
   edge.color.idx <- c( (A[!duplicated(A[,2:3]),4]),
                       (A[!duplicated(A[,3:4]),4]) ) -num.com-num.top+1
   
   edge.color <- colors[edge.color.idx]
   
   ## Are the amendment(s) that a committee-to-topics arrow is representing heading to both 
-  ## the final bill AND junk? If both, then the arrow color should be some shade of (default) green.
+  ## the final bill AND rejected? If both, then the arrow color should be some shade of (default) green.
   for ( i in which(!duplicated(A[,2:3]))){
 
     identical <- c( which ( ( (A[i,2]==A[,2]) * (A[i,3]==A[,3])) ==1) )
@@ -2722,7 +2722,7 @@ EdgeColorPCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=N
 ##' @param num.top number of topics.
 ##' @param scale.c Size scale for committee nodes.
 ##' @param scale.t Size scale for topic nodes.
-##' @param scale.fin Size scale for final destination nodes: "Final" and "Junk".
+##' @param scale.fin Size scale for final destination nodes: "Adopted" and "Rejected".
 ##' @return A matrix of dimension a by 2. The first column is a vector of node sizes 
 ##' for each vertex in the graph., the second is a vector of second node sizes (e.g.
 ##' for rectangles).
@@ -2778,24 +2778,24 @@ VertexSizesPCT <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
 ##' @param merged Output of OutToInPCT
 ##' @param topics.matrix An object defined inside PlotCommitteeTopics(): 
 ##' model.amend.hierarchy.out[[1]][[1]][[2]]
-##' @param junk.final.label character of length 2, the junk node's label and the final
-##' bill's node label. If left NULL, the labels will be "Junk" and "Final".
+##' @param rejected.final.label character of length 2, the rejected node's label and the final
+##' bill's node label. If left NULL, the labels will be "Recjected" and "Adopted".
 ##' @return a vector of labels for each node in a PlotCommitteeTopics()
 ##' graph.
 ##' @author Hillary Sanders
-VertexLabelsPCT <- function(vertex.label, merged, topics.matrix, junk.final.label) {
+VertexLabelsPCT <- function(vertex.label, merged, topics.matrix, rejected.final.label) {
   
   if (is.null(vertex.label)) {
   
     com <- levels(merged[,3])
     top <- paste( "Topic", 1:ncol(topics.matrix))
-    final <- c("Junk", "Final")  
+    final <- c("Rejected", "Adopted")  
     
     vertex.label <- c(com, top, final)
   }
-  if (!is.null(junk.final.label)){
+  if (!is.null(rejected.final.label)){
     vertex.label[(length(vertex.label)-1):length(vertex.label)] <-
-      junk.final.label
+      rejected.final.label
   }  
 
   return(vertex.label)
@@ -2806,7 +2806,7 @@ VertexLabelsPCT <- function(vertex.label, merged, topics.matrix, junk.final.labe
 ##' Creates the "x"th layout coordinates for PlotCommitteeTopics(). This function
 ##' is called inside of PlotCommitteeTopics() to create the layout: three layers 
 ##' consisting of 1) committees (c of them), 2) topics (t of them), and the final
-##' destinations of the amendments (junk and final). 
+##' destinations of the amendments (rejected and final). 
 ##' @title LayoutPCT
 ##' @param x the index of the coordinates to be created.
 ##' @param num.com the number of committees (number of nodes wanted in the bottom
@@ -2845,7 +2845,7 @@ LayoutPCT <- function(x,num.com,num.top,mid.layer=.65){
 ##' edge came from, where it is going, and its index.
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
-##' of 1:t), and its final destination (junk or final bill: 0 or 1). See
+##' of 1:t), and its final destination (rejected or final bill: 0 or 1). See
 ##' PlotCommitteeTopics() for more details. 
 ##' @param num.arrows.to.topics The number of distinct edges (arrows) that are going
 ##' to topic nodes (the middle layer) in the PlotCommitteeTopics() plot.
@@ -2881,7 +2881,7 @@ GetEdgeWidth.Absolute <- function(x, A, num.arrows.to.topics){
 ##' edge came from, where it is going, and its index.
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
-##' of 1:t), and its final destination (junk or final bill: 0 or 1). See
+##' of 1:t), and its final destination (rejected or final bill: 0 or 1). See
 ##' PlotCommitteeTopics() for more details. 
 ##' @param num.arrows.to.topics The number of distinct edges that are going
 ##' to topic nodes (the middle layer) in the PlotCommitteeTopics() plot.
@@ -2921,7 +2921,7 @@ GetEdgeWidth.Relative <- function(x, A, num.arrows.to.topics){
 ##' edge came from, where it is going, and its index.
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
-##' of 1:t), and its final destination (junk or final bill: 0 or 1). See
+##' of 1:t), and its final destination (rejected or final bill: 0 or 1). See
 ##' PlotCommitteeTopics() for more details.
 ##' @param num.arrows.to.topics The number of distinct edges (arrows) that are
 ##' going to topic nodes (the middle layer) in the PlotCommitteeTopics() plot.
@@ -3013,8 +3013,8 @@ EdgeWidthsPCT <- function(A, num.com, num.top, edge.width="absolute", edge.width
 ##' layer is a set of nodes representing committees which have each submitted 
 ##' a number of amendments. Edges (arrows) connect these committee nodes to the
 ##' middle layer topic nodes to which each committee's amendment(s) pertain. 
-##' Edges then connect these topic nodes to the third layer - two nodes: "Junk"
-##' and "Final" - again according to the amendments that the edges represent.
+##' Edges then connect these topic nodes to the third layer - two nodes: "Rejected"
+##' and "Adopted" - again according to the amendments that the edges represent.
 ##' Edge width, as well as node area, by default correspond to the number of
 ##' amendments they are representing.
 ##' @title PlotCommitteeTopics
@@ -3033,12 +3033,12 @@ EdgeWidthsPCT <- function(A, num.com, num.top, edge.width="absolute", edge.width
 ##' By default, scale.c, scale.t, and scale.fin = 1, and their area are equally 
 ##' proportional to the number of amendments they represent.
 ##' @param scale.t Scales the size of the middle layer topic nodes. Default = 1.
-##' @param scale.fin Scales the size of the top layer final nodes (Junk and Final).
+##' @param scale.fin Scales the size of the top layer final nodes (rejected and Final).
 ##' Default = 1.
 ##' @param edge.transparency A number in 00:99, representing the wanted transparency
 ##' in edges (lower number = more transparent). If left NULL (the default), edges 
 ##' will be kept opaque.
-##' @param edge.col Two edge colors to signify edges which contain 1) junk destined
+##' @param edge.col Two edge colors to signify edges which contain 1) rejected destined
 ##' amendments, 2) final destined amendments, or 3) both. Both RGB codes and 
 ##' character vectors are accepted. If NULL (the default) PlotCommitteeTopics()
 ##' will use "cornflowerblue", "darkgoldenrod1", and varying shades of green to
@@ -3070,7 +3070,7 @@ EdgeWidthsPCT <- function(A, num.com, num.top, edge.width="absolute", edge.width
 ##' @param vertex.label An optional character vector representing the node names for each 
 ##' node (vertex). If NULL, the committee nodes (bottom layer) will be named with 
 ##' their full names, each ith topic node will be named Topic i, and the two final
-##' bins will be labeled "Final" and "Junk" (for accepted and rejected amendments).
+##' bins will be labeled "Adopted" and "Rejected" (for accepted and rejected amendments).
 ##' @param vertex.label.font Type of font for the vertex labels.
 ##' @param vertex.label.cex Size of the vertex label font. Vectorized.
 ##' @param vertex.color The color vertex labels are filled with.
@@ -3092,7 +3092,7 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
                                terms.x.offset=0, terms.y.offset=-.05, 
                                terms.spread=1, terms.text.close=1,
                                vertex.label=NULL, vertex.label.font=3, vertex.label.cex=.75,
-                               junk.final.label=NULL, vertex.color="cornflowerblue",
+                               rejected.final.label=NULL, vertex.color="cornflowerblue",
                                vertex.shape = "rectangle"
                                ) {
   
@@ -3142,7 +3142,7 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
   topics.matrix <- model.amend.hierarchy.out[[1]][[1]][[2]]
 
   ## Calculate vertex labels
-  vertex.label <- VertexLabelsPCT(vertex.label, merged, topics.matrix, junk.final.label)
+  vertex.label <- VertexLabelsPCT(vertex.label, merged, topics.matrix, rejected.final.label)
   
   ## The actual object to be graphed:
   g. <- arrows.mat-min(arrows.mat)
@@ -3282,7 +3282,7 @@ OutToInPAS <- function(model.amend.hierarchy.out,
   ## However, amendments that were discarded still need to be removed:
   ## Use amend.top.index, as it only shows non-discarded amendments, and has topic info:
   merged <- merge(amend.top.index,joined,by=1)
-  colnames(merged) <- c("amendment.idx","topic.idx","committee","final.idx.or.junk")
+  colnames(merged) <- c("amendment.idx","topic.idx","committee","final.idx.or.rejected")
 
   return(merged)
 }
@@ -3356,11 +3356,11 @@ EdgeColorPAS <- function(merged, edge.color.by ="topics", edge.col=NULL){
 ##' @param a.lab the number of visible labels on the bottom amendments tier.
 ##' @param f.lab the number of visible labels on the top final bill tier.
 ##' @param vertex.label an optional vector of labels which the user may supply.
-##' @param junk.label character, the junk node's label. If left NULL, the label
-##' will be "junk".
+##' @param rejected.label character, the rejected node's label. If left NULL, the label
+##' will be "Rejected".
 ##' @return A vector of labels for a PAS graph.
 ##' @author Hillary Sanders
-VertexLabelsPAS <- function(a, f, a.lab, f.lab, vertex.label=NULL, junk.label=NULL){
+VertexLabelsPAS <- function(a, f, a.lab, f.lab, vertex.label=NULL, rejected.label=NULL){
   
   if (is.null(vertex.label)) {
     
@@ -3373,10 +3373,10 @@ VertexLabelsPAS <- function(a, f, a.lab, f.lab, vertex.label=NULL, junk.label=NU
     for (i in f.labeled) vertex.label[a+i] <- i
     }
   
-    if(is.null(junk.label)){
-    vertex.label[a+f+1] <- "Junk"
+    if(is.null(rejected.label)){
+    vertex.label[a+f+1] <- "Rejected"
     } else {
-      vertex.label[a+f+1] <- junk.label
+      vertex.label[a+f+1] <- rejected.label
       
   }
   return(vertex.label)
@@ -3387,16 +3387,16 @@ VertexLabelsPAS <- function(a, f, a.lab, f.lab, vertex.label=NULL, junk.label=NU
 ##' @title MakeShapesPAS
 ##' @param a the number of amendments.
 ##' @param f the number of paragraphs in the final bill.
-##' @param junk.shape the shape of the junk node.
+##' @param rejected.shape the shape of the rejected node.
 ##' @return A vector of shapes for a PAS graph.
 ##' author Hillary Sanders
-MakeShapesPAS <- function(a, f, junk.shape){ 
+MakeShapesPAS <- function(a, f, rejected.shape){ 
   
   shape.a <- rep("rectangle", a)
   
   shape.f <- rep("rectangle", f)
     
-  shape <- c(shape.a, shape.f, junk.shape)
+  shape <- c(shape.a, shape.f, rejected.shape)
     
   return (shape)
   }
@@ -3407,16 +3407,16 @@ MakeShapesPAS <- function(a, f, junk.shape){
 ##' @title VertexSizesPAS
 ##' @param a the number of amendments.
 ##' @param f the number of paragraphs in the final bill.
-##' @param junk.shape the shape of the junk node.
+##' @param rejected.shape the shape of the rejected node.
 ##' @return A vector of sizes for a PAS graph.
 ##' author Hillary Sanders
-VertexSizesPAS <- function(a, f, junk.scale){
+VertexSizesPAS <- function(a, f, rejected.scale){
 
   size.a <- rep(2/a, a)
   size.f <- rep(2/f, f)
-  size.junk <- 30*junk.scale
+  size.rejected <- 30*rejected.scale
   
-  vertex.sizes <- c(size.a, size.f, size.junk)
+  vertex.sizes <- c(size.a, size.f, size.rejected)
   
   return(vertex.sizes)
   }
@@ -3438,11 +3438,11 @@ VertexSizesPAS <- function(a, f, junk.scale){
 ##' @author Hillary Sanders
 ##' @export
 VertexColorsPAS <- function(a, f, merged,
-                             vertex.color.by, vertex.junk.color,
+                             vertex.color.by, vertex.rejected.color,
                              vertex.col=NULL){
                              	
     
-  succeeded <- merged[merged$final.idx.or.junk != 0, 2:4]
+  succeeded <- merged[merged$final.idx.or.rejected != 0, 2:4]
     
   final.order <- order(succeeded[, 3])
     
@@ -3478,7 +3478,7 @@ VertexColorsPAS <- function(a, f, merged,
     
     vertex.col.short <- c(vertex.col[1:(max(coms.amends))],"white")
     
-    vertex.color <- c(vertex.col.short[c(coms.amends,coms.final)],vertex.junk.color)
+    vertex.color <- c(vertex.col.short[c(coms.amends,coms.final)],vertex.rejected.color)
     
     colors.used.in.vertices <- vertex.col[1:num.coms]
 
@@ -3509,7 +3509,7 @@ VertexColorsPAS <- function(a, f, merged,
     tops.final <- vertex.col[tops.final]
     tops.amends <- vertex.col[tops.amends]
     
-    vertex.color <- c(tops.amends,tops.final,vertex.junk.color)  
+    vertex.color <- c(tops.amends,tops.final,vertex.rejected.color)  
     
     colors.used.in.vertices <- vertex.col[1:num.tops]
     }
@@ -3524,7 +3524,7 @@ VertexColorsPAS <- function(a, f, merged,
 ##' is called inside of PlotAmendsSuccess() to create the layout: coordinates
 ##' for two layers consisting of 1) amendments (a of them), 2) the final bill 
 ##' (all of the paragraphs (or other text chunks) in the final bill, as well as
-##' a junk bin placed in the middle of the graph.
+##' a rejected bin placed in the middle of the graph.
 ##' @title LayoutPAS
 ##' @param x the index of the coordinates to be created. 
 ##' @param a the number of amendments.
@@ -3543,7 +3543,7 @@ LayoutPAS <- function(x, a, f){
 
 
 ##' Creates a three tiered directed acyclic graph to visualize bill evolution.
-##' Individual amendments are either connected (with an arrow) to a junk bin if the
+##' Individual amendments are either connected (with an arrow) to a rejected bin if the
 ##' amendment was not accepted into the final bill, or if it was, to its place in 
 ##' the final bill.
 ##' @title PlotAmendsSuccess
@@ -3563,19 +3563,19 @@ LayoutPAS <- function(x, a, f){
 ##' own color vectors of length c or t.
 ##' @param edge.width.scale Scale edge widths. Default = 1
 ##' @param arrowhead.size Size of edge arrowheads. Default = 0.
-##' @param junk.shape The node shape of the junk node. Possible 
+##' @param rejected.shape The node shape of the rejected node. Possible 
 ##' shapes are "circle", "square", "csquare", "rectangle", "crectangle", "vrectangle",
 ##' and "none". Default = "none".
-##' @param junk.label junk node label. Even if vertex.label = NULL, you may still 
-##' customize the junk label. Default = NULL.
+##' @param rejected.label rejected node label. Even if vertex.label = NULL, you may still 
+##' customize the rejected label. Default = NULL.
 ##' @param af.scale Scale the size of the amendment and final nodes.
-##' @param junk.scale Scale the size of the junk node.
+##' @param rejected.scale Scale the size of the rejected node.
 ##' @param label.font Font type for the labels. Default = 3.
 ##' @param label.cex Font size for the labels. Default = .75.
 ##' @param vertex.label Vector of labels for each amendments, each final bill 
-##' paragraph, and the junk bin. If left NULL, ten (relatively) equidistant
+##' paragraph, and the rejected bin. If left NULL, ten (relatively) equidistant
 ##' nodes will be labeled by their paragraph indices for both amendments and 
-##' the final bill, while the rejected amendments bin will be labeled "Junk".
+##' the final bill, while the rejected amendments bin will be labeled "Rejected".
 ##' @param a.lab the number of visible labels on the bottom amendments tier.
 ##' default = 10.
 ##' @param f.lab the number of visible labels on the top final bill tier.
@@ -3603,11 +3603,11 @@ LayoutPAS <- function(x, a, f){
 PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.out, committees,
                              edge.color.by="t", edge.col=NULL,
                              edge.width.scale=1, arrowhead.size=0,
-                             junk.shape="rectangle", junk.label="junk",
-                             af.scale=1, junk.scale=1,
+                             rejected.shape="rectangle", rejected.label="Rejected",
+                             af.scale=1, rejected.scale=1,
                              label.font=3,label.cex=.75, vertex.label=NULL,
                              a.lab=10, f.lab=10, vertex.color.by="c",
-                             vertex.col=NULL, vertex.junk.color="cornflowerblue",
+                             vertex.col=NULL, vertex.rejected.color="cornflowerblue",
                              main=NULL,
                              legend.x=-1.25, legend.y=.75, legend.cex=.5
                              ){
@@ -3616,7 +3616,7 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
                         get.likely.composite.out,
                         committees)
 
-  destinations <- merged$final.idx.or.junk
+  destinations <- merged$final.idx.or.rejected
 
   ## number of paragraphs in final bill.
   f <- nrow(get.likely.composite.out) 
@@ -3631,7 +3631,7 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   colors.used.in.edges <- edge.colors[[2]]
   
   destinations[destinations==0] <- f+1
-  ## So that each amendment destined for the junk bin will go to that last,
+  ## So that each amendment destined for the rejected bin will go to that last,
   ## (a+f+1)th, vertex, with index a+f, since igraph indices start at 0:
   
   mat <- matrix(c(amends.plot.idx-1, 0, 0, destinations+a-1, (f+a-1), a), ncol=2)
@@ -3639,21 +3639,21 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   graph <- graph(g)
   ## the 0 -> f+a-1 and 0 -> a are to ensure that all 1:f final paragraphs are
   ## shown in the graph. They will have no color, so will be invisible. The 
-  ## (f+a+1)th vertex will be the junk bin, with graph index (f+a), since igraph 
+  ## (f+a+1)th vertex will be the rejected bin, with graph index (f+a), since igraph 
   ## indices start at 0.
   
   x <- (a+f+1)
   y <- 1:x
   lay.mat <- t(sapply(y,FUN=LayoutPAS, a=a, f=f))
   
-  vertex.label <- VertexLabelsPAS(a, f, a.lab, f.lab, vertex.label, junk.label)
+  vertex.label <- VertexLabelsPAS(a, f, a.lab, f.lab, vertex.label, rejected.label)
   
-  v.shape <- MakeShapesPAS(a, f, junk.shape)
+  v.shape <- MakeShapesPAS(a, f, rejected.shape)
   
-  vertex.size <- VertexSizesPAS(a, f, junk.scale)
+  vertex.size <- VertexSizesPAS(a, f, rejected.scale)
   
   vertex.colors <- VertexColorsPAS(a, f, merged, vertex.color.by,
-                                   vertex.junk.color, vertex.col)
+                                   vertex.rejected.color, vertex.col)
   vertex.color <- vertex.colors[[1]]
   colors.used.in.vertices <- vertex.colors[[2]]
   
