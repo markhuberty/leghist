@@ -2509,7 +2509,9 @@ EstimateSourceImpact <- function(tab.topic.status.out,
   composite <- tab.topic.status.out$composite.topic
 
   ## Tabulate and determine which topics weren't in the original bill
-  tab.overall <- table(idx$source, idx$topic, useNA="always")
+  tab.overall <- table(idx$source, idx$topic, useNA="always",
+                       dnn=c("Source", "Topic")
+                       )
   idx.new <-
     which(tab.overall[rownames(tab.overall)=="doc.final" &
                       !is.na(rownames(tab.overall)), ] > 0 &
@@ -2527,19 +2529,21 @@ EstimateSourceImpact <- function(tab.topic.status.out,
   ## count amendments
   composite.sub <-
     composite[composite$final.topic %in% new.topics, ]
-
+  
   tab.dist <- table(composite.sub$alt.origin,
                     cut(composite.sub$match.dist,
                         quantile(composite.sub$match.dist,
                                  probs=dist.quantiles,
                                  NA.rm=TRUE
                                  )
-                        )
+                        ),
+                    dnn=c("Source", "Match quality distribution")
                     )
   tab.pct <- prop.table(tab.dist, margin=prop.margin)
   
   tab.sub <- table(composite.sub$alt.origin,
-                   composite.sub$final.topic
+                   composite.sub$final.topic,
+                   dnn=c("Source", "Topic")
                    )
   tab.sub <- tab.sub[, idx.new]
   tab.pct.sub <- prop.table(tab.sub, margin=prop.margin)
