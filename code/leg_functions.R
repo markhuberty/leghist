@@ -2778,19 +2778,25 @@ VertexSizesPCT <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
 ##' @param merged Output of OutToInPCT
 ##' @param topics.matrix An object defined inside PlotCommitteeTopics(): 
 ##' model.amend.hierarchy.out[[1]][[1]][[2]]
+##' @param junk.final.label character of length 2, the junk node's label and the final
+##' bill's node label. If left NULL, the labels will be "Junk" and "Final".
 ##' @return a vector of labels for each node in a PlotCommitteeTopics()
 ##' graph.
 ##' @author Hillary Sanders
-VertexLabelsPCT <- function(vertex.label, merged, topics.matrix) {
+VertexLabelsPCT <- function(vertex.label, merged, topics.matrix, junk.final.label) {
   
   if (is.null(vertex.label)) {
-    
+  
     com <- levels(merged[,3])
     top <- paste( "Topic", 1:ncol(topics.matrix))
     final <- c("Junk", "Final")  
     
     vertex.label <- c(com, top, final)
   }
+  if (!is.null(junk.final.label)){
+    vertex.label[(length(vertex.label)-1):length(vertex.label)] <-
+      junk.final.label
+  }  
 
   return(vertex.label)
 }
@@ -3086,7 +3092,8 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
                                terms.x.offset=0, terms.y.offset=-.05, 
                                terms.spread=1, terms.text.close=1,
                                vertex.label=NULL, vertex.label.font=3, vertex.label.cex=.75,
-                               vertex.color="cornflowerblue", vertex.shape = "rectangle"
+                               junk.final.label=NULL, vertex.color="cornflowerblue",
+                               vertex.shape = "rectangle"
                                ) {
   
   merged <- OutToInPCT(model.amend.hierarchy.out,get.likely.composite.out,committees)
@@ -3135,7 +3142,7 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
   topics.matrix <- model.amend.hierarchy.out[[1]][[1]][[2]]
 
   ## Calculate vertex labels
-  vertex.label <- VertexLabelsPCT(vertex.label,merged,topics.matrix)
+  vertex.label <- VertexLabelsPCT(vertex.label, merged, topics.matrix, junk.final.label)
   
   ## The actual object to be graphed:
   g. <- arrows.mat-min(arrows.mat)
@@ -3349,9 +3356,11 @@ EdgeColorPAS <- function(merged, edge.color.by ="topics", edge.col=NULL){
 ##' @param a.lab the number of visible labels on the bottom amendments tier.
 ##' @param f.lab the number of visible labels on the top final bill tier.
 ##' @param vertex.label an optional vector of labels which the user may supply.
+##' @param junk.label character, the junk node's label. If left NULL, the label
+##' will be "junk".
 ##' @return A vector of labels for a PAS graph.
 ##' @author Hillary Sanders
-VertexLabelsPAS <- function(a, f, a.lab, f.lab, vertex.label=NULL){
+VertexLabelsPAS <- function(a, f, a.lab, f.lab, vertex.label=NULL, junk.label=NULL){
   
   if (is.null(vertex.label)) {
     
@@ -3362,7 +3371,13 @@ VertexLabelsPAS <- function(a, f, a.lab, f.lab, vertex.label=NULL){
     
     for (i in a.labeled) vertex.label[i] <- i
     for (i in f.labeled) vertex.label[a+i] <- i
+    }
+  
+    if(is.null(junk.label)){
     vertex.label[a+f+1] <- "Junk"
+    } else {
+      vertex.label[a+f+1] <- junk.label
+      
   }
   return(vertex.label)
 }
@@ -3551,6 +3566,8 @@ LayoutPAS <- function(x, a, f){
 ##' @param junk.shape The node shape of the junk node. Possible 
 ##' shapes are "circle", "square", "csquare", "rectangle", "crectangle", "vrectangle",
 ##' and "none". Default = "none".
+##' @param junk.label junk node label. Even if vertex.label = NULL, you may still 
+##' customize the junk label. Default = NULL.
 ##' @param af.scale Scale the size of the amendment and final nodes.
 ##' @param junk.scale Scale the size of the junk node.
 ##' @param label.font Font type for the labels. Default = 3.
@@ -3586,7 +3603,7 @@ LayoutPAS <- function(x, a, f){
 PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.out, committees,
                              edge.color.by="t", edge.col=NULL,
                              edge.width.scale=1, arrowhead.size=0,
-                             junk.shape="rectangle",
+                             junk.shape="rectangle", junk.label="junk",
                              af.scale=1, junk.scale=1,
                              label.font=3,label.cex=.75, vertex.label=NULL,
                              a.lab=10, f.lab=10, vertex.color.by="c",
@@ -3629,7 +3646,7 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   y <- 1:x
   lay.mat <- t(sapply(y,FUN=LayoutPAS, a=a, f=f))
   
-  vertex.label <- VertexLabelsPAS(a, f, a.lab, f.lab, vertex.label)  
+  vertex.label <- VertexLabelsPAS(a, f, a.lab, f.lab, vertex.label, junk.label)
   
   v.shape <- MakeShapesPAS(a, f, junk.shape)
   
