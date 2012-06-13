@@ -3052,10 +3052,11 @@ EdgeWidthsPCT <- function(A, num.com, num.top, edge.width="absolute", edge.width
 ##' @param main The graph's title. Defaults to NULL.
 ##' @param arrowhead.size The size of arrowheads (edge arrowheads). Defaults
 ##' to 0, i.e. no arrowhead.
-##' @param layout The layout of the graph. If NULL (the default), 
-##' PlotCommitteeTopics() will create the three layers decribed above. But users 
-##' can also pass graphing algorithms (e.g. layout.fruchterman.reingold) for a
-##' different layout.
+##' @param layout The layout of the graph. If left NULL,  PlotCommitteeTopics()
+##' will create the default tricyclic graph described above. But you 
+##' may also pass graphing algorithms (e.g. layout.fruchterman.reingold, or 
+##' layout.circle) for a different layout. A layout matrix may also be passed.
+##' For more information on layout algorithms, seek igraph package documentation.
 ##' @param mid.layer The placement of the middle layer of the graph on the y 
 ##' axis. Defaults to .65. Note that the bottom and top layers are at 0 and 1.
 ##' Helpful if topic terms are being plotted (see plot.terms=TRUE below),
@@ -3162,7 +3163,7 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
                         mid.layer=mid.layer))
     ## So currently the graph is plotted on a (0,0),(1,1) screen, more or less.
   } else {
-    lay.mat <- layout(g)
+    lay.mat <- layout
   }
   
   if (is.null(main)) main <- ""
