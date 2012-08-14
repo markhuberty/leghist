@@ -2451,18 +2451,20 @@ MapTopicDtm <- function(topic.model,
     foreach(x=1:length(topic.model$dtm.idx), .combine=rbind) %do% {
       
       this.source <- sources[topic.model$dtm.idx[x]]
-      this.committee <- committees[topic.model$dtm.idx[x]]
       if(this.source == "amendment")
         {
           this.idx <- all.idx[topic.model$dtm.idx[x]] -
             length(doc.list$idx.final) -
               length(doc.list$idx.initial)
-          
+          this.committee <- committees[this.idx]
+
         }else if(this.source=="doc.initial"){
           this.idx <- all.idx[topic.model$dtm.idx[x]] -
             length(doc.list$idx.final)
+          this.committee <- "original"
         }else{
           this.idx <- all.idx[topic.model$dtm.idx[x]]
+          this.committee <- "final"
         }
       
       composite.sub <- composite[composite$match.origin == this.source,]
