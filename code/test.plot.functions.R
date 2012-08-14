@@ -58,7 +58,11 @@ PlotCommitteeTopics(model.amend.hierarchy.out,get.likely.composite.out,committee
 PlotCommitteeTopics(model.amend.hierarchy.out,get.likely.composite.out,committees,
                      arrowhead.size=2)
 # Non-default layout.
-# ?
+PlotCommitteeTopics(model.amend.hierarchy.out,get.likely.composite.out,committees,
+                     layout=layout.circle)
+# Another non-default layout.
+PlotCommitteeTopics(model.amend.hierarchy.out,get.likely.composite.out,committees,
+                     layout=layout.fruchterman.reingold)
 
 # don't plot terms
 PlotCommitteeTopics(model.amend.hierarchy.out,get.likely.composite.out,committees,
