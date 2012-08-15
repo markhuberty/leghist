@@ -34,7 +34,7 @@
 ## require(RWeka)
 
 ##' @import tm topicmodels stringr lsa Matrix RWeka gdata catspec
-##' @import foreach RecordLinkage igraph plyr
+##' @import foreach RecordLinkage igraph plyr reshape Hmisc
 ##' @export weightTf weightTfIdf weightBin
 NULL ## terminates the import statement, don't take it out.
 
@@ -566,7 +566,7 @@ WriteSideBySide <- function(composite.match,
 ##' @param terms the terms represented by the vectors
 ##' @return A list of terms found in vector 1 but not vector 2
 ##' @author Mark Huberty
-GetWordsToHightlight <- function(vector1, vector2, terms){
+GetWordsToHighlight <- function(vector1, vector2, terms){
 
   highlight.words <- setdiff(terms[vector1 > 0],
                              terms[vector2 > 0]
@@ -2565,6 +2565,91 @@ EstimateSourceImpact <- function(tab.topic.status.out,
   return(out)
 
 }
+
+
+##' Given the topic distribution of the final bill, and the origin of
+##' each bill section, generates nicely-formatted tables summarizing
+##' contributions and optionally outputs to LaTeX.
+##' @title TabulateOrigin
+##' @param ctd The output of CollateTopicDtm
+##' @param model The output of ModelTopics for the entire corpus
+##' @param n.round Number of digits to round topic proportions to
+##' @param n.terms Number of terms to display in the final table
+##' @param generate.latex Boolean, should LaTeX table output be
+##' generated?
+##' @param print.latex Boolean, should the xdvi version of the table
+##' be shown?
+##' @param latex.filename String with valid filename for LaTeX output
+##' @param latex.landscape Boolean, should table be landscape?
+##' @param latex.caption String, caption for the LaTeX table
+##' @param latex.label String, valid LaTeX label for the table
+##' @param latex.size Valid LaTeX fontsize (e.g. "normal", "small")
+##' @param latex Boolean, should a LaTeX table be generated?
+##' @return If latex==TRUE, returns a file with the LaTeX table;
+##' otherwise returns a data frame with the same information
+##' @author Mark Huberty
+##' @export
+TabulateOrigin <- function(ctd,
+                           model,
+                           n.round=2,
+                           n.terms=5,
+                           generate.latex=FALSE,
+                           print.latex=FALSE,
+                           latex.filename=NULL,
+                           latex.landscape=TRUE,
+                           latex.caption=NULL,
+                           latex.label=NULL,
+                           latex.size=NULL
+                           ){
+
+  ## Generate proportions table
+  proportion.table <-
+    round(prop.table(table(ctd$composite.topic$final.topic,
+                           ctd$composite.topic$alt.origin
+                           ),
+                     margin=1
+                     ),
+          n.round
+          )
+  proportion.table <- data.frame(proportion.table)
+  names(proportion.table) <- c("Topic", "Origin", "prop.amends")
+  proportion.table <- melt(proportion.table)
+  proportion.table <- cast(proportion.table, Topic ~ Origin)
+  proportion.table$Topic <- as.integer(as.character(proportion.table$Topic))
+  proportion.table <-
+    proportion.table[order(proportion.table$Topic),]
+
+  ## Generate topic labels as top N terms
+  topic.labels <- sapply(1:nrow(proportion.table), function(x){
+
+    this.topic <- proportion.table$Topic[x]
+    topic.terms <- model$terms[,this.topic][1:n.terms]
+    ordered.terms <- paste(topic.terms, collapse=".")
+    return(ordered.terms)
+    
+  })
+  rownames(proportion.table) <- topic.labels
+
+  ## Generate LaTeX table or exit
+  if(generate.latex) {
+
+    tex.table <- latex(proportion.table,
+                       title="Topic Words",
+                       file=latex.filename,
+                       landscape=latex.landscape,
+                       caption=latex.caption,
+                       label=latex.label,
+                       size=latex.size
+                       )
+    if(print.latex)
+      print(tex.table)
+    return("Done")
+  } else {
+    return(proportion.table)
+  }
+  
+}
+
 
 #################################################################
 ## BEGIN VISUALIZATION CODE FOR AMENDMENT AND TOPIC FLOW
