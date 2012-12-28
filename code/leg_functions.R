@@ -2643,10 +2643,8 @@ TabulateOrigin <- function(ctd,
                        )
     if(print.latex)
       print(tex.table)
-    return("Done")
-  } else {
-    return(proportion.table)
   }
+  return(proportion.table)
   
 }
 

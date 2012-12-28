@@ -165,3 +165,14 @@ an index with the doclist output from createvectorspaces)
 4. The only outside issue is the fact that idx.compare = idx.initial +
    idx.amendments. Since I want to return both matches, I need to
    decompose the output distance matrix into "amendments" + "initial"
+
+
+* Validation
+- For the 2008 Intl Market bill, should note the correspondence
+  between the output from leghist and the summary of what the
+  Parliament proposed / was adopted in both the first and second
+  plenaries. They correspond. Note, though, that the second plenary
+  had far more to do with the agreement between the Council and
+  Parliament, so it's not pure allocation. 
+
+  http://www.europarl.europa.eu/oeil/popups/summary.do?id=1075365&t=d&l=en
