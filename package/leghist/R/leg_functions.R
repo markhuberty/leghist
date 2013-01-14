@@ -52,7 +52,7 @@ NULL ## terminates the import statement, don't take it out.
 ##' match should be chosen. The choice should depend on whether
 ##' distance.fun returns returns distance (min) or similarity (max)
 ##' @param which.map one of "amend" or "contest". See MapFun for details
-##' @param contest.threshold See MapFun for details
+##' @param contest.margin See MapFun for details
 ##' @return A matrix mapping from the sections of the final document
 ##' to the sections of both the initial document and any proposed
 ##' amendments, with distance values for each matched pair.
@@ -62,7 +62,7 @@ MapBills <- function(cvsobject,
                      distance.fun="CosineMat",
                      filter.fun="max",
                      which.map="amend",
-                     contest.threshold=NULL
+                     contest.margin=NULL
                      ){
 
   stopifnot(class(cvsobject) == "leghistCVS")
@@ -82,7 +82,7 @@ MapBills <- function(cvsobject,
                               idx.collection=idx.collection,
                               filter.fun,
                               which.map=which.map,
-                              contest.threshold=contest.threshold
+                              contest.margin=contest.margin
                               )
 
 
@@ -97,7 +97,7 @@ MapBills <- function(cvsobject,
                                 idx.collection=idx.collection,
                                 filter.fun,
                                 which.map=which.map,
-                                contest.threshold=contest.threshold
+                                contest.margin=contest.margin
                                 )
 
       map.all <- cbind(map.initial.final,
@@ -160,7 +160,7 @@ MapBills <- function(cvsobject,
 ##' @param which.map one of "amend" (mapping the bill itself) or
 ##" contest" (checking how contested each bill segment was). If
 ##" contest", contest.threshold is required
-##' @param contest.threshold Numeric, chosen on basis of threshold
+##' @param contest.margin Numeric, chosen on basis of threshold
 ##  used for the composite bill. Only required if which.map="amend"
 ##' @return for which.map="amend", a 3-column matrix of form
 ##' idx.query:idx.match:distance; for which.map="contest", a 2-column
@@ -178,7 +178,7 @@ MapFun <- function(cvsobject,
   stopifnot(which.map %in% c("amend", "contest"))
 
   if(which.map == "contest")
-    stopifnot(!is.null(contest.threshold))
+    stopifnot(!is.null(contest.margin))
 
   stopifnot(class(cvsobject) == "leghistCVS")
 
