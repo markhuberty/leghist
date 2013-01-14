@@ -126,7 +126,7 @@ MapBills <- function(cvsobject,
 
   } else {
 
-    names(map.app) <- c("bill2.idx", "orig.contest", "amend.contest")
+    names(map.all) <- c("bill2.idx", "orig.contest", "amend.contest")
   }
 
 
