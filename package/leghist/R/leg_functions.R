@@ -199,8 +199,10 @@ MapFun <- function(cvsobject,
         return(c(idx.vec[1], dist.vec[idx.vec[1]]))
 
       }else if(which.map == "contest"){
+        filter.match <- match.fun(filter.fun)
 
-        match.val <- filter.fun(dist.vec, na.rm=TRUE)
+        match.val <- filter.match(dist.vec, na.rm=TRUE)
+
         if(filter.fun=="max"){
 
           boolean.dist <- dist.vec > (match.val - contest.margin)
