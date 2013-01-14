@@ -106,18 +106,10 @@ MapBills <- function(cvsobject,
 
 
     } else {
-      if(which.map == "amend")
-        {
-          map.all <- cbind(map.initial.final,
-                           NA,
-                           NA
-                           )
-        }else{
-
-          map.all <- cbind(map.initial.final,
-                           NA
-                           )
-        }
+      map.all <- cbind(map.initial.final,
+                       NA,
+                       NA
+                       )
 
     }
 
@@ -128,7 +120,9 @@ MapBills <- function(cvsobject,
 
   } else {
 
-    names(map.all) <- c("bill2.idx", "orig.contest", "amend.contest")
+    names(map.all) <- c("bill2.idx", "orig.contest", "orig.sd",
+                        "amend.contest", "amend.sd"
+                        )
   }
 
 
@@ -213,28 +207,26 @@ MapFun <- function(cvsobject,
 
         }
 
-        out <- sum(boolean.dist, na.rm=TRUE)
+        contestation.count <- sum(boolean.dist, na.rm=TRUE)
+        contestation.sd <- sd(distance.vec[boolean.dist], na.rm=TRUE)
 
-
-        return(out)
+        return(c(contestation.count, contestation.sd))
 
       }
   })
 
+  df.out <- data.frame(1:length(idx.final),
+                       t(match.idx)
+                       )
+
+
   if(which.map=="amend")
     {
-      df.out <- data.frame(1:length(idx.final),
-                           t(match.idx)
-                           )
-
       names(df.out) <- c("idx.doc.2", "idx.doc.1", "distance")
     }else{
-
-      df.out <- data.frame(1:length(idx.final),
-                           match.idx
-                           )
-      names(df.out) <- c("idx.final", "contestation")
+      names(df.out) <- c("idx.final", "contest.count", "contest.sd")
     }
+
   return(df.out)
 }
 ## End MapFun
