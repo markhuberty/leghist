@@ -174,7 +174,7 @@ MapFun <- function(cvsobject,
                    idx.collection,
                    filter.fun,
                    which.map="amend",
-                   contest.threshold=NULL){
+                   contest.margin=NULL){
   stopifnot(which.map %in% c("amend", "contest"))
 
   if(which.map == "contest")
@@ -200,16 +200,17 @@ MapFun <- function(cvsobject,
 
       }else if(which.map == "contest"){
 
+        match.val <- filter.fun(dist.vec, na.rm=TRUE)
         if(filter.fun=="max"){
 
-          boolean.dist <- dist.vec > contest.threshold
+          boolean.dist <- dist.vec > (match.val - contest.margin)
 
         }else{
 
-          boolean.dist <- dist.vec < contest.threshold
+          boolean.dist <- dist.vec < (match.val + contest.margin)
 
         }
-        print(summary(boolean.dist))
+
         out <- sum(boolean.dist, na.rm=TRUE)
 
 
@@ -226,7 +227,7 @@ MapFun <- function(cvsobject,
 
       names(df.out) <- c("idx.doc.2", "idx.doc.1", "distance")
     }else{
-      print(summary(match.idx))
+
       df.out <- data.frame(1:length(idx.final),
                            match.idx
                            )
