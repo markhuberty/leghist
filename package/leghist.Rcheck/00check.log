@@ -8,7 +8,7 @@
 * checking package namespace information ... OK
 * checking package dependencies ... ERROR
 Namespace dependencies not required:
-  ‘RecordLinkage’ ‘catspec’ ‘foreach’ ‘igraph’ ‘plyr’
+  ‘RecordLinkage’ ‘catspec’ ‘foreach’ ‘igraph’
 
 See the information on DESCRIPTION files in the chapter ‘Creating R
 packages’ of the ‘Writing R Extensions’ manual.
