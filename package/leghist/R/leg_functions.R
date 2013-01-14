@@ -195,9 +195,9 @@ MapFun <- function(cvsobject,
         idx.vec <- order(dist.vec, decreasing=d)
         return(c(idx.vec[1], dist.vec[idx.vec[1]]))
       }else if(which.map == "contest"){
-        boolean.dist <- ifelse(filter.fun="max",
-                               dist.vec > threshold,
-                               dist.vec < threshold
+        boolean.dist <- ifelse(filter.fun=="max",
+                               dist.vec > contest.threshold,
+                               dist.vec < contest.threshold
                                )
         return(sum(boolean.dist))
       }
