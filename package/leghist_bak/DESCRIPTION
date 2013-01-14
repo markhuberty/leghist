@@ -1,0 +1,19 @@
+Package: leghist
+Type: Package
+Title: Provides tools for coding and automated analysis of document
+        history, specifically targeted at legislation and
+        legislation-like documents
+Version: 0.1
+Date: 2012-02-15
+Author: Mark Huberty and Hillary Sanders
+Maintainer: Mark Huberty <markhuberty@berkeley.edu>
+Description: Given a final version of a document, decomposed into logical
+    chunks, and a set of candidate origin documents for each chunk, leghist
+    provides tools for both unsupervised and semi-supervised discovery of the
+    best correspondence between the final document and its potential origins.
+    These tools are designed to facilitate legislative history analysis but may
+    be applicable elsewhere.
+License: GPL-2
+Depends: tm, topicmodels, stringr, lsa, slam, RWeka, Matrix, gdata
+Collate: 'leg_functions.R'
+Packaged: 2012-06-10 01:36:58 UTC; markhuberty

@@ -1,0 +1,14 @@
+* using log directory ‘/Users/markhuberty/Documents/Research/Papers/leghist/package/leghist.Rcheck’
+* using R version 2.14.1 (2011-12-22)
+* using platform: i386-apple-darwin9.8.0 (32-bit)
+* using session charset: UTF-8
+* checking for file ‘leghist/DESCRIPTION’ ... OK
+* checking extension type ... Package
+* this is package ‘leghist’ version ‘0.1’
+* checking package namespace information ... OK
+* checking package dependencies ... ERROR
+Namespace dependencies not required:
+  ‘RecordLinkage’ ‘catspec’ ‘foreach’ ‘igraph’ ‘plyr’
+
+See the information on DESCRIPTION files in the chapter ‘Creating R
+packages’ of the ‘Writing R Extensions’ manual.

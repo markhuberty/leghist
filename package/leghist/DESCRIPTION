@@ -1,0 +1,16 @@
+Package: leghist
+Type: Package
+Title: Automated legislative history analysis for R
+Version: 0.1
+Date: 2012-05-30
+Author: Mark Huberty and Hillary Sanders
+Maintainer: Mark Huberty <markhuberty@berkeley.edu>
+Description: Provides facilities for using natural language tools in R for the
+    analysis of legislative texts, mapping the progress of legislative
+    amendments and other document changes through the legislative process,
+    modeling the content of bills and proposed changes, and visualizing
+    legislative flow.
+Depends: tm, topicmodels, stringr, lsa, RWeka, Matrix, gdata, Hmisc, reshape, plyr
+License: Simplified BSD
+Collate:
+    'leg_functions.R'
