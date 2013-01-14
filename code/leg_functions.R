@@ -199,7 +199,7 @@ MapFun <- function(cvsobject,
                                dist.vec > contest.threshold,
                                dist.vec < contest.threshold
                                )
-        return(sum(boolean.dist))
+        return(sum(boolean.dist, na.rm=TRUE))
       }
   })
 
