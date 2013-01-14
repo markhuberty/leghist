@@ -41,13 +41,13 @@ NULL ## terminates the import statement, don't take it out.
 ##' Maps the final bill to both the original bill and any proposed
 ##' amendments. Returns a matrix that maps from the final bill to the
 ##' initial bill and (if supplied) the amendments, with distance metrics
-##' for the best match from each source. 
+##' for the best match from each source.
 ##' @title MapBills
 ##' @param cvsobject The output from from CreateAllVectorSpaces().
 ##' @param distance.fun A similarity or distance function, which can
 ##' take two vectors and return a matrix. See CosineMat() for details of
-##' the return format. 
-##' metric should return larger values for more similar objects. 
+##' the return format.
+##' metric should return larger values for more similar objects.
 ##' @param filter.fun one of "min" or "max", indicating how the best
 ##' match should be chosen. The choice should depend on whether
 ##' distance.fun returns returns distance (min) or similarity (max)
@@ -58,7 +58,9 @@ NULL ## terminates the import statement, don't take it out.
 ##' @author Mark Huberty
 MapBills <- function(cvsobject,
                      distance.fun="CosineMat",
-                     filter.fun="max"
+                     filter.fun="max",
+                     which.map="amend",
+                     ...
                      ){
 
   stopifnot(class(cvsobject) == "leghistCVS")
@@ -68,7 +70,7 @@ MapBills <- function(cvsobject,
                              cvsobject[["idx.amendments"]]
                              )
                            )
-  
+
   ## Create mapping by loop
   print("mapping final to initial")
   map.initial.final <- MapFun(cvsobject,
@@ -76,10 +78,12 @@ MapBills <- function(cvsobject,
                               idx.final=cvsobject[["idx.final"]],
                               idx.compare=cvsobject[["idx.initial"]],
                               idx.collection=idx.collection,
-                              filter.fun
+                              filter.fun,
+                              which.map=which.map,
+                              ...
                               )
 
-  
+
 
   if (!is.na(cvsobject[["idx.amendments"]]))
     {
@@ -89,33 +93,47 @@ MapBills <- function(cvsobject,
                                 idx.final=cvsobject[["idx.final"]],
                                 idx.compare=cvsobject[["idx.amendments"]],
                                 idx.collection=idx.collection,
-                                filter.fun
+                                filter.fun,
+                                which.map=which.map,
+                                ...
                                 )
 
       map.all <- cbind(map.initial.final,
-                       map.amend.final[,2:3]
+                       map.amend.final[,-1]
                        )
-      
-      
-    } else {
 
-      map.all <- cbind(map.initial.final,
-                       NA,
-                       NA
-                       )
-      
+
+    } else {
+      if(which.map == "amend")
+        {
+          map.all <- cbind(map.initial.final,
+                           NA,
+                           NA
+                           )
+        }else{
+
+          map.all <- cbind(map.initial.final,
+                           NA
+                           )
+        }
+
     }
 
-  names(map.all) <- c("bill2.idx", "bill1.idx", "bill1.dist",
-                      "amend.idx", "amend.dist"
-                      )
+  if (which.map == "amend"){
+    names(map.all) <- c("bill2.idx", "bill1.idx", "bill1.dist",
+                        "amend.idx", "amend.dist"
+                        )
 
-  
+  } else {
+
+    names(map.app) <- c("bill2.idx", "orig.contest", "amend.contest")
+  }
+
+
   return(map.all)
 
 }
 ## End MapBills
-
 
 
 ##' Does the actual pairwise mapping of bills. Maps from doc1:doc2
@@ -137,7 +155,14 @@ MapBills <- function(cvsobject,
 ##' @param filter.fun one of "min" or "max", indicating how the best
 ##' match should be chosen. The choice should depend on whether
 ##' distance.fun returns returns distance (min) or similarity (max)
-##' @return a 3-column matrix of form idx.query:idx.match:distance
+##' @param which.map one of "amend" (mapping the bill itself) or
+##" contest" (checking how contested each bill segment was). If
+##" contest", contest.threshold is required
+##' @param contest.threshold Numeric, chosen on basis of threshold
+##  used for the composite bill. Only required if which.map="amend"
+##' @return for which.map="amend", a 3-column matrix of form
+##' idx.query:idx.match:distance; for which.map="contest", a 2-column
+##' matrix of idx.query:contestation index.
 ##' @export
 ##' @author Mark Huberty
 MapFun <- function(cvsobject,
@@ -145,34 +170,54 @@ MapFun <- function(cvsobject,
                    idx.final,
                    idx.compare,
                    idx.collection,
-                   filter.fun){
+                   filter.fun,
+                   which.map="amend",
+                   contest.threshold=NULL){
+  stopifnot(which.map %in% c("amend", "contest"))
+
+  if(which.map == "contest")
+    stopifnot(!is.null(contest.threshold))
 
   stopifnot(class(cvsobject) == "leghistCVS")
-  
+
   ## Set the sort order flag based on the filter function
   d <- ifelse(filter.fun == "max", TRUE, FALSE)
   dist.fun <- match.fun(distance.fun)
-  
+
   ## Generate the distance matrix
   dist.mat <- dist.fun(cvsobject, idx.final, idx.compare, idx.collection)
 
-  ## Retrieve the match indices and the distance 
+  ## Retrieve the match indices and the distance
   match.idx <- sapply(1:ncol(dist.mat), function(x){
-
     dist.vec = dist.mat[,x]
-    idx.vec <- order(dist.vec, decreasing=d)
-
-    return(c(idx.vec[1], dist.vec[idx.vec[1]]))
-    
+    if(which.map == "amend")
+      {
+        idx.vec <- order(dist.vec, decreasing=d)
+        return(c(idx.vec[1], dist.vec[idx.vec[1]]))
+      }else if(which.map == "contest"){
+        boolean.dist <- ifelse(filter.fun="max",
+                               dist.vec > threshold,
+                               dist.vec < threshold
+                               )
+        return(sum(boolean.dist))
+      }
   })
 
-  df.out <- data.frame(1:length(idx.final),
-                       t(match.idx)
-                       )
+  if(which.map=="amend")
+    {
+      df.out <- data.frame(1:length(idx.final),
+                           t(match.idx)
+                           )
 
-  names(df.out) <- c("idx.doc.2", "idx.doc.1", "distance")
+      names(df.out) <- c("idx.doc.2", "idx.doc.1", "distance")
+    }else{
+
+      df.out <- data.frame(1:length(idx.final),
+                           match.idx
+                           )
+      names(df.out) <- c("idx.final", "contestation")
+    }
   return(df.out)
-  
 }
 ## End MapFun
 
@@ -235,19 +280,19 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
             is.numeric(ngram.max)
             )
 
-  
+
   if (!is.null(amendments))
     {
-      
+
       stopifnot(is.character(amendments))
       text.vec <- c(doc.final, doc.initial, amendments)
-      
+
     } else {
-      
+
       text.vec <- c(doc.final, doc.initial)
 
     }
-  
+
   ## Check to ensure that ngram is structured correctly
   stopifnot(ngram.min >= 1)
   stopifnot(ngram.max >= 1)
@@ -271,19 +316,19 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
   idx.final <- 1:length(doc.final)
   idx.initial <-
     (length(doc.final) + 1):(length(doc.final) + length(doc.initial))
-  
+
   if (is.null(amendments))
     {
 
       idx.amendments <- NA
-      
+
     } else {
 
       idx.amendments <-
         (length(doc.final) + length(doc.initial) + 1):vs.all$dtm$nrow
-      
+
     }
-  
+
   ## Convert the dtm to a sparse matrix so I can do math on it later.
   ## Note that this is much faster than the SparseToDtm code
   vs.out <- sparseMatrix(i=vs.all$dtm$i,
@@ -298,7 +343,7 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
                    vs.out,
                    vs.all[["corpus"]]
                    )
-  
+
   names(list.out) <- c("idx.final",
                        "idx.initial",
                        "idx.amendments",
@@ -307,13 +352,13 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
                        )
   attr(list.out, "class") <- "leghistCVS"
   return(list.out)
-  
+
 
 }
 ## End CreateAllVectorSpaces
 
 
-##' Creates the vector space model of a document. 
+##' Creates the vector space model of a document.
 ##' @title CreateVectorSpace
 ##' @param docs a string vector of documents.
 ##' @param ngram.min the minimum-length ngram to use in the
@@ -323,7 +368,7 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
 ##' @param stem boolean, should the document be stemmed?
 ##' @param dictionary character vector of terms on which to base
 ##' the document-term matrix. Terms not in the dictionary
-##' will be dropped.See the tm package for           documentation. 
+##' will be dropped.See the tm package for           documentation.
 ##' @param rm.stopwords boolean, should stopwords be removed?
 ##' @param rm.whitespace boolean, should excess whitespace be removed?
 ##' @param rm.punctuation boolean, should punctuation be removed?
@@ -334,7 +379,7 @@ CreateAllVectorSpaces <- function(doc.initial, doc.final,
 ##' @param weighting one of weightTf, weightTfIdf, or weightBin
 ##' @return  a document-term matrix in sparse representation
 ##'           where each row is a document and each col is an
-##'           ngram. Cell values are term frequency counts. 
+##'           ngram. Cell values are term frequency counts.
 ##' @author Mark Huberty
 CreateVectorSpace <- function(docs,
                               ngram.min,
@@ -363,7 +408,7 @@ CreateVectorSpace <- function(docs,
   corpus.in <- tm_map(corpus.in, function(x) iconv(enc2utf8(x), sub = "byte"))
   corpus.in <- tm_map(corpus.in, tolower)
 
-  
+
   if (rm.stopwords)
     {
       corpus.in <- tm_map(corpus.in,
@@ -376,7 +421,7 @@ CreateVectorSpace <- function(docs,
     {
       corpus.in <- tm_map(corpus.in, removePunctuation)
     }
-  
+
   if (rm.whitespace)
     {
       corpus.in <- tm_map(corpus.in, stripWhitespace)
@@ -396,13 +441,13 @@ CreateVectorSpace <- function(docs,
   corpus.dtm.out <- list(corpus.in, dtm.corpus)
   names(corpus.dtm.out) <- c("corpus", "dtm")
   return(corpus.dtm.out)
-  
+
 }
 ## End CreateVectorSpace
 
 
 ##' Returns a LaTeX document that presents the side-by-side comparison of the final
-##' document sections and their matched pairs, with sources for the matched document. 
+##' document sections and their matched pairs, with sources for the matched document.
 ##' Takes as input the ComputeVectorAllVectorSpaces output and the
 ##' result from that output from MapBills.
 ##' @title WriteSideBySide
@@ -444,7 +489,7 @@ WriteSideBySide <- function(composite.match,
                          sep=""
                          )
 
-  
+
   sink(paste(dir.out, file.out, sep=""))
 
   cat(preamble)
@@ -469,17 +514,17 @@ WriteSideBySide <- function(composite.match,
   cat("\n\n")
   cat("\\vspace{12pt}")
   cat("\n\n")
-  
+
   for (i in 1:nrow(composite.match)) {
     origin <- composite.match[i, "match.origin"]
     alt.origin <- composite.match[i, "alt.origin"]
     origin.idx <- composite.match[i, "match.idx"]
     dist <- composite.match[i, "match.dist"]
-    
+
     if (origin == "doc.initial")
       {
         idx.subset <- cavs.out$idx.initial
-      } else if (origin == "amendment"){  
+      } else if (origin == "amendment"){
         idx.subset <- cavs.out$idx.amendments
       } else {
         idx.subset <- cavs.out$idx.final
@@ -491,7 +536,7 @@ WriteSideBySide <- function(composite.match,
                           cavs.out[["vs.out"]][idx.subset, ][origin.idx,],
                           colnames(cavs.out[["vs.out"]])
                           )
-    
+
     string.in <- SanitizeTex(doc.final[composite.match$doc.final.idx[i]])
     this.section <-  WriteTexSection(string.in,
                                      highlight.words=highlight.words,
@@ -500,7 +545,7 @@ WriteSideBySide <- function(composite.match,
                                      dist=NULL,
                                      marginnote=FALSE
                                      )
-    
+
     cat("\\begin{minipage}[t]{0.45\\linewidth}")
     cat("\n")
     cat(this.section)
@@ -516,7 +561,7 @@ WriteSideBySide <- function(composite.match,
                           cavs.out[["vs.out"]][cavs.out$idx.final, ][i,],
                           colnames(cavs.out[["vs.out"]])
                           )
-    
+
     string.in <- SanitizeTex(composite.match$match.txt[i])
     this.section <-  WriteTexSection(string.in,
                                      highlight.words=highlight.words,
@@ -525,7 +570,7 @@ WriteSideBySide <- function(composite.match,
                                      dist=dist,
                                      marginnote=TRUE
                                      )
-    
+
     cat("\\begin{minipage}[t]{0.45\\linewidth}")
     cat("\n")
     cat(trim(this.section))
@@ -540,7 +585,7 @@ WriteSideBySide <- function(composite.match,
   cat("\\end{document}")
   sink()
 
-  
+
   if (pdflatex)
     {
       call <- paste("pdflatex -output-directory=",
@@ -554,7 +599,7 @@ WriteSideBySide <- function(composite.match,
     }
 
   print("Done")
-  
+
 }
 
 ##' Returns the set difference terms from two term-frequency vectors
@@ -583,20 +628,20 @@ GetWordsToHighlight <- function(vector1, vector2, terms){
 ##' from doc.initial and amendments. The origin, index, text, and distance
 ##' of the best match are all returned.
 ##' @title GetLikelyComposite
-##' @param mapbills.out the output of MapBills 
+##' @param mapbills.out the output of MapBills
 ##' @param doc.initial a character string, representing doc.initial as
 ##' used in MapBills.
 ##' @param doc.final a character string, representing doc.final as
 ##' used in MapBills.
 ##' @param amendments a character string, representing amendments as
-##' used in MapBills. 
+##' used in MapBills.
 ##' @param amendment.origin a character vector, the same length as
 ##' amendments, indicating the origin of each amendment.
 ##' @param filter One of "max" or "min", indicating how the best match
 ##' should be selected.
 ##' @param dist.threshold A threshold distance; if the best match does
 ##' not pass the threshold, then the best match is the same section of
-##' the final document itself. 
+##' the final document itself.
 ##' @return A matrix mapping from the index of each section in
 ##' doc.final to its most likely match from doc.initial and
 ##' amendments. The origin, index, text, and distance of the best match
@@ -618,26 +663,26 @@ GetLikelyComposite <- function(mapbills.out,
              length(amendments) == length(amendment.origin))##  |
             ## is.null(amendment.origin)
             )
-  
+
   ## Validate the distance function and then grab it
   stopifnot(filter %in% c("min", "max"))
   filter.fun <- match.fun(filter)
-  
+
   ## Placeholder for amendments
   if (is.null(amendments))
     amendments <- rep(NA, nrow(mapbills.out))
-  
+
   ## Loop across the mapbills object and generate the
   ## correct "best match" object.
   mat.out <- sapply(mapbills.out$bill2.idx, function(x){
 
     ## Get the index (1 or 2) of the best match out of the original and
-    ## amendment matches 
+    ## amendment matches
     dist.idx <-
-      which(mapbills.out[x, c("bill1.dist", "amend.dist")] == 
+      which(mapbills.out[x, c("bill1.dist", "amend.dist")] ==
             filter.fun(mapbills.out[x, c("bill1.dist", "amend.dist")],
                        na.rm=TRUE)
-            )[1] 
+            )[1]
 
     ## Get the corresponding distance and check whether NA
     match.dist <-
@@ -654,9 +699,9 @@ GetLikelyComposite <- function(mapbills.out,
     ## the correct origin
     if (is.na(dist.idx) | is.na(pass.threshold) |
         !pass.threshold | length(dist.idx) == 0){
-      
+
       vec.out <- c(x, x, "doc.final", "Final", match.dist, doc.final[x])
-      
+
     }else{
 
       match.idx <- mapbills.out[x, c("bill1.idx",
@@ -669,25 +714,25 @@ GetLikelyComposite <- function(mapbills.out,
                           )
       if (dist.idx == 1)
         {
-          
+
           alt.origin <- "Original"
-          
+
         }else{
-          
+
           if (!is.null(amendment.origin))
             {
-              
+
               alt.origin <- amendment.origin[match.idx]
-              
+
             }else{
-              
+
               alt.origin <- "Amendment"
-              
+
             }
-          
+
         }
-      
-      
+
+
       vec.out <- c(x,
                    match.idx,
                    match.origin,
@@ -696,12 +741,12 @@ GetLikelyComposite <- function(mapbills.out,
                    match.txt
                    )
     }
-    
+
     return(vec.out)
-    
+
   }) ## End sapply
 
-  
+
   mat.out <- data.frame(t(mat.out), stringsAsFactors=FALSE)
   colnames(mat.out) <- c("doc.final.idx",
                          "match.idx",
@@ -765,19 +810,19 @@ WriteCompositeFinal <- function(composite.match,
                          sep=""
                          )
 
-  
+
   sink(file.out)
 
   cat(preamble)
   cat(texthighlight)
   cat("\\begin{document}")
   cat("\n\n")
-  
+
   for (idx in 1:length(composite.match$doc.final.idx)) {
 
     origin <- composite.match[idx, "match.origin"]
     alt.origin <- composite.match[idx, "alt.origin"]
-    
+
     if (origin == "doc.final")
       {
         string.in <- SanitizeTex(composite.match$match.txt[idx])
@@ -791,7 +836,7 @@ WriteCompositeFinal <- function(composite.match,
         cat("\n\n")
 
       } else {
-        
+
         match.idx <- composite.match[idx,"match.idx"]
 
         ## Does a diff on the binary final and binary initial
@@ -803,14 +848,14 @@ WriteCompositeFinal <- function(composite.match,
                                cavs.out[[origin]][match.idx, ],
                                colnames(cavs.out)
                                )
-        
+
         this.out <- WriteTexSection(composite.match$match.txt[idx],
                                     highlight.words=highlight.words,
                                     origin=alt.origin,
                                     origin.idx=match.idx
                                     )
 
-        
+
         if (origin == "doc.initial"){
 
           cat(this.out)
@@ -820,14 +865,14 @@ WriteCompositeFinal <- function(composite.match,
 
           if (box.amendments)
             {
-              
+
               cat("\\begin{framed}",
                   this.out,
                   "\\end{framed}",
                   sep="\n"
                   )
               cat("\n\n")
-              
+
             } else {
 
               cat(this.out)
@@ -851,7 +896,7 @@ WriteCompositeFinal <- function(composite.match,
       system(call)
       system(call)
     }
-  
+
   print("Done")
 
 }
@@ -885,7 +930,7 @@ WriteTexSection <- function(section,
                             dist=NULL,
                             marginnote=TRUE
                             ){
-  
+
 
   string.out <- SanitizeTex(section)
 
@@ -896,16 +941,16 @@ WriteTexSection <- function(section,
 
         regexp.in <- paste("(", highlight.words[i], ")", sep="")
         regexp.out <- paste("\\\\\\texthighlight\\{\\1\\}")
-        
+
         string.out <- str_replace_all(string.out,
                                       regexp.in,
                                       regexp.out
                                       )
-        
+
       }
 
     }
-  
+
   if (!is.null(origin) & marginnote)
     {
 
@@ -923,7 +968,7 @@ WriteTexSection <- function(section,
     }
 
   return(string.out)
-  
+
 
 }
 ##' Converts a DocumentTermMatrix from the tm() package into a sparse
@@ -936,15 +981,15 @@ WriteTexSection <- function(section,
 ##' package.
 ##' @author Mark Huberty
 DtmToMatrix <- function(dtm){
-  
+
   m <- Matrix(0, nrow = dtm$nrow, ncol = dtm$ncol, sparse = TRUE,
               dimnames=dtm$dimnames
               )
-  
+
   for (index in 1:length(dtm$i)) {
     m[dtm$i[index], dtm$j[index]] <- dtm$v[index]
   }
-  
+
   return(m)
 }
 
@@ -960,7 +1005,7 @@ SanitizeTex <- function(string){
 
   out <- str_replace_all(string, "([%$_{}\\~\\^&])", "\\\\\\1")
   return(out)
-  
+
 }
 
 
@@ -984,7 +1029,7 @@ HoadSimilarity <- function(dtm, idx.query, idx.compare, idx.collection){
   dtm <- dtm[["vs.out"]]
   N <- length(idx.collection)
   ft <- colSums(dtm[idx.collection, ] > 0)
-  
+
   out <- sapply(idx.query, function(x){
     sapply(idx.compare, function(y){
       HoadSimilarityCore(dtm[x, ], dtm[y, ], N, ft)
@@ -1011,18 +1056,18 @@ HoadSimilarity <-function(vec.d,
                           N,
                           ft
                           ){
-  
+
   fd <- sum(vec.d)
   fq <- sum(vec.q)
-  
+
   T <- (vec.q > 0 & vec.d > 0)
-  
+
   ft_sub = ft[T]
-  
+
   vec.weights <- (N / ft_sub) / (1 + abs(vec.d[T] - vec.q[T]))
-  
+
   weight<- sum(vec.weights)
-  
+
   out = 1 / (1 + log(1 + abs(fd - fq))) * weight
 
   return(out)
@@ -1073,7 +1118,7 @@ VectorDiff <- function(x, y){
 ##' between two conformable row-major matrices at once using matrix algebra
 ##' @title CosineMat
 ##' @param dtm A document-term matrix as output from
-##' CreateAllVectorSpaces 
+##' CreateAllVectorSpaces
 ##' @param idx.query an integer index vector indicating the rows in
 ##' dtm corresponding to a set of target documents for which matches
 ##' are desired
@@ -1089,14 +1134,14 @@ CosineMat <- function(dtm, idx.query, idx.compare, idx.collection){
   dtm <- dtm[["vs.out"]]
   dtm.query <- dtm[idx.query, ]
   dtm.compare <- dtm[idx.compare, ]
-  
+
   numerator <- dtm.compare %*% t(dtm.query)
 
   denominator.a <- sqrt(rowSums(dtm[idx.query, ]^2))
   denominator.b <- sqrt(rowSums(dtm[idx.compare, ]^2))
 
   denominator <- denominator.b %*% t(denominator.a)
-  
+
   out <- numerator / denominator
 
   return(out)
@@ -1109,7 +1154,7 @@ CosineMat <- function(dtm, idx.query, idx.compare, idx.collection){
 ##' library to speed computation for large data sizes. Produces output
 ##' compatible with the MapBills function and can be passed as dist.fun.
 ##' @title LevenshteinDist
-##' @param dtm a leghistCVS object as output from CreateAllVectorSpaces 
+##' @param dtm a leghistCVS object as output from CreateAllVectorSpaces
 ##' @param idx.query the index of the final bill in the corpus
 ##' @param idx.compare the index of potential matches to the final
 ##' bill
@@ -1123,9 +1168,9 @@ LevenshteinDist <- function(dtm, idx.query, idx.compare, idx.collection){
   out <- foreach(x=idx.query, .combine=rbind) %dopar% {
 
     levenshteinSim(txt[x], txt[idx.compare])
-    
+
   }
-  
+
   return(t(out))
 }
 
@@ -1179,7 +1224,7 @@ ModelDocSet <- function(doc.list,
                         "composite.bill", "actual.bill"
                         )
             )
-  
+
   if (type == "incl.amend")
     {
 
@@ -1188,7 +1233,7 @@ ModelDocSet <- function(doc.list,
         composite.mat$match.idx[composite.mat$match.origin=="amendment"]
 
       topic.idx <- dtm.idx[orig.idx]
-      
+
     }else if (type=="rej.amend"){
 
       dtm.idx <- doc.list$idx.amendments
@@ -1196,7 +1241,7 @@ ModelDocSet <- function(doc.list,
         composite.mat$match.idx[composite.mat$match.origin=="amendment"]
 
       topic.idx <- dtm.idx[-orig.idx]
-      
+
     }else if (type=="incl.orig"){
 
       dtm.idx <- doc.list$idx.initial
@@ -1213,19 +1258,19 @@ ModelDocSet <- function(doc.list,
         composite.mat$match.idx[composite.mat$match.origin=="doc.initial"]
 
       topic.idx <- dtm.idx[-orig.idx]
-      
+
     }else if (type=="all.amend"){
 
       dtm.idx <- topic.idx <- doc.list$idx.amendments
-      
+
     }else if (type=="final"){
 
       dtm.idx <- doc.list$idx.final
       orig.idx <-
         composite.mat$match.idx[composite.mat$match.origin=="doc.final"]
-      
+
       topic.idx <- dtm.idx[orig.idx]
-      
+
     }else if (type=="composite.bill"){
       topic.idx <- sapply(1:nrow(composite.mat), function(x){
         origin <- composite.mat$match.origin[x]
@@ -1239,11 +1284,11 @@ ModelDocSet <- function(doc.list,
             doc.list$idx.final[match.idx]
           }
       })
-      
+
     }else{
       topic.idx <- doc.list$idx.final
     }
-  
+
   model.out <- ModelTopics(doc.list$vs.out,
                            topic.idx,
                            k=k,
@@ -1257,7 +1302,7 @@ ModelDocSet <- function(doc.list,
                            )
   ## Provide an index to the text (1:N) rather than the dtm
   model.out$txt.idx <- model.out$dtm.idx - min(dtm.idx) + 1
-  
+
   return(model.out)
 
 
@@ -1304,7 +1349,7 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
         lapply(addl.stopwords, function(x){
 
           grepl(x, colnames(dtm))
-          
+
         })
 
       remove.vec <- rep(FALSE, ncol(dtm))
@@ -1314,7 +1359,7 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
         }
       print(sum(remove.vec))
       dtm <- dtm[, !remove.vec]
-      
+
     }
   print(dim(dtm))
   dtm.sub <- dtm[idx, ]
@@ -1328,7 +1373,7 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
   print(dim(dtm.sub))
   this.dtm <- SparseToDtm(dtm.sub, weighting=weighting)
   print(dim(this.dtm))
-  
+
   ## If no K provided, ensure that each topic has on average 10 documents
   if (is.null(k))
     k <- ceiling(nrow(this.dtm) / 10)
@@ -1352,7 +1397,7 @@ ModelTopics <- function(dtm, idx, k=NULL, topic.method="LDA",
   }
 
   list.out <- list(out, terms.out, topics.out, idx)
-      
+
   names(list.out) <- c("topic.model", "terms", "topics", "dtm.idx")
   return(list.out)
 
@@ -1379,7 +1424,7 @@ SparseToDtm <- function(sparseM, weighting=weightTf){
 ##' return the optimum based on either maximization of the accuracy rate
 ##' or miniminzation of the false positive/negative rate.
 ##' @title LearnThreshold
-##' @param map.bills.out the output of MapBills for this document. 
+##' @param map.bills.out the output of MapBills for this document.
 ##' @param initial.bill the text of the initial bill.
 ##' @param final.bill the text of the final bill.
 ##' @param amendments amendment text, in the same order as was passed
@@ -1408,7 +1453,7 @@ LearnThreshold <- function(map.bills.out,
                            encoder.out,
                            type="overall"){
 
-  
+
   if (type == "overall")
     {
       accuracy.measures <- GetAccuracyMeasures(map.bills.out,
@@ -1540,7 +1585,7 @@ GetTypeErrors <- function(map.bills.out,
                           filter="max",
                           threshold.values,
                           encoder.out){
-  
+
   accuracy.measures <- sapply(threshold.values, function(x){
 
     cb <- GetLikelyComposite(map.bills.out,
@@ -1553,7 +1598,7 @@ GetTypeErrors <- function(map.bills.out,
                              )
     ## Subset in case only some of the bill was hand-coded
     cb <- cb[encoder.out$target.index, ]
-    
+
     pct.no.match <- sum(cb$match.origin == "doc.final" &
                         encoder.out$match.source == "doc.final"
                         ) / sum(encoder.out$match.source ==
@@ -1565,10 +1610,10 @@ GetTypeErrors <- function(map.bills.out,
                               cb$match.idx == encoder.out$match.index
                               ) / sum(encoder.out$match.source !=
                                       "doc.final")
-    
+
     return(c(pct.no.match, pct.positive.match))
   })
-  
+
   accuracy.measures <- data.frame(t(accuracy.measures))
   names(accuracy.measures) <- c("pct.no.match", "pct.positive.match")
   accuracy.measures$threshold.value <- threshold.values
@@ -1580,8 +1625,8 @@ GetTypeErrors <- function(map.bills.out,
 ##' Provides a streamlined interface to manually match text under the
 ##' same conditions as used for the automated MapBills process. Output
 ##' is directly comparable with the output of GetLikelyComposite.
-##' @title Encoder 
-##' @param target.text the final bill. 
+##' @title Encoder
+##' @param target.text the final bill.
 ##' @param initial.match.text the initial bill.
 ##' @param amend.match.text any amendments (should be passed in the
 ##' same order as they are passed to CreateAllVectorSpaces).
@@ -1592,7 +1637,7 @@ GetTypeErrors <- function(map.bills.out,
 ##' @param n.matches.to.show the number of potential matches to show
 ##' @param target.idx the index of the target text.
 ##' @param similarity boolean for whether the distance metric used for
-##' the distance.mat objects was a similarity measure or a distance measure 
+##' the distance.mat objects was a similarity measure or a distance measure
 ##' @return A matrix mapping from each entry in the target text to a
 ##' user-supplied index of the best match in either the initial text or
 ##' the amendment text.
@@ -1610,11 +1655,11 @@ Encoder <- function(target.text,
 
   if (!is.null(amend.distance.mat) & !is.null(amend.match.text))
     {
-      
+
       has.amend <- TRUE
       n.matches.to.show <- ceiling(n.matches.to.show / 2)
       print(n.matches.to.show)
-      
+
     } else {
 
       has.amend <- FALSE
@@ -1630,9 +1675,9 @@ Encoder <- function(target.text,
   if (has.amend)
     {
       idx.amend.mat <- sapply(1:ncol(amend.distance.mat), function(x){
-        
+
         order(amend.distance.mat[,x], decreasing=similarity)[1:n.matches.to.show]
-        
+
       })
     }
 
@@ -1671,11 +1716,11 @@ Encoder <- function(target.text,
       {
         match.len <- 2 * n.matches.to.show
         shuffle.master <- sample(1:match.len, replace=FALSE)
-        
+
         match.source <- c(rep("amendment", n.matches.to.show),
                           rep("doc.initial", n.matches.to.show)
                           )[shuffle.master]
-        
+
         potential.matches <-
           c(potential.amend.matches,
             potential.initial.matches
@@ -1690,7 +1735,7 @@ Encoder <- function(target.text,
           c(potential.amend.match.idx,
             potential.initial.match.idx
             )[shuffle.master]
-        
+
       } else {
         match.len <- n.matches.to.show
         shuffle.master <- sample(1:match.len, replace=FALSE)
@@ -1704,7 +1749,7 @@ Encoder <- function(target.text,
           potential.initial.match.distances[shuffle.master]
         potential.match.idx <-
           potential.initial.match.idx[shuffle.master]
-        
+
       }
     ## Run the print statements
     print(sep.string)
@@ -1735,7 +1780,7 @@ Encoder <- function(target.text,
                                          )
     while(!valid.selection)
       {
-        
+
         selection <- readline(prompt=prompt.text)
         valid.selection <- ValidateSelection(selection,
                                              valid.matches
@@ -1772,7 +1817,7 @@ Encoder <- function(target.text,
   match.selections <- as.integer(match.selections)
   dist.selections <- as.numeric(dist.selections)
   source.selections <- as.character(source.selections)
-  
+
   df.out <- data.frame(target.idx,
                        match.selections,
                        dist.selections,
@@ -1785,9 +1830,9 @@ Encoder <- function(target.text,
 }
 
 ##' Validates the user input for the encoder routine and returns a
-##' boolean 
+##' boolean
 ##' @title ValidateSelection
-##' @param selection the user input from the command line 
+##' @param selection the user input from the command line
 ##' @param valid.matches a set of valid user inputs
 ##' @return TRUE if the input is valid, else FALSE
 ##' @author Mark Huberty
@@ -1876,29 +1921,29 @@ RunEncoder <- function(target.text=NULL,
             sample(1:length(target.text),
                    ceiling(length(target.text)/10)
                    )
-          
+
         }else{
 
           idx.to.test <-
             sample(1:length(target.text),
                    ceiling(pct.encode * length(target.text))
                    )
-          
+
         }
 
       target.text <- target.text[idx.to.test]
       target.idx <- idx.to.test
-      
+
     }else{
 
       target.idx <- 1:length(target.text)
-      
+
     }
 
   stopifnot(!is.null(original.text) &
             !is.null(target.text)
             )
-  
+
   doc.list <- CreateAllVectorSpaces(original.text,
                                     target.text,
                                     amendments,
@@ -1923,13 +1968,13 @@ RunEncoder <- function(target.text=NULL,
     {
       distance.mat.amend <- NULL
     } else {
-      
+
       distance.mat.amend <- dist.fun(doc.list,
                                      doc.list$idx.final,
                                      doc.list$idx.amendments
                                      )
     }
-  
+
   print("Distance matrices created, starting the encoding sequence")
 
   match.df.orig <- Encoder(target.text,
@@ -1942,7 +1987,7 @@ RunEncoder <- function(target.text=NULL,
                            )
 
   return(match.df.orig)
-  
+
 }
 
 
@@ -1961,7 +2006,7 @@ RunEncoder <- function(target.text=NULL,
 ##' specifies how many topics should be used for modeling level 1, and
 ##' the remaining elements how many topics should be used for modeling
 ##' the amendments assigned to those topics. In this case, the vector
-##' must be of length V[1]  
+##' must be of length V[1]
 ##' @param topic.method One of "LDA" or "CTM"
 ##' @param sampling.method One of "VEM", or "Gibbs"
 ##' @param n.terms An integer value indicating how many terms should
@@ -1972,12 +2017,12 @@ RunEncoder <- function(target.text=NULL,
 ##' @param ngram What n-gram should be used for topic modeling?
 ##' Important if doc.list uses a range of ngrams.
 ##' @param sparseness.probs Quantile range values to use in removing
-##' very sparse and very common terms. Defaults to c(0.01, 0.99). 
+##' very sparse and very common terms. Defaults to c(0.01, 0.99).
 ##' @param control A vector of control parameters for the topic model
 ##' function; see the topicmodels documentation for more detail.
 ##' @param na.rm Boolean, should documents of length 0 be discarded?
 ##' See ModelTopics for detail. Defaults to TRUE.
-##' @param ... 
+##' @param ...
 ##' @return A list of of length 2. The first element in the list is a
 ##' list of all models (both the top-level model and each of the
 ##' secondary models). Model objects are of the form returned by
@@ -2011,11 +2056,11 @@ ModelAmendHierarchy <- function(doc.list,
 
       k <- ceiling(length(doc.list$idx.amendments) / 50)
       k.all <- c(k, rep(NULL, k))
-      
+
     } else if (length(k) == 1){
-      
+
       k.all <- rep(k, k + 1)
-      
+
     } else {
 
       stopifnot(length(k) == k[1] + 1)
@@ -2028,9 +2073,9 @@ ModelAmendHierarchy <- function(doc.list,
   ## used for bill matching
   ngram.idx <- GetNgramIdx(colnames(doc.list$vs.out), ngram)
   tf.idx <- GetTfIdx(doc.list$vs.out, sparseness.probs)
-  
+
   cols.to.keep <- intersect(ngram.idx, tf.idx)
-  
+
   ## Run the level one model with k.all[1] topics
   model.all <- ModelTopics(doc.list$vs.out[,cols.to.keep],
                            doc.list$idx.amendments,
@@ -2048,9 +2093,9 @@ ModelAmendHierarchy <- function(doc.list,
   ## Now run the models for each sub-class of amendments, determined
   ## by the topic to which model.all assigned them.
   topic.labels <- sort(unique(model.all$topics))
-  ## rebase the dtm index to the 1:A amendment 
+  ## rebase the dtm index to the 1:A amendment
   dtm.idx <- model.all$dtm.idx - min(doc.list$idx.amendments) + 1
-  
+
   models.sub <- lapply(topic.labels, function(x){
 
     ## Restrict the index to those rows that received this topic
@@ -2085,7 +2130,7 @@ ModelAmendHierarchy <- function(doc.list,
   out <- list(out, terms.list)
   names(out) <- c("models", "terms")
   return(out)
-  
+
 }
 
 ## Get the terms for each model and return the primary:secondary
@@ -2114,13 +2159,13 @@ GetTermList <- function(model.list, k.primary){
 ##' @param str A character vector whose components are strings
 ##' containing one or more words
 ##' @param n The length of the n-grams for which vector indices are to
-##' be returned. 
+##' be returned.
 GetNgramIdx <- function(str, n){
- 
+
   str.split <- strsplit(str, " ")
   l <- sapply(strsplit(str, " "), length)
   idx.out <- which(l == n)
-  
+
   return(idx.out)
 }
 
@@ -2139,7 +2184,7 @@ GetTfIdx <- function(dtm, probs){
   q.tf <- quantile(tf, probs)
   idx.out <- which(tf > q.tf[1] & tf < q.tf[2])
   return(idx.out)
-  
+
 }
 
 ##' Takes as input a topic structure from ModelAmendHierarchy and
@@ -2147,7 +2192,7 @@ GetTfIdx <- function(dtm, probs){
 ##' in each topic that were accepted or rejected.
 ##' @title CtabAmendHierarchy
 ##' @param amend.topic.hierarchy an object as returned from
-##' ModelAmendHierarchy 
+##' ModelAmendHierarchy
 ##' @param composite.bill the composite bill
 ##' @param committees the committee list for amendments
 ##' @param doc.list the original document list containing a doc-term
@@ -2171,7 +2216,7 @@ CtabAmendHierarchy <- function(amend.topic.hierarchy,
                                doc.list,
                                tab.idx=1
                                ){
-  
+
   ## Baseline the primary index to 1:N
   min.amend.idx <- length(doc.list$idx.final) + length(doc.list$idx.initial)
   model.amend.idx <-
@@ -2183,7 +2228,7 @@ CtabAmendHierarchy <- function(amend.topic.hierarchy,
                composite.bill$match.idx[composite.bill$match.origin=="amendment"],
                model.amend.idx
                )
-  
+
   ## Generate subtopic crosstabs
   tab.secondary <- lapply(amend.topic.hierarchy[[1]][[2]], function(x){
 
@@ -2200,7 +2245,7 @@ CtabAmendHierarchy <- function(amend.topic.hierarchy,
   out <- list(tab.primary, tab.secondary)
   names(out) <- c("tab.primary", "tab.secondary")
   return(out)
-  
+
 }
 
 ##' Crosstabs topics, committees, and acceptance/rejection for matched
@@ -2245,7 +2290,7 @@ CtabTopics <- function(topics, committees, master.idx, this.idx){
                        type="column"
                        )
                   )
-  
+
   out <- list(count.by.topic.status,
               count.by.committee.status,
               prop.by.topic.status,
@@ -2257,7 +2302,7 @@ CtabTopics <- function(topics, committees, master.idx, this.idx){
                   "prop.by.topic.committee.status"
                   )
   return(out)
-  
+
 }
 
 ## This is a custom implementation of print.ctab() from the catspec
@@ -2271,15 +2316,15 @@ CtabTopics <- function(topics, committees, master.idx, this.idx){
 ##' @param dec.places Decimal places to print in output
 ##' @param addmargins Should margins be calculated?
 ##' @param all.NA Boolean, should NA values be recognized or skipped
-##' @param ... 
+##' @param ...
 my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
                            x$addmargins,
                            all.NA=TRUE,
-                           ...) 
+                           ...)
 {
   if (length(dim(x$ctab)) == 1) {
     tbl <- x$ctab
-    if (addmargins) 
+    if (addmargins)
       tbl <- addmargins(tbl)
     if (x$style == "long") {
       tbl <- as.matrix(tbl)
@@ -2292,20 +2337,20 @@ my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
     a = length(row.vars)
     if (length(x$type) > 1) {
       z <- length(names(dimnames(x$ctab)))
-      if (x$style == "long") 
+      if (x$style == "long")
         row.vars <- c(row.vars, z)
       else col.vars <- c(z, col.vars)
     }
     b = length(col.vars)
     tbl <- x$ctab
     mrgn <- c(row.vars[a], col.vars[b])
-    if (length(dim(x$table)) == 1) 
+    if (length(dim(x$table)) == 1)
       mrgn <- 1
-    if (addmargins) 
+    if (addmargins)
       tbl <- addmargins(tbl, margin = mrgn)
     tbl <- ftable(tbl, row.vars = row.vars, col.vars = col.vars)
   }
-  if (!all(as.integer(tbl) == as.numeric(tbl), na.rm=all.NA)) 
+  if (!all(as.integer(tbl) == as.numeric(tbl), na.rm=all.NA))
     tbl <- round(tbl, dec.places)
   out <- print(tbl, ...)
   return(out)
@@ -2313,8 +2358,8 @@ my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
 
 ##' Collates the topic model for the entire corpus of document
 ##' sections, the assigned status of each section based on the composite
-##' match, and the origin of each document section. 
-##' @title CollateTopicDtm 
+##' match, and the origin of each document section.
+##' @title CollateTopicDtm
 ##' @param composite Output of GetLikelyComposite
 ##' @param topic.model Output of ModelTopics for the document-term
 ##' in doc.list. Its recommended that topic.model be created with
@@ -2327,7 +2372,7 @@ my.print.ctab <- function (x, dec.places = x$dec.places, addmargins =
 ##' committee, status, and assigned topic from the topic model. The "composite" object
 ##' contains an extended version of the output of GetLikelyComposite,
 ##' providing the topics for both the final document section and its
-##' best match. 
+##' best match.
 ##' @author Mark Huberty
 ##' @export
 CollateTopicDtm <- function(composite,
@@ -2349,7 +2394,7 @@ CollateTopicDtm <- function(composite,
                            committees,
                            all.sources,
                            all.idx
-                           ) 
+                           )
 
   composite.topic <- MapTopicComposite(topic.model, composite,
                                        doc.list, doc.topic)
@@ -2357,14 +2402,14 @@ CollateTopicDtm <- function(composite,
   out <- list(doc.topic, composite.topic)
   names(out) <- c("doc.topic", "composite.topic")
   return(out)
-  
+
 }
 
 
 ##' Maps the topics from a model of the entire document-section corpus
 ##' onto the composite bill. Returns an augmented composite object
 ##' with the assigned topics of both the final sections and their matches.
-##' @title MapTopicComposite 
+##' @title MapTopicComposite
 ##' @param topic.model the output of ModelTopics for the entire corpus
 ##' of document sections as output from CreateAllVectorSpaces. Note
 ##' that it's recommended the topic.model be created with na.rm=TRUE in ModelTopics.
@@ -2384,7 +2429,7 @@ MapTopicComposite <- function(topic.model, composite, doc.list, doc.topic){
                          )
       doc.topic$topic[topic.idx]
     })
-  
+
   composite.match.topics <-
     sapply(1:length(composite$match.idx), function(x){
       if (composite$match.origin[x] == "amendment"){
@@ -2397,7 +2442,7 @@ MapTopicComposite <- function(topic.model, composite, doc.list, doc.topic){
         topic.idx <- which(doc.topic$source == "amendment" &
                            doc.topic$idx == this.idx
                            )
-        
+
       }else if (composite$match.origin[x] == "doc.initial"){
 
         this.idx <- composite$match.idx[x] + length(doc.list$final.idx)
@@ -2412,7 +2457,7 @@ MapTopicComposite <- function(topic.model, composite, doc.list, doc.topic){
       }
 
       doc.topic$topic[topic.idx]
-      
+
     }
            )
   composite$final.topic <- composite.final.topics
@@ -2427,7 +2472,7 @@ MapTopicComposite <- function(topic.model, composite, doc.list, doc.topic){
 ##the indices, sources, and final status in a composite bill. Only
 ##called within CollateTopicDtm
 ##' @title MapTopicDtm
-##' @param topic.model A topic model as output from ModelTopics 
+##' @param topic.model A topic model as output from ModelTopics
 ##' @param doc.list A document-term matrix object as output from CreateAllVectorSpaces
 ##' @param composite The composite bill, using doc.list and output
 ##' from GetLikelyComposite
@@ -2449,7 +2494,7 @@ MapTopicDtm <- function(topic.model,
 
   ret <-
     foreach(x=1:length(topic.model$dtm.idx), .combine=rbind) %do% {
-      
+
       this.source <- sources[topic.model$dtm.idx[x]]
       if(this.source == "amendment")
         {
@@ -2466,7 +2511,7 @@ MapTopicDtm <- function(topic.model,
           this.idx <- all.idx[topic.model$dtm.idx[x]]
           this.committee <- "final"
         }
-      
+
       composite.sub <- composite[composite$match.origin == this.source,]
       if(this.idx %in% composite.sub$match.idx)
         {
@@ -2489,13 +2534,13 @@ MapTopicDtm <- function(topic.model,
 }
 
 ##' Given a composite bill and a topic model for the entire legislative
-##' corpus, EstimateSourceImpact assigns attribution of 
+##' corpus, EstimateSourceImpact assigns attribution of
 ##' topics--those found in the final but not initial legislation--by
 ##' committee origin.
 ##' @title EstimateSourceImpact
 ##' @param tab.topic.status.out output from CollateTopicDtm containing the topic
 ##' and status attributes of all documents in the corpus, and the
-##' mapping of topics to sections in the final bill.  
+##' mapping of topics to sections in the final bill.
 ##' @param prop.margin Specifies whether the proportion table should
 ##' use row (1) or column (2) percentages.
 ##' @return A list containing the topic distribution for the final
@@ -2526,12 +2571,12 @@ EstimateSourceImpact <- function(tab.topic.status.out,
                               ]
 
   new.topics <- as.integer(colnames(tab.overall))[idx.new]
-  
+
   ## Subset the composite to only "new" topics and
   ## count amendments
   composite.sub <-
     composite[composite$final.topic %in% new.topics, ]
-  
+
   tab.dist <- table(composite.sub$alt.origin,
                     cut(composite.sub$match.dist,
                         quantile(composite.sub$match.dist,
@@ -2542,7 +2587,7 @@ EstimateSourceImpact <- function(tab.topic.status.out,
                     dnn=c("Source", "Match quality distribution")
                     )
   tab.pct <- prop.table(tab.dist, margin=prop.margin)
-  
+
   tab.sub <- table(composite.sub$alt.origin,
                    composite.sub$final.topic,
                    dnn=c("Source", "Topic")
@@ -2626,7 +2671,7 @@ TabulateOrigin <- function(ctd,
     topic.terms <- model$terms[,this.topic][1:n.terms]
     ordered.terms <- paste(topic.terms, collapse=".")
     return(ordered.terms)
-    
+
   })
   rownames(proportion.table) <- topic.labels
 
@@ -2645,7 +2690,7 @@ TabulateOrigin <- function(ctd,
       print(tex.table)
   }
   return(proportion.table)
-  
+
 }
 
 
@@ -2657,36 +2702,36 @@ TabulateOrigin <- function(ctd,
 
 
 ##' A function called within PlotCommitteeTopics() to take the output of
-##' various bill mapping functions and create an easily usable matrix 
+##' various bill mapping functions and create an easily usable matrix
 ##' carrying the information PlotCommitteeTopics() needs.
 ##' @title OutToInPCT
 ##' @param model.amend.hierarchy.out the output of ModelAmendHierarchy()
 ##' @param get.likely.composite.out the output of get.likely.composite()
 ##' @param committees the object "committees", used in other parts of this
-##' package, consisting of a vector of committee names for each ith 
+##' package, consisting of a vector of committee names for each ith
 ##' amendment (accepted, rejected, and discarded amendments).
 ##' @return A dataframe of dimension ax4, where a equals the number of non-
 ##' discarded amendments (so accepted or rejected amendments). The first
-##' column is the amendment indices, the second is the topic assignments, 
-##' the third is the committees, and the fourth is a logical vector for 
+##' column is the amendment indices, the second is the topic assignments,
+##' the third is the committees, and the fourth is a logical vector for
 ##' amendment success (made it into the final bill) or failure.
 ##' @author Hillary Sanders
 OutToInPCT <- function(model.amend.hierarchy.out,
                        get.likely.composite.out,
                        committees){
-  
+
   ## Create a matrix of each amendment index and their topic assignments.
   amend.top.index <- cbind( model.amend.hierarchy.out[[1]][[1]][[4]]
                            -min(model.amend.hierarchy.out[[1]][[1]][[4]])+1
                            , as.numeric(model.amend.hierarchy.out[[1]][[1]][[3]]))
-  ## Note that here, only those amendments that are not thrown out due to length 
+  ## Note that here, only those amendments that are not thrown out due to length
   ## (e.g. ":") are represented.
   colnames(amend.top.index) <- c("idx","topic #")
 
   ## Find the indices of those amendments which made it to the composite final bill.
   successful<- get.likely.composite.out[ get.likely.composite.out[,3]=="amendment",2:3]
-  
-  unique.successful<- unique(successful) 
+
+  unique.successful<- unique(successful)
   ## Create a matrix of the successful amendment indices. The second row
   ## becomes helpful in a moment!
   y <- unique.successful[order(unique.successful[,1]), ]
@@ -2694,13 +2739,13 @@ OutToInPCT <- function(model.amend.hierarchy.out,
   names(x)<-c("match.idx","committees")
 
   joined <- join( x, y, type="left")
-  ## All of the elements in the third row that are <NA> (not "amendment") 
+  ## All of the elements in the third row that are <NA> (not "amendment")
   ## must be rejected amendments or amendments discarded by the computer (due to
   ## their very short length).
   joined[,3][is.na(joined[,3])]<- 0
   joined[,3][joined[,3]=="amendment"]<- 1
   ## Three columns: amendment index, committee, logical: was the amendment accepted?
-  
+
   ## However, amendments that were discarded still need to be removed:
   ## Use amend.top.index, as it only shows non-discarded amendments, and has topic info:
   merged<- merge(amend.top.index,joined,by=1)
@@ -2731,7 +2776,7 @@ IsRGB <- function(x){
 ##' @return the input, but in RGB form, if possible.
 ##" @author Hillary Sanders
 CheckAndFixRGB <- function (x) {
-  
+
   if (!IsRGB (x)){
     x <- rgb(col2rgb(x)[1],
              col2rgb(x)[2],
@@ -2747,32 +2792,32 @@ CheckAndFixRGB <- function (x) {
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
 ##' of 1:t), and its final destination (rejected or final bill: 0 or 1). See
-##' PlotCommitteeTopics() for more details. 
+##' PlotCommitteeTopics() for more details.
 ##' @param num.com number of committees.
 ##' @param num.top number of topics.
-##' @param edge.col optional vector of colors (length 2, for amendment failure and 
+##' @param edge.col optional vector of colors (length 2, for amendment failure and
 ##' success).
-##' @param edge.transparency Optional integer in 10:99 designating level of 
+##' @param edge.transparency Optional integer in 10:99 designating level of
 ##' transparency.
 ##' @return A vector of edge widths for each arrow to be drawn
 ##' @author Hillary Sanders
-EdgeColorPCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=NULL){ 
+EdgeColorPCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=NULL){
   if (is.null(edge.col)){
     colors <- c("#FFB90F","#6495ED")
     ## "darkgoldenrod1", "cornflowerblue" : (Failure, Success)
-  } else { 
+  } else {
     colors <- rep(edge.col,2) [1:2]
-    
+
     colors <- as.character (sapply(colors, CheckAndFixRGB))
   }
-  
+
   ## The final destination (1 or 2: rejected or final) of each unique edge (arrow):
   edge.color.idx <- c( (A[!duplicated(A[,2:3]),4]),
                       (A[!duplicated(A[,3:4]),4]) ) -num.com-num.top+1
-  
+
   edge.color <- colors[edge.color.idx]
-  
-  ## Are the amendment(s) that a committee-to-topics arrow is representing heading to both 
+
+  ## Are the amendment(s) that a committee-to-topics arrow is representing heading to both
   ## the final bill AND rejected? If both, then the arrow color should be some shade of (default) green.
   for ( i in which(!duplicated(A[,2:3]))){
 
@@ -2781,18 +2826,18 @@ EdgeColorPCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=N
     destinations <- A [ identical,4]
     ## If their final destinations are not all the same, then make their arrow be green.
     if (length(unique(destinations))!=1) {
-      
+
       success.rate <- mean(destinations)-min(destinations)
-      
+
       lum <- ((1-success.rate)*100)
       shade <- hcl(110,c=100,l=lum)
-      ## So if success rate is high, edges will be dark green, if low, light yellow/green.         
-      
+      ## So if success rate is high, edges will be dark green, if low, light yellow/green.
+
       edge.color[ order((i==which(!duplicated(A[,2:3])))==0)[1]] <- shade
     }
   }
-  
-  if (!is.null(edge.transparency)){ 
+
+  if (!is.null(edge.transparency)){
     for (i in 1:length(edge.color)){
       ## Add a transparency number (in 00:99)
       edge.color[i] <- paste( edge.color[i], as.character(edge.transparency), sep="")
@@ -2803,7 +2848,7 @@ EdgeColorPCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=N
 ## end Edge.Color()
 
 
-##' A function called within PlotCommitteeTopics() to calculate vertex (node) 
+##' A function called within PlotCommitteeTopics() to calculate vertex (node)
 ##' sizes.
 ##' @title VertexSizesPCT
 ##' @param A An ax4 information matrix.
@@ -2812,14 +2857,14 @@ EdgeColorPCT <- function(A, num.com, num.top, edge.col=NULL, edge.transparency=N
 ##' @param scale.c Size scale for committee nodes.
 ##' @param scale.t Size scale for topic nodes.
 ##' @param scale.fin Size scale for final destination nodes: "Adopted" and "Rejected".
-##' @return A matrix of dimension a by 2. The first column is a vector of node sizes 
+##' @return A matrix of dimension a by 2. The first column is a vector of node sizes
 ##' for each vertex in the graph., the second is a vector of second node sizes (e.g.
 ##' for rectangles).
 ##' @author Hillary Sanders
 VertexSizesPCT <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
-  
+
   vertex.size <- rep(0,(num.com+num.top+2))
-  
+
   for (i in 1:num.com){
     vertex.size[i] <- sum(A[,2]==(i-1))
   }
@@ -2830,42 +2875,42 @@ VertexSizesPCT <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
     vertex.size[i] <- sum(A[,4]==(i-1))
   }
   ## Here, both dimensions of the default rectangle vertex shape are created, and scaled
-  ## by how large the biggest vertex is on the graph. 
+  ## by how large the biggest vertex is on the graph.
   biggest <- max(vertex.size)
   v.size <- ((sqrt(vertex.size))/(sqrt(biggest))*(60))
   v.size2 <- ((sqrt(vertex.size)/(sqrt(biggest))*(45)))
-  
+
   ## Vertex sizes can also be rescaled by the user by scale.c, scale.t, and
   ## scale.fin inputs. Defaults = 1.
 
   v.size[1:num.com] <- v.size[1:num.com]*sqrt(scale.c)
   v.size2[1:num.com] <- v.size2[1:num.com]*sqrt(scale.c)
 
-  v.size[(num.com+1):(num.com+num.top)] <- 
+  v.size[(num.com+1):(num.com+num.top)] <-
     v.size[(num.com+1):(num.com+num.top)]*sqrt(scale.t)
-  
-  v.size2[(num.com+1):(num.com+num.top)] <- 
+
+  v.size2[(num.com+1):(num.com+num.top)] <-
     v.size2[(num.com+1):(num.com+num.top)]*sqrt(scale.t)
 
   v.size[(num.com+num.top+1):(num.com+num.top+2)] <-
     v.size[(num.com+num.top+1):(num.com+num.top+2)]*sqrt(scale.fin)
-  
+
   v.size2[(num.com+num.top+1):(num.com+num.top+2)] <-
     v.size2[(num.com+num.top+1):(num.com+num.top+2)]*sqrt(scale.fin)
-  
-  
+
+
   return(cbind(v.size,v.size2))
 }
 # end VertexSizesPCT()
 
 
-##' A function called within PlotCommitteeTopics() to creates vertex 
+##' A function called within PlotCommitteeTopics() to creates vertex
 ##' (node) labels.
 ##' @title VertexLabelsPCT
 ##' @param vertex.label An optional vector of labels, usually NULL. If not NULL,
 ##' the function will only output this same object.
 ##' @param merged Output of OutToInPCT
-##' @param topics.matrix An object defined inside PlotCommitteeTopics(): 
+##' @param topics.matrix An object defined inside PlotCommitteeTopics():
 ##' model.amend.hierarchy.out[[1]][[1]][[2]]
 ##' @param rejected.final.label character of length 2, the rejected node's label and the final
 ##' bill's node label. If left NULL, the labels will be "Recjected" and "Adopted".
@@ -2873,19 +2918,19 @@ VertexSizesPCT <- function(A, num.com, num.top, scale.c, scale.t, scale.fin){
 ##' graph.
 ##' @author Hillary Sanders
 VertexLabelsPCT <- function(vertex.label, merged, topics.matrix, rejected.final.label) {
-  
+
   if (is.null(vertex.label)) {
-  
+
     com <- levels(merged[,3])
     top <- paste( "Topic", 1:ncol(topics.matrix))
-    final <- c("Rejected", "Adopted")  
-    
+    final <- c("Rejected", "Adopted")
+
     vertex.label <- c(com, top, final)
   }
   if (!is.null(rejected.final.label)){
     vertex.label[(length(vertex.label)-1):length(vertex.label)] <-
       rejected.final.label
-  }  
+  }
 
   return(vertex.label)
 }
@@ -2893,30 +2938,30 @@ VertexLabelsPCT <- function(vertex.label, merged, topics.matrix, rejected.final.
 
 
 ##' Creates the "x"th layout coordinates for PlotCommitteeTopics(). This function
-##' is called inside of PlotCommitteeTopics() to create the layout: three layers 
+##' is called inside of PlotCommitteeTopics() to create the layout: three layers
 ##' consisting of 1) committees (c of them), 2) topics (t of them), and the final
-##' destinations of the amendments (rejected and final). 
+##' destinations of the amendments (rejected and final).
 ##' @title LayoutPCT
 ##' @param x the index of the coordinates to be created.
 ##' @param num.com the number of committees (number of nodes wanted in the bottom
 ##' layer of the graph).
 ##' @param num.top the number of topics (number of nodes wanted in the middle
 ##' layer of the graph).
-##' @param mid.layer The y-axis placement of the middle layer on the graph. 
-##' Defaults to .65. Note that the bottom and top layers are at 0 and 1. 
-##' @return the xth pair of coordinates for the default layout of 
+##' @param mid.layer The y-axis placement of the middle layer on the graph.
+##' Defaults to .65. Note that the bottom and top layers are at 0 and 1.
+##' @return the xth pair of coordinates for the default layout of
 ##' PlotCommitteeTopics().
 ##' @author Hillary Sanders
 LayoutPCT <- function(x,num.com,num.top,mid.layer=.65){
-  
+
   if (x<(num.com+1)) {
     cords <- c(x/(1+num.com),0)
-    
+
   } else {
-    
-    if (x>(num.com+num.top)) 
+
+    if (x>(num.com+num.top))
       { cords<- c( (x-num.com-num.top)/3,1)
-        
+
       } else {
         cords <- c( (x-num.com)/(1+num.top),mid.layer)
       }
@@ -2935,22 +2980,22 @@ LayoutPCT <- function(x,num.com,num.top,mid.layer=.65){
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
 ##' of 1:t), and its final destination (rejected or final bill: 0 or 1). See
-##' PlotCommitteeTopics() for more details. 
+##' PlotCommitteeTopics() for more details.
 ##' @param num.arrows.to.topics The number of distinct edges (arrows) that are going
 ##' to topic nodes (the middle layer) in the PlotCommitteeTopics() plot.
 ##' @return the width of the x[3]th edge (arrow) according to the absolute number of
 ##' amendments represented by the given edge.
 ##' @author Hillary Sanders
 GetEdgeWidth.Absolute <- function(x, A, num.arrows.to.topics){
-  
+
   if (x[3]< num.arrows.to.topics+1){
     width <- sum(
-                 (x[1]==A[,2]) & 
+                 (x[1]==A[,2]) &
                  (x[2]==A[,3])
-                 ) 
-    
+                 )
+
   } else {
-    
+
     width <- sum(
                  (x[1]==A[,3]) &
                  (x[2]==A[,4])
@@ -2962,7 +3007,7 @@ GetEdgeWidth.Absolute <- function(x, A, num.arrows.to.topics){
 
 
 ##' A small function called within PlotCommitteeTopics() if the argument
-##' edge.width is set to "relative". This function creates edge (arrow) widths for 
+##' edge.width is set to "relative". This function creates edge (arrow) widths for
 ##' PlotCommitteeTopics() relative to an edge's origin. Similar to GetEdgeWidth.Absolute() and
 ##' GetEdgeWidth.Success().
 ##' @title GetEdgeWidth.Relative
@@ -2971,30 +3016,30 @@ GetEdgeWidth.Absolute <- function(x, A, num.arrows.to.topics){
 ##' @param A An ax4 matrix, where a = number of amendments. Each row represents an
 ##' amendment: its index (on of 1:a), it's committee (one of 1:c), its topic (one
 ##' of 1:t), and its final destination (rejected or final bill: 0 or 1). See
-##' PlotCommitteeTopics() for more details. 
+##' PlotCommitteeTopics() for more details.
 ##' @param num.arrows.to.topics The number of distinct edges that are going
 ##' to topic nodes (the middle layer) in the PlotCommitteeTopics() plot.
 ##' @return the width of the x[3]th edge, according to the percentage
-##' of amendments that the the given edge is carrying with respect to the total 
+##' of amendments that the the given edge is carrying with respect to the total
 ##' number of amendments coming from the edge's source (either a committee or topic
 ##' node).
 ##' @author Hillary Sanders
 GetEdgeWidth.Relative <- function(x, A, num.arrows.to.topics){
   if (x[3]< num.arrows.to.topics+1){
-    
+
     width <- sum(
                  (x[1]==A[ ,2]) &
                  (x[2]==A[ ,3]) ) /
-                   sum(x[1]==A[ ,2]) *15 
+                   sum(x[1]==A[ ,2]) *15
     ## The 15 is so that the default with of 1 (more user friendly) makes
     ## reasonably sized edges
-  } else {    
+  } else {
     width <- sum(
                  (x[1]==A[ ,3]) &
                  (x[2]==A[ ,4])) /
                    sum(x[1]==A[ ,3]) *15
-  } 
-  
+  }
+
   return (width)
 }
 ## End GetEdgeWidth.Relative
@@ -3021,18 +3066,18 @@ GetEdgeWidth.Relative <- function(x, A, num.arrows.to.topics){
 ##' it carries).
 ##' @author Hillary Sanders
 GetEdgeWidth.Success <- function(x, A, num.arrows.to.topics, num.com, num.top){
-  
+
   if (x[3]< num.arrows.to.topics+1){
     width <- sum(
                  (x[1]==A[, 2]) &
                  (x[2]==A[, 3]) &
                  (A[, 4] == (num.com+num.top+1))
-                 ) / 
+                 ) /
                    sum((x[1]==A[, 2]) &
                        (x[2]==A[, 3])) *15
-    
+
   } else {
-    
+
     width <- sum(
                  (x[1]==A[, 3]) &
                  (x[2]==A[, 4]) &
@@ -3045,14 +3090,14 @@ GetEdgeWidth.Success <- function(x, A, num.arrows.to.topics, num.com, num.top){
     ## reasonably sized edges
   }
   return(width)
-} 
+}
 ## End GetEdgeWidth.Sucess
 
 
 ##' A function called within PlotCommitteeTopics() to calculate all edge widths.
 ##' @title EdgeWidthsPCT
 ##' @param A A matrix (created inside PlotCommitteeTopics()) of dimensions a by 4,
-##' where a = the number of amendments. The columns 1:4 respectively indicate 
+##' where a = the number of amendments. The columns 1:4 respectively indicate
 ##' amendment index, committee, topic, and logical success or failure. Each row
 ##' corresponds to one non-discarded (so rejected and accepted) amendment.
 ##' @param num.com The number of committees in the PCT graph to be plotted.
@@ -3060,48 +3105,48 @@ GetEdgeWidth.Success <- function(x, A, num.arrows.to.topics, num.com, num.top){
 ##' @param edge.width The method used to calculate edge widths. The default, "absolute",
 ##' means that edge widths will correspond to the absolute number of amendments they
 ##' represent. "relative" means that edge widths will correspond to the % of
-##' amendments each edge holds with respect to the node (vertex) they are coming from. 
+##' amendments each edge holds with respect to the node (vertex) they are coming from.
 ##' "success" means edge widths will correspond to the % of amendments in each edge
 ##' which are destined for the final bill (with respect to the total number of
 ##' amendments each edge is carrying).
 ##' @param edge.width.scale Default = 1. Thicker edges = bigger number.
-##' @return A vector of edge widths for each arrow to be drawn. 
+##' @return A vector of edge widths for each arrow to be drawn.
 ##' @author Hillary Sanders
 EdgeWidthsPCT <- function(A, num.com, num.top, edge.width="absolute", edge.width.scale=1){
-  
+
   arrows.mat <- rbind( unique( A[, 2:3] ), unique(A[, 3:4]) )
   num.arrows.to.topics <- nrow(unique( A[, 2:3]))
   num.arrows.to.jf <- nrow(unique(A[, 3:4]))
   num.arrows <- nrow(arrows.mat) # the total number of arrows to be drawn
-  
+
   if ((edge.width == "absolute") | (edge.width == "a")){
     width <- apply(cbind(arrows.mat,1:num.arrows), 1, GetEdgeWidth.Absolute,
                    A, num.arrows.to.topics)
   }
-  
+
   if ((edge.width == "relative") | (edge.width == "r")){
     width <- apply(cbind(arrows.mat,1:num.arrows), 1, GetEdgeWidth.Relative,
                    A, num.arrows.to.topics)
   }
-  
-  if ((edge.width == "success") | (edge.width == "s")){ 
+
+  if ((edge.width == "success") | (edge.width == "s")){
     width <- apply(cbind(arrows.mat,1:num.arrows), 1, GetEdgeWidth.Success,
                    A, num.arrows.to.topics, num.com, num.top)
   }
                                         # Scale it:
   width <- ceiling(edge.width.scale*width)
   if ((edge.width == "absolute") | (edge.width == "a")) width <- width/10
-  
+
   return(width)
 }
 # end Edge.Width()
 
 
 ##' The main graphing function for the legislative bill mapping package. This
-##' function creates a three layer directed acyclic graph. The first, bottom 
-##' layer is a set of nodes representing committees which have each submitted 
+##' function creates a three layer directed acyclic graph. The first, bottom
+##' layer is a set of nodes representing committees which have each submitted
 ##' a number of amendments. Edges (arrows) connect these committee nodes to the
-##' middle layer topic nodes to which each committee's amendment(s) pertain. 
+##' middle layer topic nodes to which each committee's amendment(s) pertain.
 ##' Edges then connect these topic nodes to the third layer - two nodes: "Rejected"
 ##' and "Adopted" - again according to the amendments that the edges represent.
 ##' Edge width, as well as node area, by default correspond to the number of
@@ -3114,21 +3159,21 @@ EdgeWidthsPCT <- function(A, num.com, num.top, edge.width="absolute", edge.width
 ##' @param edge.width The method used to calculate edge widths. The default, "absolute",
 ##' means that edge widths will correspond to the absolute number of amendments they
 ##' represent. "relative" means that edge widths will correspond to the % of
-##' amendments each edge holds with respect to the node (vertex) they are coming from. 
+##' amendments each edge holds with respect to the node (vertex) they are coming from.
 ##' "success" means edge widths will correspond to the % of amendments in each edge
 ##' which are destined for the final bill (with respect to the total number of
 ##' amendments each edge is carrying).
-##' @param scale.c Scales the size of the bottom layer committee nodes (vertices). 
-##' By default, scale.c, scale.t, and scale.fin = 1, and their area are equally 
+##' @param scale.c Scales the size of the bottom layer committee nodes (vertices).
+##' By default, scale.c, scale.t, and scale.fin = 1, and their area are equally
 ##' proportional to the number of amendments they represent.
 ##' @param scale.t Scales the size of the middle layer topic nodes. Default = 1.
 ##' @param scale.fin Scales the size of the top layer final nodes (rejected and Final).
 ##' Default = 1.
 ##' @param edge.transparency A number in 00:99, representing the wanted transparency
-##' in edges (lower number = more transparent). If left NULL (the default), edges 
+##' in edges (lower number = more transparent). If left NULL (the default), edges
 ##' will be kept opaque.
 ##' @param edge.col Two edge colors to signify edges which contain 1) rejected destined
-##' amendments, 2) final destined amendments, or 3) both. Both RGB codes and 
+##' amendments, 2) final destined amendments, or 3) both. Both RGB codes and
 ##' character vectors are accepted. If NULL (the default) PlotCommitteeTopics()
 ##' will use "cornflowerblue", "darkgoldenrod1", and varying shades of green to
 ##' respectively signify if each edge's amendments were all successfull (in
@@ -3138,11 +3183,11 @@ EdgeWidthsPCT <- function(A, num.com, num.top, edge.width="absolute", edge.width
 ##' @param arrowhead.size The size of arrowheads (edge arrowheads). Defaults
 ##' to 0, i.e. no arrowhead.
 ##' @param layout The layout of the graph. If left NULL,  PlotCommitteeTopics()
-##' will create the default tricyclic graph described above. But you 
-##' may also pass graphing algorithms (e.g. layout.fruchterman.reingold, or 
+##' will create the default tricyclic graph described above. But you
+##' may also pass graphing algorithms (e.g. layout.fruchterman.reingold, or
 ##' layout.circle) for a different layout. A layout matrix may also be passed.
 ##' For more information on layout algorithms, seek igraph package documentation.
-##' @param mid.layer The placement of the middle layer of the graph on the y 
+##' @param mid.layer The placement of the middle layer of the graph on the y
 ##' axis. Defaults to .65. Note that the bottom and top layers are at 0 and 1.
 ##' Helpful if topic terms are being plotted (see plot.terms=TRUE below),
 ##' and space is needed.
@@ -3150,22 +3195,22 @@ EdgeWidthsPCT <- function(A, num.com, num.top, edge.width="absolute", edge.width
 ##' Note that PlotCommitteeTopics() plots the terms beneath each topic node.
 ##' @param terms.cex Text size for the topic terms plotted, if plot.terms=TRUE.
 ##' @param terms.col Text color for the topic terms plotted, if plot.terms=TRUE.
-##' @param terms.x.offset X axis adjustment for the topic terms plotted, if 
+##' @param terms.x.offset X axis adjustment for the topic terms plotted, if
 ##' plot.terms=TRUE.
-##' @param terms.y.offset Y axis adjustment for the topic terms plotted, if 
+##' @param terms.y.offset Y axis adjustment for the topic terms plotted, if
 ##' plot.terms=TRUE.
 ##' @param terms.spread Measure of horizontal spread between the plotted topic
-##' @param terms.text.close Measure of vertical spread between the plotted 
+##' @param terms.text.close Measure of vertical spread between the plotted
 ##' topic terms.
-##' @param vertex.label An optional character vector representing the node names for each 
-##' node (vertex). If NULL, the committee nodes (bottom layer) will be named with 
+##' @param vertex.label An optional character vector representing the node names for each
+##' node (vertex). If NULL, the committee nodes (bottom layer) will be named with
 ##' their full names, each ith topic node will be named Topic i, and the two final
 ##' bins will be labeled "Adopted" and "Rejected" (for accepted and rejected amendments).
 ##' @param vertex.label.font Type of font for the vertex labels.
 ##' @param vertex.label.cex Size of the vertex label font. Vectorized.
 ##' @param vertex.color The color vertex labels are filled with.
 ##' @param vertex.shape The shape of the vertices. Default = "rectangle". Note that
-##' if another shape is passed, area may no longer be (one-to-one) related to the 
+##' if another shape is passed, area may no longer be (one-to-one) related to the
 ##' number of amendments represented. (For now.) Possible shapes are "circle",
 ##' "square", "csquare", "rectangle", "crectangle", "vrectangle", and "none".
 ##' @return A hopefully pretty graph!
@@ -3176,72 +3221,72 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
                                edge.width.scale=1, edge.width = "absolute",
                                scale.c=1, scale.t=1, scale.fin=1,
                                edge.transparency=70, edge.col=NULL,
-                               main=NULL, arrowhead.size=0, 
-                               layout=NULL, mid.layer=.65, 
+                               main=NULL, arrowhead.size=0,
+                               layout=NULL, mid.layer=.65,
                                plot.terms=TRUE, terms.cex=.5, terms.col="grey30",
-                               terms.x.offset=0, terms.y.offset=-.05, 
+                               terms.x.offset=0, terms.y.offset=-.05,
                                terms.spread=1, terms.text.close=1,
                                vertex.label=NULL, vertex.label.font=3, vertex.label.cex=.75,
                                rejected.final.label=NULL, vertex.color="cornflowerblue",
                                vertex.shape = "rectangle"
                                ) {
-  
+
   merged <- OutToInPCT(model.amend.hierarchy.out,get.likely.composite.out,committees)
-  
+
   committees <- merged[,3]
   ## Need to make the committees column numeric.
-  ## Also need to make sure that if there are any skipped indices, everything 
+  ## Also need to make sure that if there are any skipped indices, everything
   ## gets re-ordered properly.
   amend.committees <- as.numeric(factor(merged[,3]))
   amend.topics <- as.numeric(factor((merged[,2])))
   amend.final <- as.numeric(factor(merged[,4])) -1
-  
+
   a <- length(amend.committees)
-  
+
   stopifnot(length(amend.committees)==length(amend.topics),
             length(amend.topics)==length(amend.final))
-  
+
   A <- matrix(c(1:a,amend.committees,amend.topics,amend.final),ncol=4)
-  
+
   ## num.amd = # of amendments, num.com = # of committees, num.top = # of topics.
   num.amd <- nrow(A)
   num.com <- length(unique(A[,2]))
-  num.top <- length(unique(A[,3])) 
-  
+  num.top <- length(unique(A[,3]))
+
   ## reindex. Note that igraph takes numbers starting at 0, not 1.
   ## Now the last 3 columns of A represent the nodes each amendment will touch.
   A[,1:4] <- c( (A[,1]),
                (A[,2]-1),
                (A[,3]+num.com-1),
                (A[,4]+num.com+num.top))
-  
+
   ## A matrix of all of the unique arrows that need to be drawn:
   arrows.mat <- rbind( unique( A[,2:3] ), unique(A[,3:4]) )
-  
+
   ## Calculate edge widths
   width <- EdgeWidthsPCT(A, num.com, num.top, edge.width, edge.width.scale)
-  
+
   ## Calculate edge colors
-  edge.color <- EdgeColorPCT(A, num.com, num.top, edge.col, edge.transparency)  
+  edge.color <- EdgeColorPCT(A, num.com, num.top, edge.col, edge.transparency)
 
   ## Calculate vertex sizes
   size <- VertexSizesPCT(A, num.com, num.top, scale.c, scale.t, scale.fin)
   v.size <- size[,1]
   v.size2 <- size[,2]
-  
+
   topics.matrix <- model.amend.hierarchy.out[[1]][[1]][[2]]
 
   ## Calculate vertex labels
   vertex.label <- VertexLabelsPCT(vertex.label, merged, topics.matrix, rejected.final.label)
-  
+
   ## The actual object to be graphed:
   g. <- arrows.mat-min(arrows.mat)
   g.. <- as.numeric(t(g.))
   g <- graph(g..)
-  
+
   ## To create the layout, an nx2 matrix denoting the coordinates of each x vertices, you can use
-  ## a function or a matrix. The default is to use the following lines to create the matrix: 
-  
+  ## a function or a matrix. The default is to use the following lines to create the matrix:
+
   if (is.null(layout)){
     x <- 1:(num.com+num.top+2)
     lay.mat <- t(sapply(x,FUN=LayoutPCT,num.com=num.com,num.top=num.top,
@@ -3250,10 +3295,10 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
   } else {
     lay.mat <- layout
   }
-  
+
   if (is.null(main)) main <- ""
-  
-  ## graph it!                
+
+  ## graph it!
   plot(g,
        layout = lay.mat,
        edge.arrow.width = arrowhead.size,
@@ -3269,14 +3314,14 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
        vertex.color = vertex.color,
        main = main
        )
-  
+
   if ( plot.terms == TRUE){
-    
+
     terms.list <- list()
     for (i in 1:ncol(topics.matrix)){
       terms.list[[i]] <- topics.matrix[,i]
     }
-    
+
     PlotTopicWords(terms.list, layout=lay.mat,
                    terms.cex, terms.col,
                    terms.x.offset, terms.y.offset,
@@ -3286,7 +3331,7 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
 
 
 ##' Plots a list of words next to each topic node in the graph created by this
-##' package's PlotCommitteeTopics() function. To be used within 
+##' package's PlotCommitteeTopics() function. To be used within
 ##' PlotCommitteeTopics().
 ##' @title PlotTopicWords
 ##' @param words.list A list (of length num.top or less, where num.top is the
@@ -3298,7 +3343,7 @@ PlotCommitteeTopics <- function(model.amend.hierarchy.out,get.likely.composite.o
 ##' @param y.offset Adjust the y axis placement of the terms. Default = -.05.
 ##' @param spread Adjust the breadth of the terms to be plotted. Default = 1.
 ##' @param text.close How close should each term for a given topic be? Default = 1.
-##' @return Text on plotted onto a PlotCommitteeTopics() graph (with default 
+##' @return Text on plotted onto a PlotCommitteeTopics() graph (with default
 ##' layout style).
 ##' @author Hillary Sanders
 PlotTopicWords <- function(words.list, layout,
@@ -3306,7 +3351,7 @@ PlotTopicWords <- function(words.list, layout,
                            x.offset=0, y.offset=-.05,
                            spread=1, text.close=1
                            ) {
-  
+
   num.top <- length(words.list)
   x.axis <- ( (layout[ ( layout[,2] == unique (layout[, 2])[2]), 1] # the 2nd level
                )*2.8*spread) - 1.4*spread
@@ -3326,13 +3371,13 @@ PlotTopicWords <- function(words.list, layout,
 # end PlotTopicWords
 
 
-##' Takes output from various bill mapping functions and prepares the data 
+##' Takes output from various bill mapping functions and prepares the data
 ##' for the PlotCommitteeTopics() function.
 ##' @title OutToInPAS
 ##' @param model.amend.hierarchy.out the output of ModelAmendHierarchy().
 ##' @param get.likely.composite.out the output of get.likely.composite().
 ##' @param committees the object "committees", used in other parts of this
-##' package, consisting of a vector of committee names for each ith 
+##' package, consisting of a vector of committee names for each ith
 ##' amendment (accepted, rejected, and discarded amendments).
 ##' @return A four column dataframe, consiting of amendment index, topic index,
 ##' committee, and a final destinations column: either a final bill index or
@@ -3341,34 +3386,34 @@ PlotTopicWords <- function(words.list, layout,
 OutToInPAS <- function(model.amend.hierarchy.out,
                        get.likely.composite.out,
                        committees){
-  
+
   ## Create a matrix of each amendment index and their topic assignments.
   amend.top.index <- cbind( model.amend.hierarchy.out[[1]][[1]][[4]]
                            -min(model.amend.hierarchy.out[[1]][[1]][[4]])+1
                            , as.numeric(model.amend.hierarchy.out[[1]][[1]][[3]]))
-  ## Note that here, only those amendments that are not thrown out due to length 
+  ## Note that here, only those amendments that are not thrown out due to length
   ## (e.g. ":") are represented.
   colnames(amend.top.index) <- c("idx","topic #")
 
   ## Find the indices of those amendments which made it to the composite final bill.
   successful<- get.likely.composite.out[ get.likely.composite.out[,3]=="amendment",c(1,2)]
   colnames(successful) <- c("final.idx","amend.idx")
-  
+
 
   ## Create a matrix of the successful amendment indices. The second row
   ## becomes helpful in a moment!
   x <- data.frame(1:length(committees),committees)
   names(x) <-c("amend.idx","committees")
-  
+
   joined <- join( x, successful, type="left")
-  
-  ## All of the elements in the third row that are <NA> (not "amendment") 
+
+  ## All of the elements in the third row that are <NA> (not "amendment")
   ## must be rejected amendments or amendments discarded by the computer (due to
   ## their very short length).
   joined[,3][is.na(joined[,3])] <- 0
-  
+
   ## Three columns: amendment index, committee, logical: was the amendment accepted?
-  
+
   ## However, amendments that were discarded still need to be removed:
   ## Use amend.top.index, as it only shows non-discarded amendments, and has topic info:
   merged <- merge(amend.top.index,joined,by=1)
@@ -3392,48 +3437,48 @@ OutToInPAS <- function(model.amend.hierarchy.out,
 ##' @return the character and numeric color vectors
 ##' @author Hillary Sanders
 EdgeColorPAS <- function(merged, edge.color.by ="topics", edge.col=NULL){
-  
+
 
   if (edge.color.by == "topics" | edge.color.by == "t"){
-    
+
     num.tops <- length (unique(merged$topic.idx))
 
     if (is.null(edge.col)) {
       edge.col <- c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854",
                     "#FFD92F", "#E5C494", "#B3B3B3")
       }
-    
+
     if (length(edge.col) < num.tops){
       warning("length(edge.col) is too small, length(edge.col) should
             be  ≥ number-of-topics. Colors will be recycled!")
   }
     # if there are not enough colors, colors will be recycled:
     edge.col <- rep(edge.col, ceiling(num.tops/length(edge.col)))[1:num.tops]
-    
-    edge.color <- edge.col[merged$topic.idx] 
+
+    edge.color <- edge.col[merged$topic.idx]
 
   }
-  
+
   if (edge.color.by == "committees" | edge.color.by == "c"){
-  
+
     num.coms <- length(unique(merged$committee))
-    
+
     if (is.null(edge.col)){
-      
+
       edge.col <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
                     "#FFFF33", "#A65628", "#999999")
     }
-      
+
      if (length(edge.col) < num.coms){
-    warning("length(edge.col) is too small, length(edge.col) should 
+    warning("length(edge.col) is too small, length(edge.col) should
             be ≥ number-of-committees. Colors will be recycled!")
      }
- 
+
     edge.col <- rep(edge.col, ceiling(num.coms/length(edge.col)))[1:num.coms]
-    
+
     edge.color <- edge.col[as.numeric(factor(merged$committee))]
     }
-  
+
   return(list(edge.color,edge.col))
 }
 ## end EdgeColorPAS
@@ -3451,23 +3496,23 @@ EdgeColorPAS <- function(merged, edge.color.by ="topics", edge.col=NULL){
 ##' @return A vector of labels for a PAS graph.
 ##' @author Hillary Sanders
 VertexLabelsPAS <- function(a, f, a.lab, f.lab, vertex.label=NULL, rejected.label=NULL){
-  
+
   if (is.null(vertex.label)) {
-    
+
     a.labeled <- floor( c( seq(1, a, length=a.lab) ))
     f.labeled <- floor(seq(1, f, length=f.lab) )
-    
+
     vertex.label <- rep("", a+f+1)
-    
+
     for (i in a.labeled) vertex.label[i] <- i
     for (i in f.labeled) vertex.label[a+i] <- i
     }
-  
+
     if(is.null(rejected.label)){
     vertex.label[a+f+1] <- "Rejected"
     } else {
       vertex.label[a+f+1] <- rejected.label
-      
+
   }
   return(vertex.label)
 }
@@ -3480,14 +3525,14 @@ VertexLabelsPAS <- function(a, f, a.lab, f.lab, vertex.label=NULL, rejected.labe
 ##' @param rejected.shape the shape of the rejected node.
 ##' @return A vector of shapes for a PAS graph.
 ##' author Hillary Sanders
-MakeShapesPAS <- function(a, f, rejected.shape){ 
-  
+MakeShapesPAS <- function(a, f, rejected.shape){
+
   shape.a <- rep("rectangle", a)
-  
+
   shape.f <- rep("rectangle", f)
-    
+
   shape <- c(shape.a, shape.f, rejected.shape)
-    
+
   return (shape)
   }
 # end MakeShapesPAS
@@ -3505,9 +3550,9 @@ VertexSizesPAS <- function(a, f, rejected.scale){
   size.a <- rep(2/a, a)
   size.f <- rep(2/f, f)
   size.rejected <- 30*rejected.scale
-  
+
   vertex.sizes <- c(size.a, size.f, size.rejected)
-  
+
   return(vertex.sizes)
   }
 # end vertex.sizes
@@ -3530,93 +3575,93 @@ VertexSizesPAS <- function(a, f, rejected.scale){
 VertexColorsPAS <- function(a, f, merged,
                              vertex.color.by, vertex.rejected.color,
                              vertex.col=NULL){
-                             	
-    
+
+
   succeeded <- merged[merged$final.idx.or.rejected != 0, 2:4]
-    
+
   final.order <- order(succeeded[, 3])
-    
+
   succeeded.ordered <- succeeded[final.order, ]
   colnames(succeeded.ordered) <- c("topic", "committee", "final.idx")
-  
+
   final.idx <- data.frame(1:f)
   colnames(final.idx) <- "final.idx"
-  
+
   final <- join (final.idx, succeeded.ordered)
-          
+
   if(vertex.color.by == "c" | vertex.color.by == "committees"){
-    
+
     coms.amends <- as.numeric(factor(merged$committee))
-    
+
     coms.final <- as.numeric(factor(final$committee))
-    
+
     coms.final[is.na(coms.final)] <- max(coms.final, na.rm=TRUE) + 1
-    
+
     num.coms <- length(unique(coms.amends))
 
-    if(is.null(vertex.col)){ 
-      
+    if(is.null(vertex.col)){
+
        vertex.col <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
                     "#FFFF33", "#A65628", "#999999")
     }
-    
+
     if (length(vertex.col) < num.coms){
       warning("length(vertex.col) is too small, length(vertex.col) should
               be ≥ number-of-committees. Colors will be recycled!")
   }
       vertex.col <- rep(vertex.col, ceiling(num.coms/length(vertex.col)))
-    
+
     vertex.col.short <- c(vertex.col[1:(max(coms.amends))],"white")
-    
+
     vertex.color <- c(vertex.col.short[c(coms.amends,coms.final)],vertex.rejected.color)
-    
+
     colors.used.in.vertices <- vertex.col[1:num.coms]
 
   }
-  
+
   if(vertex.color.by == "t" | vertex.color.by == "topics"){
-    
+
     tops.amends <- merged$topic.idx
-    
+
     tops.final <- final$topic
-    
+
     tops.final[is.na(tops.final)] <- max(tops.final,na.rm=TRUE) + 1
-    
+
     num.tops <- length(unique(tops.amends))
 
-    if(is.null(vertex.col)){ 
+    if(is.null(vertex.col)){
       vertex.col <- c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854",
                     "#FFD92F", "#E5C494", "#B3B3B3")
       }
-    
+
     if (length(vertex.col) < num.tops){
-    warning("length(vertex.col) is too small, length(vertex.col) should 
+    warning("length(vertex.col) is too small, length(vertex.col) should
             be ≥ number-of-topics. Colors will be recycled!")
     }
-    
+
     vertex.col <- rep(vertex.col, ceiling(num.tops/length(vertex.col)))
 
     tops.final <- vertex.col[tops.final]
     tops.amends <- vertex.col[tops.amends]
-    
-    vertex.color <- c(tops.amends,tops.final,vertex.rejected.color)  
-    
+
+    vertex.color <- c(tops.amends,tops.final,vertex.rejected.color)
+
     colors.used.in.vertices <- vertex.col[1:num.tops]
     }
-  
+
   return(list(vertex.color, colors.used.in.vertices))
-  
+
   }
 # end VertexColorsPAS
 
 
 ##' Creates the "x"th layout coordinates for PlotAmendsSuccess(). This function
 ##' is called inside of PlotAmendsSuccess() to create the layout: coordinates
-##' for two layers consisting of 1) amendments (a of them), 2) the final bill 
+##' for two layers consisting of 1) amendments (a of them), 2) the final bill
 ##' (all of the paragraphs (or other text chunks) in the final bill, as well as
 ##' a rejected bin placed in the middle of the graph.
 ##' @title LayoutPAS
-##' @param x the index of the coordinates to be created. 
+##' @param x the index of the coordinates to be created.
 ##' @param a the number of amendments.
 ##' @param f the number of text chunks (generally, paragraphs) in the final bill.
 ##' @return the xth layout coordinates for PlotAmendsSuccess().
@@ -3634,13 +3679,13 @@ LayoutPAS <- function(x, a, f){
 
 ##' Creates a three tiered directed acyclic graph to visualize bill evolution.
 ##' Individual amendments are either connected (with an arrow) to a rejected bin if the
-##' amendment was not accepted into the final bill, or if it was, to its place in 
+##' amendment was not accepted into the final bill, or if it was, to its place in
 ##' the final bill.
 ##' @title PlotAmendsSuccess
 ##' @param model.amend.hierarchy.out the output of ModelAmendHierarchy().
 ##' @param get.likely.composite.out the output of get.likely.composite().
 ##' @param committees the object "committees", used in other parts of this
-##' package, consisting of a vector of committee names for each ith 
+##' package, consisting of a vector of committee names for each ith
 ##' amendment (accepted, rejected, and discarded amendments).
 ##' @param edge.color.by Either "topics" ("t") or "committees" ("c") may be chosen by the user.
 ##' If "topics", edge color will be based on the topic each amendment pertains to. If
@@ -3653,18 +3698,18 @@ LayoutPAS <- function(x, a, f){
 ##' own color vectors of length c or t.
 ##' @param edge.width.scale Scale edge widths. Default = 1
 ##' @param arrowhead.size Size of edge arrowheads. Default = 0.
-##' @param rejected.shape The node shape of the rejected node. Possible 
+##' @param rejected.shape The node shape of the rejected node. Possible
 ##' shapes are "circle", "square", "csquare", "rectangle", "crectangle", "vrectangle",
 ##' and "none". Default = "none".
-##' @param rejected.label rejected node label. Even if vertex.label = NULL, you may still 
+##' @param rejected.label rejected node label. Even if vertex.label = NULL, you may still
 ##' customize the rejected label. Default = NULL.
 ##' @param af.scale Scale the size of the amendment and final nodes.
 ##' @param rejected.scale Scale the size of the rejected node.
 ##' @param label.font Font type for the labels. Default = 3.
 ##' @param label.cex Font size for the labels. Default = .75.
-##' @param vertex.label Vector of labels for each amendments, each final bill 
+##' @param vertex.label Vector of labels for each amendments, each final bill
 ##' paragraph, and the rejected bin. If left NULL, ten (relatively) equidistant
-##' nodes will be labeled by their paragraph indices for both amendments and 
+##' nodes will be labeled by their paragraph indices for both amendments and
 ##' the final bill, while the rejected amendments bin will be labeled "Rejected".
 ##' @param a.lab the number of visible labels on the bottom amendments tier.
 ##' default = 10.
@@ -3674,14 +3719,14 @@ LayoutPAS <- function(x, a, f){
 ##' Either "topics" ("t") or "committees" ("c") may be passed.
 ##' If "topics", vertex colors will be based on the topic each amendment pertains to.
 ##' "committees", vertex colors will be based on the committee each amendment was submitted
-##' by. 
+##' by.
 ##' @param vertex.col A vector of colors, of length x where x is the number of topics if
 ##' vertex.color.by = "t" or where x is the number of committees if vertex.color.by = "c".
-##' If NULL, colors from RColorBrewer will be used. NOTE that if c or t (whichever 
+##' If NULL, colors from RColorBrewer will be used. NOTE that if c or t (whichever
 ##' matters in your case) is greater that 8, colors will be recycled!
 ##' If c or t > 8, users should pass their own color vectors, of length > 8 one
 ##' color for each committee or topic.
-##' Those paragraphs in the final bill which did come come from an amendment 
+##' Those paragraphs in the final bill which did come come from an amendment
 ##' stay white.
 ##' @param main The plot title. Default = "Amendments' Destinations".
 ##' @param legend.x X axis placement of the legend.
@@ -3701,7 +3746,7 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
                              main=NULL,
                              legend.x=-1.25, legend.y=.75, legend.cex=.5
                              ){
-  
+
   merged <- OutToInPAS (model.amend.hierarchy.out,
                         get.likely.composite.out,
                         committees)
@@ -3709,44 +3754,44 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
   destinations <- merged$final.idx.or.rejected
 
   ## number of paragraphs in final bill.
-  f <- nrow(get.likely.composite.out) 
+  f <- nrow(get.likely.composite.out)
   ## number of amendments.
-  a <- length(destinations) 
+  a <- length(destinations)
   amends.plot.idx <- 1:a
   final.idx <- 1:f
-  
-  
+
+
   edge.colors <- EdgeColorPAS(merged, edge.color.by, edge.col)
   edge.color <- edge.colors[[1]]
   colors.used.in.edges <- edge.colors[[2]]
-  
+
   destinations[destinations==0] <- f+1
   ## So that each amendment destined for the rejected bin will go to that last,
   ## (a+f+1)th, vertex, with index a+f, since igraph indices start at 0:
-  
+
   mat <- matrix(c(amends.plot.idx-1, 0, 0, destinations+a-1, (f+a-1), a), ncol=2)
-  g <- as.numeric(t(mat))          
+  g <- as.numeric(t(mat))
   graph <- graph(g)
   ## the 0 -> f+a-1 and 0 -> a are to ensure that all 1:f final paragraphs are
-  ## shown in the graph. They will have no color, so will be invisible. The 
-  ## (f+a+1)th vertex will be the rejected bin, with graph index (f+a), since igraph 
+  ## shown in the graph. They will have no color, so will be invisible. The
+  ## (f+a+1)th vertex will be the rejected bin, with graph index (f+a), since igraph
   ## indices start at 0.
-  
+
   x <- (a+f+1)
   y <- 1:x
   lay.mat <- t(sapply(y,FUN=LayoutPAS, a=a, f=f))
-  
+
   vertex.label <- VertexLabelsPAS(a, f, a.lab, f.lab, vertex.label, rejected.label)
-  
+
   v.shape <- MakeShapesPAS(a, f, rejected.shape)
-  
+
   vertex.size <- VertexSizesPAS(a, f, rejected.scale)
-  
+
   vertex.colors <- VertexColorsPAS(a, f, merged, vertex.color.by,
                                    vertex.rejected.color, vertex.col)
   vertex.color <- vertex.colors[[1]]
   colors.used.in.vertices <- vertex.colors[[2]]
-  
+
   plot(graph, layout=lay.mat, edge.arrow.width=arrowhead.size,
        edge.width=edge.width.scale, edge.color=edge.color, vertex.color=vertex.color,
        vertex.frame.color=vertex.color, vertex.shape=v.shape, vertex.size=vertex.size,
@@ -3756,34 +3801,33 @@ PlotAmendsSuccess <- function(model.amend.hierarchy.out, get.likely.composite.ou
 
   if (edge.color.by == "topics" | edge.color.by == "t"){
     leg.text <- paste("Topic",1:length(unique(merged$topic.idx)), sep=" ")
-    
+
     col <- colors.used.in.edges
-    
+
     if(vertex.color.by == "committees" | vertex.color.by == "c"){
-      
+
       more.leg.text <- levels(factor(merged$committee))
       leg.text <- c(leg.text, more.leg.text)
-      
+
       col <- c(col, colors.used.in.vertices)
       }
     }
-  
+
   if (edge.color.by == "committees" | edge.color.by =="c"){
     leg.text <- levels(factor(merged$committee))
-    
+
     col <- colors.used.in.edges
-  
+
     if (vertex.color.by == "topics" | vertex.color.by == "t"){
-      
+
       more.leg.text <- paste("Topic", 1:length(unique(merged$topic.idx)), sep=" ")
       leg.text <- c(leg.text, more.leg.text)
-      
-      col <- c(col, colors.used.in.vertices)    
+
+      col <- c(col, colors.used.in.vertices)
       }
     }
-  
+
   legend(legend.x,legend.y, leg.text, col, bg="lavenderblush",cex=legend.cex)
-  
+
   }
 # Ends PlotAmendsSuccess
-  
