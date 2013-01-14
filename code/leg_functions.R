@@ -200,10 +200,15 @@ MapFun <- function(cvsobject,
 
       }else if(which.map == "contest"){
 
-        boolean.dist <- ifelse(filter.fun=="max",
-                               dist.vec > contest.threshold,
-                               dist.vec < contest.threshold
-                               )
+        if(filter.fun=="max"){
+
+          boolean.dist <- dist.vec > contest.threshold
+
+        }else{
+
+          boolean.dist <- dist.vec < contest.threshold
+
+        }
         print(summary(boolean.dist))
         out <- sum(boolean.dist, na.rm=TRUE)
 
