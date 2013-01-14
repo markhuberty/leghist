@@ -208,7 +208,7 @@ MapFun <- function(cvsobject,
         }
 
         contestation.count <- sum(boolean.dist, na.rm=TRUE)
-        contestation.sd <- sd(distance.vec[boolean.dist], na.rm=TRUE)
+        contestation.sd <- sd(dist.vec[boolean.dist], na.rm=TRUE)
 
         return(c(contestation.count, contestation.sd))
 
