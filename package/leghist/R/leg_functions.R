@@ -194,14 +194,22 @@ MapFun <- function(cvsobject,
     dist.vec = dist.mat[,x]
     if(which.map == "amend")
       {
+
         idx.vec <- order(dist.vec, decreasing=d)
         return(c(idx.vec[1], dist.vec[idx.vec[1]]))
+
       }else if(which.map == "contest"){
+
         boolean.dist <- ifelse(filter.fun=="max",
                                dist.vec > contest.threshold,
                                dist.vec < contest.threshold
                                )
-        return(sum(boolean.dist, na.rm=TRUE))
+        print(summary(boolean.dist))
+        out <- sum(boolean.dist, na.rm=TRUE)
+
+
+        return(out)
+
       }
   })
 
@@ -213,7 +221,7 @@ MapFun <- function(cvsobject,
 
       names(df.out) <- c("idx.doc.2", "idx.doc.1", "distance")
     }else{
-
+      print(summary(match.idx))
       df.out <- data.frame(1:length(idx.final),
                            match.idx
                            )
