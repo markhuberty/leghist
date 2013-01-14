@@ -51,6 +51,8 @@ NULL ## terminates the import statement, don't take it out.
 ##' @param filter.fun one of "min" or "max", indicating how the best
 ##' match should be chosen. The choice should depend on whether
 ##' distance.fun returns returns distance (min) or similarity (max)
+##' @param which.map one of "amend" or "contest". See MapFun for details
+##' @param contest.threshold See MapFun for details
 ##' @return A matrix mapping from the sections of the final document
 ##' to the sections of both the initial document and any proposed
 ##' amendments, with distance values for each matched pair.
@@ -60,7 +62,7 @@ MapBills <- function(cvsobject,
                      distance.fun="CosineMat",
                      filter.fun="max",
                      which.map="amend",
-                     ...
+                     contest.threshold=NULL
                      ){
 
   stopifnot(class(cvsobject) == "leghistCVS")
@@ -80,7 +82,7 @@ MapBills <- function(cvsobject,
                               idx.collection=idx.collection,
                               filter.fun,
                               which.map=which.map,
-                              ...
+                              contest.threshold=contest.threshold
                               )
 
 
@@ -95,7 +97,7 @@ MapBills <- function(cvsobject,
                                 idx.collection=idx.collection,
                                 filter.fun,
                                 which.map=which.map,
-                                ...
+                                contest.threshold=contest.threshold
                                 )
 
       map.all <- cbind(map.initial.final,
